@@ -6,7 +6,7 @@ export default function AppLayout() {
         <div className="min-h-screen bg-white">
             <Navbar />
 
-            <main className="pt-[88px]">
+            <main className="pt-[px]">
                 <Outlet />
             </main>
         </div>

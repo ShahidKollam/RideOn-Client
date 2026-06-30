@@ -1,16 +1,16 @@
 import { useState } from 'react'
 
-import AuthLayout, { Divider, PhoneInput, SocialButton } from '@/components/auth/AuthLayout'
+import AuthLayout, { EmailInput } from '@/components/auth/AuthLayout'
 import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
-    const [loginPhone, setLoginPhone] = useState('')
+    const [loginEmail, setLoginEmail] = useState('')
 
     const handleLogin = (e) => {
         e.preventDefault()
 
         console.log({
-            phone: loginPhone,
+            email: loginEmail,
         })
     }
 
@@ -25,25 +25,22 @@ export default function LoginPage() {
                     <p className="mt-3 text-sm leading-relaxed text-slate-500">
                         Login to continue your ride with RideOn
                     </p>
+
+                    <p className="mt-1 text-xs font-medium text-rideon-blue">
+                        Exclusive for NIT students only
+                    </p>
                 </div>
 
                 <div className="mt-8">
-                    <PhoneInput value={loginPhone} onChange={setLoginPhone} />
+                    <EmailInput value={loginEmail} onChange={setLoginEmail} />
                 </div>
 
                 <Button
                     type="submit"
                     className="mt-6 h-11 w-full rounded-lg bg-rideon-blue font-semibold text-white shadow-[0_4px_14px_rgba(29,140,248,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_28px_rgba(29,140,248,0.35)]"
                 >
-                    Send OTP
+                    Continue
                 </Button>
-
-                <Divider />
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <SocialButton provider="Google" />
-                    <SocialButton provider="Facebook" />
-                </div>
             </form>
         </AuthLayout>
     )

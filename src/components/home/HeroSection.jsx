@@ -72,7 +72,7 @@ export default function HeroSection() {
             {/* Hero Image */}
             {/* Mobile & Tablet Image */}
             <img
-                src="/bg-croped-bike-2.png"
+                src="/home_bg_img.png"
                 alt=""
                 aria-hidden
                 className={cn(
@@ -89,7 +89,7 @@ export default function HeroSection() {
             {/* Desktop Image */}
             <div className="absolute -inset-y-45 top-10 right-10 z-0 hidden items-end justify-end lg:flex lg:w-[60%]">
                 <img
-                    src="/bg-croped-bike-2.png"
+                    src="/home_bg_img.png"
                     alt=""
                     aria-hidden
                     className={cn(
