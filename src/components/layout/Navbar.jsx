@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { Menu, X } from "lucide-react"
+import { LogOut, Menu, UserCircle, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/context/ToastContext"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
@@ -20,6 +22,8 @@ export default function Navbar() {
 
     const navigate = useNavigate()
     const location = useLocation()
+    const { isAuthenticated, user, logout } = useAuth()
+    const { showToast } = useToast()
 
     useEffect(() => {
         document.body.style.overflow = mobileOpen ? "hidden" : ""
@@ -73,6 +77,25 @@ export default function Navbar() {
         }
 
         return false
+    }
+
+    const handleLogout = async () => {
+        try {
+            await logout()
+            setMobileOpen(false)
+            showToast({
+                type: 'success',
+                title: 'Logged out',
+                description: 'Your RideOn session has ended.',
+            })
+            navigate('/')
+        } catch {
+            showToast({
+                type: 'error',
+                title: 'Logout failed',
+                description: 'Please try again.',
+            })
+        }
     }
 
     return (
@@ -131,20 +154,46 @@ export default function Navbar() {
                 </nav>
 
                 <div className="flex items-center gap-2 sm:gap-2.5">
-                    <Button
-                        variant="outline"
-                        className="hidden h-9 rounded-sm border-rideon-blue px-4 text-sm font-medium text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:inline-flex lg:h-7 lg:px-6"
-                        asChild
-                    >
-                        <Link to="/auth/login">Log In</Link>
-                    </Button>
+                    {isAuthenticated ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                className="hidden h-9 rounded-sm border-rideon-blue px-3 text-sm font-medium text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:inline-flex lg:h-7 lg:px-4"
+                                asChild
+                            >
+                                <Link to="/auth/complete-profile">
+                                    <UserCircle className="size-4" strokeWidth={2.25} />
+                                    {user?.name || 'Profile'}
+                                </Link>
+                            </Button>
 
-                    <Button
-                        className="hidden h-9 rounded-sm bg-rideon-blue px-4 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:inline-flex lg:h-7 lg:px-6"
-                        asChild
-                    >
-                        <Link to="/auth/signup">Sign Up</Link>
-                    </Button>
+                            <Button
+                                type="button"
+                                onClick={handleLogout}
+                                className="hidden h-9 rounded-sm bg-rideon-blue px-4 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:inline-flex lg:h-7 lg:px-5"
+                            >
+                                <LogOut className="size-4" strokeWidth={2.25} />
+                                Logout
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                variant="outline"
+                                className="hidden h-9 rounded-sm border-rideon-blue px-4 text-sm font-medium text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:inline-flex lg:h-7 lg:px-6"
+                                asChild
+                            >
+                                <Link to="/auth/login">Log In</Link>
+                            </Button>
+
+                            <Button
+                                className="hidden h-9 rounded-sm bg-rideon-blue px-4 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:inline-flex lg:h-7 lg:px-6"
+                                asChild
+                            >
+                                <Link to="/auth/signup">Sign Up</Link>
+                            </Button>
+                        </>
+                    )}
 
                     <button
                         type="button"
@@ -210,30 +259,59 @@ export default function Navbar() {
                     </nav>
 
                     <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-4 sm:flex-row">
-                        <Button
-                            variant="outline"
-                            className="h-10 w-full rounded-lg border-rideon-blue text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:flex-1"
-                            asChild
-                        >
-                            <Link
-                                to="/auth/login"
-                                onClick={() => setMobileOpen(false)}
-                            >
-                                Log In
-                            </Link>
-                        </Button>
+                        {isAuthenticated ? (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    className="h-10 w-full rounded-lg border-rideon-blue text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:flex-1"
+                                    asChild
+                                >
+                                    <Link
+                                        to="/auth/complete-profile"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <UserCircle className="size-4" strokeWidth={2.25} />
+                                        Profile
+                                    </Link>
+                                </Button>
 
-                        <Button
-                            className="h-10 w-full rounded-lg bg-rideon-blue text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:flex-1"
-                            asChild
-                        >
-                            <Link
-                                to="/auth/signup"
-                                onClick={() => setMobileOpen(false)}
-                            >
-                                Sign Up
-                            </Link>
-                        </Button>
+                                <Button
+                                    type="button"
+                                    onClick={handleLogout}
+                                    className="h-10 w-full rounded-lg bg-rideon-blue text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:flex-1"
+                                >
+                                    <LogOut className="size-4" strokeWidth={2.25} />
+                                    Logout
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    className="h-10 w-full rounded-lg border-rideon-blue text-rideon-blue transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/5 hover:shadow-md sm:flex-1"
+                                    asChild
+                                >
+                                    <Link
+                                        to="/auth/login"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Log In
+                                    </Link>
+                                </Button>
+
+                                <Button
+                                    className="h-10 w-full rounded-lg bg-rideon-blue text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_30px_rgba(29,140,248,0.35)] sm:flex-1"
+                                    asChild
+                                >
+                                    <Link
+                                        to="/auth/signup"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Sign Up
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

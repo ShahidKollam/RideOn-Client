@@ -1,124 +1,181 @@
-import { useState } from 'react'
-import { Building2, GraduationCap, IdCard, Phone, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-import AuthLayout from '@/components/auth/AuthLayout'
-import { Button } from '@/components/ui/button'
+import SignupStepTwo from '@/components/signup/SignupStepTwo'
+import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
+import { getApiErrorMessage } from '@/lib/apiClient'
+import { completeProfile } from '@/services/authService'
+
+const initialValues = {
+    mobileNumber: '',
+    hostel: '',
+    department: '',
+    yearOfStudy: '',
+    licenseNumber: '',
+    acceptedTerms: false,
+}
+
+const mobilePattern = /^[6-9]\d{9}$/
+const licensePattern = /^[A-Z]{2}[0-9]{2}[\s-]?[0-9A-Z]{4,13}$/i
+
+function validateProfile(values) {
+    const errors = {}
+
+    if (!values.mobileNumber.trim()) {
+        errors.mobileNumber = 'Mobile number is required.'
+    } else if (!mobilePattern.test(values.mobileNumber.trim())) {
+        errors.mobileNumber = 'Enter a valid 10-digit Indian mobile number.'
+    }
+
+    if (!values.hostel) {
+        errors.hostel = 'Hostel is required.'
+    }
+
+    if (!values.department) {
+        errors.department = 'Department is required.'
+    }
+
+    if (!values.yearOfStudy) {
+        errors.yearOfStudy = 'Year of study is required.'
+    }
+
+    if (!values.licenseNumber.trim()) {
+        errors.licenseNumber = 'Driving license number is required.'
+    } else if (!licensePattern.test(values.licenseNumber.trim())) {
+        errors.licenseNumber = 'Enter a valid driving license number.'
+    }
+
+    if (!values.acceptedTerms) {
+        errors.acceptedTerms = 'You must accept the terms to continue.'
+    }
+
+    return errors
+}
 
 export default function ProfilePage() {
-    const [profile, setProfile] = useState({
-        name: '',
-        phone: '',
-        studentId: '',
-        department: '',
-        year: '',
-    })
+    const [values, setValues] = useState(initialValues)
+    const [errors, setErrors] = useState({})
+    const [loading, setLoading] = useState(false)
+    const navigate = useNavigate()
+    const { user, updateUser } = useAuth()
+    const { showToast } = useToast()
 
-    const updateProfile = (field, value) => {
-        setProfile((current) => ({
+    useEffect(() => {
+        if (user?.onboardingStatus === 'PROFILE_COMPLETED') {
+            navigate('/', { replace: true })
+        }
+    }, [navigate, user?.onboardingStatus])
+
+    const updateValue = (field, value) => {
+        setValues((current) => ({
             ...current,
             [field]: value,
         }))
+
+        setErrors((current) => {
+            if (!current[field]) return current
+
+            const next = { ...current }
+            delete next[field]
+            return next
+        })
     }
 
-    const handleCompleteProfile = (e) => {
-        e.preventDefault()
+    const handleSubmit = async (event) => {
+        event.preventDefault()
 
-        console.log(profile)
+        const nextErrors = validateProfile(values)
+        setErrors(nextErrors)
+
+        if (Object.keys(nextErrors).length > 0) return
+
+        setLoading(true)
+
+        try {
+            const response = await completeProfile({
+                phone: values.mobileNumber.trim(),
+                hostel: values.hostel,
+                department: values.department,
+                yearOfStudy: Number.parseInt(values.yearOfStudy, 10),
+                drivingLicenseNumber: values.licenseNumber.trim().toUpperCase(),
+                acceptedTerms: values.acceptedTerms,
+            })
+
+            updateUser({
+                ...user,
+                ...response.data?.data,
+                onboardingStatus: 'PROFILE_COMPLETED',
+            })
+
+            showToast({
+                type: 'success',
+                title: 'Profile completed',
+                description: 'Your RideOn account is ready.',
+            })
+
+            navigate('/', { replace: true })
+        } catch (error) {
+            showToast({
+                type: 'error',
+                title: 'Could not complete profile',
+                description: getApiErrorMessage(error, 'Please review your details and try again.'),
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
-        <AuthLayout showTabs={false} showTerms={false}>
-            <form onSubmit={handleCompleteProfile}>
-                <div className="text-center">
-                    <h1 className="text-[1.75rem] leading-tight font-extrabold text-rideon-dark">
-                        Complete Profile
-                    </h1>
+        <div className="min-h-screen overflow-hidden bg-white">
+            <section className="relative px-4 pt-32 pb-8 sm:px-6 sm:pt-36 lg:px-8 lg:pt-40">
+                <div className="pointer-events-none absolute top-32 -right-24 hidden size-64 rounded-full border-[42px] border-rideon-blue/10 lg:block" />
+                <div className="pointer-events-none absolute bottom-28 -left-24 hidden size-52 rounded-full border-[36px] border-rideon-green/12 lg:block" />
 
-                    <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                        Add your student details to finish setting up RideOn.
-                    </p>
-                </div>
+                <div className="relative mx-auto max-w-7xl">
+                    <div className="mx-auto max-w-4xl text-center">
+                        <h1 className="text-3xl leading-tight font-extrabold text-rideon-dark sm:text-4xl lg:text-[2.65rem]">
+                            Complete Your Ride<span className="text-rideon-green">On</span> Profile
+                        </h1>
 
-                <div className="mt-8 space-y-4">
-                    <div className="relative">
-                        <User className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                            type="text"
-                            value={profile.name}
-                            onChange={(e) => updateProfile('name', e.target.value)}
-                            placeholder="Enter your full name"
-                            className="h-12 w-full rounded-lg border border-slate-200 bg-white pr-4 pl-11 text-sm outline-none transition-all focus:border-rideon-blue"
-                            required
-                        />
+                        <p className="mt-5 text-base leading-relaxed text-slate-500 sm:text-lg">
+                            Add your ride-ready details to start booking on campus.
+                        </p>
                     </div>
 
-                    <div className="relative">
-                        <Phone className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-slate-400" />
+                    <div className="mx-auto mt-10 max-w-5xl sm:mt-12">
+                        <div className="space-y-3 sm:space-y-4">
+                            <SignupStepTwo
+                                values={values}
+                                errors={errors}
+                                unlocked
+                                loading={loading}
+                                onChange={updateValue}
+                                onSubmit={handleSubmit}
+                                submitLabel="Complete Profile"
+                            />
 
-                        <input
-                            type="tel"
-                            inputMode="numeric"
-                            value={profile.phone}
-                            onChange={(e) => updateProfile('phone', e.target.value)}
-                            placeholder="Enter your mobile number"
-                            className="h-12 w-full rounded-lg border border-slate-200 bg-white pr-4 pl-11 text-sm outline-none transition-all focus:border-rideon-blue"
-                            required
-                        />
-                    </div>
+                            <section className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] sm:px-8">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
+                                        <ShieldCheck className="size-6" strokeWidth={2.25} />
+                                    </div>
 
-                    <div className="relative">
-                        <IdCard className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                            type="text"
-                            value={profile.studentId}
-                            onChange={(e) => updateProfile('studentId', e.target.value)}
-                            placeholder="Student ID / Roll Number"
-                            className="h-12 w-full rounded-lg border border-slate-200 bg-white pr-4 pl-11 text-sm outline-none transition-all focus:border-rideon-blue"
-                            required
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <Building2 className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                            type="text"
-                            value={profile.department}
-                            onChange={(e) => updateProfile('department', e.target.value)}
-                            placeholder="Department"
-                            className="h-12 w-full rounded-lg border border-slate-200 bg-white pr-4 pl-11 text-sm outline-none transition-all focus:border-rideon-blue"
-                            required
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <GraduationCap className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-slate-400" />
-
-                        <select
-                            value={profile.year}
-                            onChange={(e) => updateProfile('year', e.target.value)}
-                            className="h-12 w-full appearance-none rounded-lg border border-slate-200 bg-white pr-4 pl-11 text-sm text-rideon-dark outline-none transition-all focus:border-rideon-blue"
-                            required
-                        >
-                            <option value="">Year</option>
-                            <option value="1">1st Year</option>
-                            <option value="2">2nd Year</option>
-                            <option value="3">3rd Year</option>
-                            <option value="4">4th Year</option>
-                            <option value="5">5th Year</option>
-                        </select>
+                                    <div>
+                                        <h2 className="text-sm font-extrabold text-rideon-dark">
+                                            Verified students only
+                                        </h2>
+                                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                                            Profile completion keeps RideOn safe for NIT Calicut students.
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 </div>
-
-                <Button
-                    type="submit"
-                    className="mt-6 h-11 w-full rounded-lg bg-rideon-blue font-semibold text-white shadow-[0_4px_14px_rgba(29,140,248,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_28px_rgba(29,140,248,0.35)]"
-                >
-                    Complete Profile
-                </Button>
-            </form>
-        </AuthLayout>
+            </section>
+        </div>
     )
 }

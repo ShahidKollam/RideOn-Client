@@ -3,6 +3,9 @@ import { ShieldCheck } from 'lucide-react'
 
 import SignupStepOne from '@/components/signup/SignupStepOne'
 import SignupStepTwo from '@/components/signup/SignupStepTwo'
+import { getApiErrorMessage } from '@/lib/apiClient'
+import { useToast } from '@/context/ToastContext'
+import { sendLoginLink, signupStudent } from '@/services/authService'
 
 const initialValues = {
     fullName: '',
@@ -16,8 +19,6 @@ const initialValues = {
 }
 
 const nitcEmailPattern = /^[^\s@]+@nitc\.ac\.in$/i
-const mobilePattern = /^[6-9]\d{9}$/
-const licensePattern = /^[A-Z]{2}[0-9]{2}[\s-]?[0-9A-Z]{4,13}$/i
 
 function validateStepOne(values) {
     const errors = {}
@@ -39,41 +40,13 @@ function validateStepOne(values) {
     return errors
 }
 
-function validateStepTwo(values) {
-    const errors = {}
-
-    if (!values.mobileNumber.trim()) {
-        errors.mobileNumber = 'Mobile number is required.'
-    } else if (!mobilePattern.test(values.mobileNumber.trim())) {
-        errors.mobileNumber = 'Enter a valid 10-digit Indian mobile number.'
-    }
-
-    if (!values.hostel) {
-        errors.hostel = 'Hostel is required.'
-    }
-
-    if (!values.department) {
-        errors.department = 'Department is required.'
-    }
-
-    if (!values.yearOfStudy) {
-        errors.yearOfStudy = 'Year of study is required.'
-    }
-
-    if (!values.licenseNumber.trim()) {
-        errors.licenseNumber = 'Driving license number is required.'
-    } else if (!licensePattern.test(values.licenseNumber.trim())) {
-        errors.licenseNumber = 'Enter a valid driving license number.'
-    }
-
-    return errors
-}
-
 export default function SignupForm() {
     const [values, setValues] = useState(initialValues)
     const [errors, setErrors] = useState({})
-    const [emailVerified, setEmailVerified] = useState(false)
-    const [verifying, setVerifying] = useState(false)
+    const [linkSent, setLinkSent] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
+    const [resending, setResending] = useState(false)
+    const { showToast } = useToast()
 
     const updateValue = (field, value) => {
         setValues((current) => ({
@@ -90,52 +63,74 @@ export default function SignupForm() {
         })
 
         if (field === 'nitcEmail') {
-            setEmailVerified(false)
+            setLinkSent(false)
         }
     }
 
-    const handleVerifyIdentity = (event) => {
+    const handleSignup = async (event) => {
         event.preventDefault()
 
         const stepErrors = validateStepOne(values)
-        setErrors((current) => ({
-            ...current,
-            ...stepErrors,
-        }))
+        setErrors(stepErrors)
 
         if (Object.keys(stepErrors).length > 0) return
 
-        setVerifying(true)
+        setSubmitting(true)
 
-        window.setTimeout(() => {
-            setEmailVerified(true)
-            setVerifying(false)
-        }, 450)
+        try {
+            await signupStudent({
+                name: values.fullName.trim(),
+                studentId: values.studentId.trim(),
+                email: values.nitcEmail.trim().toLowerCase(),
+            })
+
+            setLinkSent(true)
+            showToast({
+                type: 'success',
+                title: 'Signup successful',
+                description: 'Check your NITC email for the magic login link.',
+            })
+        } catch (error) {
+            const message = error instanceof Error && !error.response
+                ? error.message
+                : getApiErrorMessage(error, 'Unable to create your account.')
+
+            showToast({
+                type: 'error',
+                title: 'Signup failed',
+                description: message,
+            })
+        } finally {
+            setSubmitting(false)
+        }
     }
 
-    const handleCreateAccount = (event) => {
-        event.preventDefault()
+    const handleResendLink = async () => {
+        const email = values.nitcEmail.trim().toLowerCase()
 
-        if (!emailVerified) return
+        if (!nitcEmailPattern.test(email)) {
+            setErrors({ nitcEmail: 'Use your @nitc.ac.in email address.' })
+            return
+        }
 
-        const stepErrors = validateStepTwo(values)
-        setErrors((current) => ({
-            ...current,
-            ...stepErrors,
-        }))
+        setResending(true)
 
-        if (Object.keys(stepErrors).length > 0) return
-
-        console.log({
-            fullName: values.fullName.trim(),
-            studentId: values.studentId.trim(),
-            nitcEmail: values.nitcEmail.trim().toLowerCase(),
-            mobileNumber: values.mobileNumber.trim(),
-            hostel: values.hostel,
-            department: values.department,
-            yearOfStudy: values.yearOfStudy,
-            licenseNumber: values.licenseNumber.trim(),
-        })
+        try {
+            await sendLoginLink(email)
+            showToast({
+                type: 'success',
+                title: 'Magic link sent',
+                description: 'Please check your NITC inbox.',
+            })
+        } catch (error) {
+            showToast({
+                type: 'error',
+                title: 'Could not resend link',
+                description: getApiErrorMessage(error, 'Please try again in a moment.'),
+            })
+        } finally {
+            setResending(false)
+        }
     }
 
     return (
@@ -143,18 +138,21 @@ export default function SignupForm() {
             <SignupStepOne
                 values={values}
                 errors={errors}
-                verified={emailVerified}
-                verifying={verifying}
+                linkSent={linkSent}
+                submitting={submitting}
+                resending={resending}
                 onChange={updateValue}
-                onVerify={handleVerifyIdentity}
+                onSubmit={handleSignup}
+                onResend={handleResendLink}
             />
 
             <SignupStepTwo
                 values={values}
                 errors={errors}
-                unlocked={emailVerified}
+                unlocked={false}
                 onChange={updateValue}
-                onSubmit={handleCreateAccount}
+                onSubmit={(event) => event.preventDefault()}
+                submitLabel="Complete After Email Verification"
             />
 
             <section className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] sm:px-8">

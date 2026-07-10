@@ -1,4 +1,3 @@
-import Navbar from "@/components/layout/Navbar"
 import HeroSection from "@/components/home/HeroSection"
 import HowItWorks from "@/components/home/HowItWorks"
 import PromoBanner from "@/components/home/PromoBanner"
@@ -6,7 +5,6 @@ import PromoBanner from "@/components/home/PromoBanner"
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
       <main className="pt-[88px] ">
         <HeroSection />
         <HowItWorks />

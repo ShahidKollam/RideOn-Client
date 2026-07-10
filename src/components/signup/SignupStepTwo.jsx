@@ -31,8 +31,10 @@ export default function SignupStepTwo({
     values,
     errors,
     unlocked,
+    loading = false,
     onChange,
     onSubmit,
+    submitLabel = 'Complete Profile',
 }) {
     return (
         <section
@@ -181,15 +183,37 @@ export default function SignupStepTwo({
                             </p>
                         )}
                     </div>
+
+                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-6 text-slate-500">
+                        <input
+                            type="checkbox"
+                            checked={Boolean(values.acceptedTerms)}
+                            onChange={(event) => onChange('acceptedTerms', event.target.checked)}
+                            aria-invalid={Boolean(errors.acceptedTerms)}
+                            className="mt-1 size-4 rounded border-slate-300 text-rideon-blue accent-rideon-blue"
+                        />
+                        <span>
+                            I accept the{' '}
+                            <a href="/terms" className="font-semibold text-rideon-blue underline-offset-4 hover:underline">
+                                Terms & Conditions
+                            </a>{' '}
+                            and confirm my profile details are accurate.
+                        </span>
+                    </label>
+                    {errors.acceptedTerms && (
+                        <p className="text-sm font-medium text-rideon-blue">
+                            {errors.acceptedTerms}
+                        </p>
+                    )}
                 </fieldset>
 
                 <Button
                     type="submit"
-                    disabled={!unlocked}
+                    disabled={!unlocked || loading}
                     className="h-12 w-full rounded-lg bg-rideon-green text-sm font-bold text-white shadow-[0_8px_20px_rgba(118,192,67,0.24)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-green/90 hover:shadow-[0_12px_28px_rgba(118,192,67,0.32)] disabled:pointer-events-none disabled:opacity-60"
                 >
                     <Lock className="size-4" strokeWidth={2.25} />
-                    Create Account
+                    {loading ? 'Saving...' : submitLabel}
                 </Button>
             </form>
         </section>

@@ -9,7 +9,7 @@ export function FeatureCard({ icon: Icon, title, subtitle, tone = 'blue' }) {
             <div
                 className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full text-white',
-                    tone === 'green' ? 'bg-rideon-green' : 'bg-rideon-blue',
+                    tone === 'green' ? 'bg-rideon-green' : 'bg-rideon-blue'
                 )}
             >
                 <Icon className="size-4" strokeWidth={2.25} />
@@ -46,13 +46,12 @@ function AuthTabs({ active }) {
                 <Link
                     to="/auth/login"
                     className={cn(
-                        'relative flex h-11 flex-1 items-center justify-center text-lg font-semibold transition-colors duration-300',
-                        active === 'login' ? 'text-rideon-blue' : 'text-slate-500 hover:text-rideon-dark',
+                        'relative flex h-11 flex-1 items-center justify-center text-3xl font-semibold transition-colors duration-300',
+                        active === 'login' ? 'text-rideon-blue' : 'text-slate-500 hover:text-rideon-dark'
                     )}
                 >
                     Login
                 </Link>
-
             </div>
         </div>
     )
@@ -125,34 +124,31 @@ function AuthVisualPanel() {
         </div>
     )
 }
-
-export default function AuthLayout({
-    activeTab,
-    children,
-    showTabs = true,
-    showTerms = true,
-}) {
+export default function AuthLayout({ activeTab, children, showTabs = true, showTerms = true }) {
     return (
-        <div className="min-h-dvh bg-white lg:px-8">
-            <div className="mx-auto flex min-h-dvh w-full max-w-7xl items-center justify-center">
-                <div className="min-h-dvh w-full overflow-hidden bg-white lg:h-[min(650px,calc(100dvh-48px))] lg:min-h-0 lg:max-w-[1080px] lg:rounded-2xl ">
+        <div className="relative min-h-dvh overflow-x-hidden bg-white lg:px-8">
+            {/* Background Decorations */}
+            <div className="pointer-events-none fixed inset-0 hidden lg:block">
+                {/* Left Half Circle */}
+                <div className="absolute left-0 top-6/8 h-[270px] w-[270px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[44px] border-rideon-green/10" />
+
+                {/* Right Half Circle */}
+                <div className="absolute right-0 top-3/8 h-[250px] w-[250px] translate-x-1/2 -translate-y-1/2 rounded-full border-[44px] border-rideon-blue/10" />
+            </div>
+
+            <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-7xl items-center justify-center">
+                <div className="min-h-dvh w-full overflow-hidden bg-white lg:h-[min(650px,calc(100dvh-48px))] lg:min-h-0 lg:max-w-[1080px] lg:rounded-2xl">
                     <div className="lg:grid lg:h-full lg:grid-cols-[49%_51%]">
                         <AuthVisualPanel />
 
                         <div className="relative flex min-h-dvh flex-col justify-center border border-rideon-blue/20 px-5 py-8 sm:px-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-16 lg:py-8">
                             <div className="mb-8 flex justify-center lg:hidden">
-                                <img
-                                    src="/favicon.png"
-                                    alt="RideOn"
-                                    className="h-20 w-auto"
-                                />
+                                <img src="/favicon.png" alt="RideOn" className="h-20 w-auto" />
                             </div>
 
                             {showTabs && <AuthTabs active={activeTab} />}
 
-                            <div className="mx-auto w-full max-w-[390px]">
-                                {children}
-                            </div>
+                            <div className="mx-auto w-full max-w-[390px]">{children}</div>
 
                             {showTerms && <AuthTerms />}
                         </div>

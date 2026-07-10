@@ -1,4 +1,4 @@
-import { CheckCircle2, Send, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, MailCheck, Send, ShieldCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import SignupProgress from '@/components/signup/SignupProgress'
@@ -6,22 +6,24 @@ import SignupProgress from '@/components/signup/SignupProgress'
 export default function SignupStepOne({
     values,
     errors,
-    verified,
-    verifying,
+    linkSent,
+    submitting,
+    resending,
     onChange,
-    onVerify,
+    onSubmit,
+    onResend,
 }) {
     return (
         <section className="rounded-xl border border-slate-200 bg-white px-5 py-6 shadow-[0_10px_35px_rgba(15,23,42,0.08)] sm:px-8 lg:grid lg:grid-cols-[260px_1fr] lg:gap-12 lg:px-8 lg:py-12">
             <SignupProgress
                 step={1}
-                title="Verify Your Identity"
-                description="Enter your details below. We'll send a verification code to your NITC email."
-                active={!verified}
-                complete={verified}
+                title="Create Your Account"
+                description="Enter your student details. We'll send a secure magic link to your NITC email."
+                active={!linkSent}
+                complete={linkSent}
             />
 
-            <form onSubmit={onVerify} className="mt-8 space-y-6 lg:mt-0">
+            <form onSubmit={onSubmit} className="mt-8 space-y-6 lg:mt-0">
                 <div>
                     <label htmlFor="fullName" className="block text-sm font-bold text-rideon-dark">
                         Full Name
@@ -88,19 +90,33 @@ export default function SignupStepOne({
                     )}
                 </div>
 
-                {verified ? (
-                    <div className="flex h-12 items-center justify-center gap-2 rounded-lg border border-rideon-green bg-rideon-green/10 text-sm font-bold text-rideon-green transition-all duration-300">
-                        <CheckCircle2 className="size-5" strokeWidth={2.25} />
-                        Email Verified
+                {linkSent ? (
+                    <div className="rounded-lg border border-rideon-green bg-rideon-green/10 px-4 py-4 text-center text-sm text-rideon-dark transition-all duration-300">
+                        <div className="flex items-center justify-center gap-2 font-bold text-rideon-green">
+                            <MailCheck className="size-5" strokeWidth={2.25} />
+                            Check your email
+                        </div>
+                        <p className="mt-2 leading-6 text-slate-500">
+                            We sent a magic login link to your NITC inbox. Open it to verify your email and finish your profile.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={onResend}
+                            disabled={resending}
+                            className="mt-3 inline-flex items-center justify-center gap-2 text-sm font-bold text-rideon-blue transition-colors hover:text-rideon-blue/80 disabled:pointer-events-none disabled:opacity-60"
+                        >
+                            <CheckCircle2 className="size-4" strokeWidth={2.25} />
+                            {resending ? 'Sending...' : 'Resend magic link'}
+                        </button>
                     </div>
                 ) : (
                     <Button
                         type="submit"
-                        disabled={verifying}
+                        disabled={submitting}
                         className="h-12 w-full rounded-lg bg-rideon-blue text-sm font-bold text-white shadow-[0_8px_20px_rgba(29,140,248,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_12px_28px_rgba(29,140,248,0.3)] disabled:pointer-events-none disabled:opacity-70"
                     >
                         <Send className="size-4" strokeWidth={2.25} />
-                        {verifying ? 'Verifying...' : 'Send Verification Code'}
+                        {submitting ? 'Sending...' : 'Send Magic Link'}
                     </Button>
                 )}
 

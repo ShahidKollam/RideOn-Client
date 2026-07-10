@@ -3,6 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Home from '@/pages/Home'
 import LoginPage from '@/pages/LoginPage'
 import Signup from '@/pages/Signup'
+import ProfilePage from '@/pages/ProfilePage'
+import VerifyMagicLinkPage from '@/pages/VerifyMagicLinkPage'
+import NotFoundPage from '@/pages/NotFoundPage'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 
 export default function App() {
@@ -15,6 +19,17 @@ export default function App() {
                     <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                     <Route path="/auth/login" element={<LoginPage />} />
                     <Route path="/auth/signup" element={<Signup />} />
+                    <Route path="/auth/verify" element={<VerifyMagicLinkPage />} />
+                    <Route path="/auth/verify-login-link" element={<VerifyMagicLinkPage />} />
+                    <Route
+                        path="/auth/complete-profile"
+                        element={(
+                            <ProtectedRoute requireCompletedProfile={false}>
+                                <ProfilePage />
+                            </ProtectedRoute>
+                        )}
+                    />
+                    <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
         </BrowserRouter>

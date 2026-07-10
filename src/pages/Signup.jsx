@@ -10,7 +10,7 @@ export default function Signup() {
                 <div className="relative mx-auto max-w-7xl">
                     <div className="mx-auto max-w-4xl text-center">
                         <h1 className="text-3xl leading-tight font-extrabold text-rideon-dark sm:text-4xl lg:text-[2.65rem]">
-                            Create Your Ride<span className="text-rideon-blue">On</span> Account
+                            Create Your Ride<span className="text-rideon-green">On</span> Account
                         </h1>
 
                         <p className="mt-5 text-base leading-relaxed text-slate-500 sm:text-lg">
