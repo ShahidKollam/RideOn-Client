@@ -62,7 +62,7 @@ apiClient.interceptors.response.use(
         if (
             error.response?.status !== 401 ||
             originalRequest?._retry ||
-            originalRequest?.url?.includes('/api/auth/refresh')
+            originalRequest?.url?.includes('/auth/refresh')
         ) {
             return Promise.reject(error)
         }
@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
 
         try {
             refreshPromise ||= refreshClient
-                .post('/api/auth/refresh')
+                .post('/auth/refresh')
                 .then((response) => response.data?.data?.accessToken)
                 .finally(() => {
                     refreshPromise = null
@@ -91,5 +91,5 @@ apiClient.interceptors.response.use(
             unauthorizedHandler()
             return Promise.reject(refreshError)
         }
-    },
+    }
 )

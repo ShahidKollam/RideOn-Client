@@ -7,7 +7,7 @@ export function signupStudent({ name, studentId, email }) {
         return Promise.reject(new Error('Campus is not configured. Please set VITE_CAMPUS_ID.'))
     }
 
-    return apiClient.post('/api/auth/signup', {
+    return apiClient.post('/auth/signup', {
         name,
         studentId,
         email,
@@ -16,21 +16,21 @@ export function signupStudent({ name, studentId, email }) {
 }
 
 export function sendLoginLink(email) {
-    return apiClient.post('/api/auth/login-link', { email })
+    return apiClient.post('/auth/login-link', { email })
 }
 
 export function verifyLoginLink(token) {
-    return apiClient.post('/api/auth/verify-login-link', { token })
+    return apiClient.post('/auth/verify-login-link', { token })
 }
 
 export function completeProfile(profile) {
-    return apiClient.post('/api/auth/complete-profile', profile)
+    return apiClient.post('/auth/complete-profile', profile)
 }
 
 export function refreshAccessToken() {
-    return apiClient.post('/api/auth/refresh')
+    return apiClient.post('/auth/refresh')
 }
 
 export function logoutStudent() {
-    return apiClient.post('/api/auth/logout')
+    return apiClient.post('/auth/logout')
 }

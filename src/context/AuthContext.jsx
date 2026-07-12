@@ -59,12 +59,29 @@ export function AuthProvider({ children }) {
         let active = true
 
         async function restoreSession() {
+            // try {
+            //     const response = await refreshAccessToken()
+            //     const token = response.data?.data?.accessToken
+
+            //     if (token && active) {
+            //         setAccessToken(token)
+            //     }
+            // } catch {
+            //     if (active) {
+            //         clearSession()
+            //     }
+            // } finally {
+            //     if (active) {
+            //         setInitializing(false)
+            //     }
+            // }
             try {
                 const response = await refreshAccessToken()
-                const token = response.data?.data?.accessToken
+                const data = response.data?.data
 
-                if (token && active) {
-                    setAccessToken(token)
+                if (data?.accessToken && active) {
+                    setAccessToken(data.accessToken)
+                    setUser(data.user)
                 }
             } catch {
                 if (active) {
@@ -82,16 +99,22 @@ export function AuthProvider({ children }) {
         return () => {
             active = false
         }
-    }, [clearSession, setAccessToken])
+    }, [clearSession, setAccessToken, setUser])
 
-    const login = useCallback((token, nextUser) => {
-        setAccessToken(token)
-        setUser(nextUser)
-    }, [setAccessToken, setUser])
+    const login = useCallback(
+        (token, nextUser) => {
+            setAccessToken(token)
+            setUser(nextUser)
+        },
+        [setAccessToken, setUser]
+    )
 
-    const updateUser = useCallback((nextUser) => {
-        setUser(nextUser)
-    }, [setUser])
+    const updateUser = useCallback(
+        (nextUser) => {
+            setUser(nextUser)
+        },
+        [setUser]
+    )
 
     const logout = useCallback(async () => {
         try {
@@ -101,22 +124,21 @@ export function AuthProvider({ children }) {
         }
     }, [clearSession])
 
-    const value = useMemo(() => ({
-        accessToken,
-        user,
-        initializing,
-        isAuthenticated: Boolean(accessToken),
-        login,
-        logout,
-        clearSession,
-        updateUser,
-    }), [accessToken, clearSession, initializing, login, logout, updateUser, user])
-
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
+    const value = useMemo(
+        () => ({
+            accessToken,
+            user,
+            initializing,
+            isAuthenticated: Boolean(accessToken),
+            login,
+            logout,
+            clearSession,
+            updateUser,
+        }),
+        [accessToken, clearSession, initializing, login, logout, updateUser, user]
     )
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

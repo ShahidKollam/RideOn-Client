@@ -205,7 +205,7 @@ export default function Navbar() {
                         <div className="relative size-5">
                             <Menu
                                 className={cn(
-                                    "absolute inset-0 transition-all duration-300",
+                                    "absolute pr-1 pb-1 inset-0 transition-all duration-300",
                                     mobileOpen
                                         ? "rotate-90 scale-0 opacity-0"
                                         : "rotate-0 scale-100 opacity-100",

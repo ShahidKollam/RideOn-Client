@@ -8,6 +8,7 @@ import VerifyMagicLinkPage from '@/pages/VerifyMagicLinkPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
+import PublicRoute from '@/components/auth/PublicRoute'
 
 export default function App() {
     return (
@@ -17,17 +18,32 @@ export default function App() {
                     <Route path="/" element={<Home />} />
 
                     <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
-                    <Route path="/auth/login" element={<LoginPage />} />
-                    <Route path="/auth/signup" element={<Signup />} />
+                    <Route
+                        path="/auth/login"
+                        element={
+                            <PublicRoute>
+                                <LoginPage />
+                            </PublicRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/auth/signup"
+                        element={
+                            <PublicRoute>
+                                <Signup />
+                            </PublicRoute>
+                        }
+                    />
                     <Route path="/auth/verify" element={<VerifyMagicLinkPage />} />
                     <Route path="/auth/verify-login-link" element={<VerifyMagicLinkPage />} />
                     <Route
                         path="/auth/complete-profile"
-                        element={(
+                        element={
                             <ProtectedRoute requireCompletedProfile={false}>
                                 <ProfilePage />
                             </ProtectedRoute>
-                        )}
+                        }
                     />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>

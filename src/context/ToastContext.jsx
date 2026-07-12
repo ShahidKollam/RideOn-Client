@@ -18,16 +18,16 @@ export function ToastProvider({ children }) {
         setToasts((current) => current.filter((toast) => toast.id !== id))
     }, [])
 
-    const showToast = useCallback(({ title, description, type = 'info', duration = 4200 }) => {
-        const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`
+    const showToast = useCallback(
+        ({ title, description, type = 'info', duration = 4200 }) => {
+            const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`
 
-        setToasts((current) => [
-            ...current,
-            { id, title, description, type },
-        ])
+            setToasts((current) => [...current, { id, title, description, type }])
 
-        window.setTimeout(() => removeToast(id), duration)
-    }, [removeToast])
+            window.setTimeout(() => removeToast(id), duration)
+        },
+        [removeToast]
+    )
 
     const value = useMemo(() => ({ showToast }), [showToast])
 
@@ -46,7 +46,7 @@ export function ToastProvider({ children }) {
                                 'flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-[0_14px_36px_rgba(15,23,42,0.14)]',
                                 toast.type === 'success' && 'border-rideon-green/30',
                                 toast.type === 'error' && 'border-red-200',
-                                toast.type === 'info' && 'border-rideon-blue/25',
+                                toast.type === 'info' && 'border-rideon-blue/25'
                             )}
                         >
                             <Icon
@@ -54,7 +54,7 @@ export function ToastProvider({ children }) {
                                     'mt-0.5 size-5 shrink-0',
                                     toast.type === 'success' && 'text-rideon-green',
                                     toast.type === 'error' && 'text-red-500',
-                                    toast.type === 'info' && 'text-rideon-blue',
+                                    toast.type === 'info' && 'text-rideon-blue'
                                 )}
                                 strokeWidth={2.25}
                             />
