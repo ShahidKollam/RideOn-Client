@@ -1,4 +1,3 @@
-// This is your Prisma schema file
 generator client {
   provider = "prisma-client-js"
 }
@@ -29,6 +28,7 @@ model User {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   magicLinkTokens      MagicLinkToken[]
+  bookings             Booking[] // New relation
 
   @@map("users")
 }
@@ -39,7 +39,6 @@ enum OnboardingStatus {
   PROFILE_COMPLETED
 }
 
-// Other models (unchanged)
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
@@ -52,13 +51,16 @@ model RefreshToken {
 }
 
 model Campus {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   location  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   users     User[]
+  bikes     Bike[] // New
+  pricings  Pricing[] // New
+  bookings  Booking[] // New
 
   @@map("campuses")
 }
@@ -96,4 +98,123 @@ model MagicLinkToken {
   createdAt DateTime  @default(now())
 
   @@map("magic_link_tokens")
+}
+
+// ==================== NEW MODELS ====================
+
+model Bike {
+  id                 String     @id @default(cuid())
+  campusId           String
+  registrationNumber String     @unique
+  name               String
+  brand              String
+  model              String
+  year               Int?
+  color              String?
+  imageUrls          String[]
+  currentOdometer    Int        @default(0)
+  status             BikeStatus @default(AVAILABLE)
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  campus   Campus    @relation(fields: [campusId], references: [id])
+  bookings Booking[]
+
+  @@index([campusId])
+  @@index([status])
+  @@index([isActive])
+  @@map("bikes")
+}
+
+enum BikeStatus {
+  AVAILABLE
+  MAINTENANCE
+  DISABLED
+  RETIRED
+}
+
+model Pricing {
+  id            String   @id @default(cuid())
+  campusId      String
+  packageName   String
+  durationHours Int
+  price         Float
+  includedKm    Int
+  extraKmRate   Float
+  depositAmount Float
+  displayOrder  Int      @default(0)
+  isFeatured    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id])
+
+  @@index([campusId])
+  @@index([displayOrder])
+  @@index([isActive])
+  @@map("pricings")
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  bookingNumber  String        @unique
+  userId         String
+  bikeId         String?
+  campusId       String
+  pickupAt       DateTime
+  returnAt       DateTime
+  durationHours  Int
+  status         BookingStatus @default(PAYMENT_PENDING)
+  paymentStatus  PaymentStatus @default(PENDING)
+  baseAmount     Float
+  depositAmount  Float
+  discountAmount Float         @default(0)
+  totalAmount    Float
+  includedKm     Int
+  extraKmRate    Float
+  pickupOdometer Int?
+  returnOdometer Int?
+  actualKm       Int?
+  extraKm        Int?
+  extraKmCharge  Float?
+  lateFee        Float?
+  pickedUpAt     DateTime?
+  returnedAt     DateTime?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  bike   Bike?  @relation(fields: [bikeId], references: [id])
+  campus Campus @relation(fields: [campusId], references: [id])
+
+  @@index([bookingNumber])
+  @@index([userId])
+  @@index([bikeId])
+  @@index([campusId])
+  @@index([status])
+  @@index([pickupAt])
+  @@index([returnAt])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PAYMENT_PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FAILED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
 }
