@@ -1,0 +1,99 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String           @id @default(cuid())
+  email                String           @unique
+  name                 String
+  studentId            String?
+  hostel               String?
+  department           String?
+  yearOfStudy          Int?
+  drivingLicenseNumber String?
+  phone                String?
+  campusId             String
+  campus               Campus           @relation(fields: [campusId], references: [id])
+  drivingLicense       DrivingLicense?
+  isVerified           Boolean          @default(false)
+  acceptedTerms        Boolean          @default(false)
+  acceptedTermsAt      DateTime?
+  onboardingStatus     OnboardingStatus @default(SIGNED_UP)
+  refreshTokens        RefreshToken[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  magicLinkTokens      MagicLinkToken[]
+
+  @@map("users")
+}
+
+enum OnboardingStatus {
+  SIGNED_UP
+  EMAIL_VERIFIED
+  PROFILE_COMPLETED
+}
+
+// Other models (unchanged)
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Campus {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@map("campuses")
+}
+
+model DrivingLicense {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber String        @unique
+  fullName      String
+  dateOfBirth   DateTime
+  expiryDate    DateTime
+  issuingDate   DateTime
+  status        LicenseStatus @default(PENDING)
+  documentUrl   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("driving_licenses")
+}
+
+enum LicenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model MagicLinkToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("magic_link_tokens")
+}
