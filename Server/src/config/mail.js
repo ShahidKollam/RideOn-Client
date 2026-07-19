@@ -1,35 +1,22 @@
-// import nodemailer from 'nodemailer';
-// import { config } from './env.js';
-
-// const transporter = nodemailer.createTransport({
-//   host: config.mailHost,
-//   port: config.mailPort,
-//   secure: false,
-//   auth: {
-//     user: config.mailUser,
-//     pass: config.mailPass,
-//   },
-// });
-
-// export default transporter;
-import nodemailer from 'nodemailer'
+import BrevoPkg from '@getbrevo/brevo'
 import { config } from './env.js'
 
-const transporter = nodemailer.createTransport({
-    host: config.mailHost,
-    port: Number(config.mailPort),
-    secure: false, // Port 587
-    auth: {
-        user: config.mailUser,
-        pass: config.mailPass,
-    },
+const { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail } = BrevoPkg
 
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+const apiInstance = new TransactionalEmailsApi()
+apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, config.brevoApiKey)
 
-    logger: true,
-    debug: true,
-})
+export const sendEmail = async ({ to, subject, html }) => {
+    const emailData = new SendSmtpEmail()
 
-export default transporter
+    emailData.sender = {
+        name: config.mailFromName,
+        email: config.mailFromEmail,
+    }
+    emailData.to = [{ email: to }]
+    emailData.subject = subject
+    emailData.htmlContent = html
+
+    const response = await apiInstance.sendTransacEmail(emailData)
+    return response.body
+}
