@@ -1,16 +1,17 @@
 import transporter from '../config/mail.js'
 import { config } from '../config/env.js'
+import ApiError from '../utils/ApiError.js'
 
 export const sendMagicLink = async (email, token) => {
-    const magicLink = `${config.frontendUrl}/auth/verify-login-link?token=${token}`
-    console.log("magicLink:", magicLink);
-     
+    try {
+        const magicLink = `${config.frontendUrl}/auth/verify-login-link?token=${token}`
+        console.log('magicLink:', magicLink)
 
-    await transporter.sendMail({
-        from: config.mailFrom,
-        to: email,
-        subject: 'Login to RideOn',
-        html: `
+        await transporter.sendMail({
+            from: config.mailFrom,
+            to: email,
+            subject: 'Login to RideOn',
+            html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -237,5 +238,18 @@ color:#94a3b8;
 </body>
 </html>
 `,
-    })
+        })
+
+        console.log(`Magic link email sent successfully to ${email}`)
+        return { success: true, message: 'Email sent' }
+    } catch (error) {
+        console.error('Error sending magic link:', error.message)
+
+        // Optional: log more details in development
+        if (process.env.NODE_ENV === 'development') {
+            console.error(error)
+        }
+
+        throw new ApiError(`Failed to send magic link to ${email}: ${error.message}`)
+    }
 }
