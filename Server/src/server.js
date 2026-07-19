@@ -12,6 +12,6 @@ process.on('unhandledRejection', (err) => {
     logger.error('UNHANDLED REJECTION! 💥 Shutting down...')
     logger.error(err)
     server.close(() => {
-        process.exit(1)
+        process.exit(1) 
     })
 })
