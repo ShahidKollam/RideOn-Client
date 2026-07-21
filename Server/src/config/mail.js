@@ -20,3 +20,4 @@ export const sendEmail = async ({ to, subject, html }) => {
     const response = await apiInstance.sendTransacEmail(emailData)
     return response.body
 }
+ 
