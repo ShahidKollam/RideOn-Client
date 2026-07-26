@@ -130,3 +130,57 @@
 ```
 
 For full OpenAPI-like details or Postman collection, let me know.
+----------
+
+
+# Bike & Booking Module - Full API Documentation
+
+## Authentication Notes
+- User routes: Use `protect` middleware
+- Admin routes: Use `protectAdmin` middleware
+- All responses follow your existing `ApiResponse` format.
+
+## BIKE MODULE
+
+### Public
+- **GET /bikes** — List bikes (pagination, search, filter by campus/status)
+- **GET /bikes/:id** — Get bike details
+
+### Admin
+- **POST /admin/bikes**
+- **GET /admin/bikes**
+- **GET /admin/bikes/:id**
+- **PATCH /admin/bikes/:id**
+- **PATCH /admin/bikes/:id/status**
+- **DELETE /admin/bikes/:id** (soft delete)
+
+## BOOKING + PRICING MODULE
+
+### Pricing (Admin)
+- **POST /admin/pricing**
+- **GET /admin/pricing**
+- **GET /admin/pricing/:id**
+- **PATCH /admin/pricing/:id**
+- **DELETE /admin/pricing/:id** (soft)
+
+### User Bookings
+- **POST /bookings** — Create booking (with pricing snapshot)
+- **GET /bookings** — List my bookings
+- **GET /bookings/:id**
+- **PATCH /bookings/:id/cancel**
+
+### Admin Bookings
+- **POST /admin/bookings** — Create on behalf of user
+- **GET /admin/bookings**
+- **GET /admin/bookings/:id**
+- **PATCH /admin/bookings/:id/pickup**
+- **PATCH /admin/bookings/:id/return**
+- **PATCH /admin/bookings/:id/cancel**
+
+**Detailed request/response schemas, validation rules, status transitions, and error codes** are fully documented in the attached file.
+
+---
+
+**All previous ZIPs + updated schema.prisma + this docs file** are now available. Replace your `schema.prisma` with the merged version I provided earlier and run the migration. 
+
+Let me know if you need anything else!

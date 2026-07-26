@@ -40,9 +40,9 @@ export default function App() {
                     <Route
                         path="/auth/complete-profile"
                         element={
-                            <ProtectedRoute requireCompletedProfile={false}>
+                            // <ProtectedRoute requireCompletedProfile={false}>
                                 <ProfilePage />
-                            </ProtectedRoute>
+                            // </ProtectedRoute>
                         }
                     />
                     <Route path="*" element={<NotFoundPage />} />
