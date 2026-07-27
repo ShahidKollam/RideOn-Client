@@ -21,9 +21,9 @@ app.use(
         origin: config.frontendUrl,
         credentials: true,
     })
-)
+) 
 app.use(cookieParser())
-
+                     
 // Logging
 app.use(pinoHttp({ logger }))
 
