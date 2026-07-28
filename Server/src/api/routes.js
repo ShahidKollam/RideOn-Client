@@ -10,6 +10,7 @@ import bikeRoutes from '../modules/bike/bike.routes.js'
 import bookingUserRoutes from '../modules/booking/booking.user.routes.js'
 import bookingAdminRoutes from '../modules/booking/booking.admin.routes.js'
 import pricingAdminRoutes from '../modules/booking/pricing.admin.routes.js'
+import bikeAdminRoutes from '../modules/bike/bike.admin.routes.js'
 
 const router = express.Router()
 
@@ -21,7 +22,7 @@ router.use('/driving-licenses', drivingLicenseRoutes)
 
 // Mount routes (adjust prefixes to match existing style, e.g., /api/...)
 router.use('/bikes', bikeRoutes) // Admin part
-router.use('/admin/bikes', bikeRoutes) // Admin part
+router.use('/admin/bikes', bikeAdminRoutes) // Admin part
 // Public bikes can be exposed separately
 router.use('/bookings', bookingUserRoutes)
 router.use('/admin/bookings', bookingAdminRoutes)

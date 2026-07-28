@@ -1,33 +1,26 @@
-import express from 'express';
-import { protectAdmin } from '../../middlewares/auth.middleware.js';
-import { validate } from '../../middlewares/validation.middleware.js';
-import { createBikeSchema, updateBikeSchema, changeBikeStatusSchema } from './bike.validation.js';
+import express from 'express'
+import { protect } from '../../middlewares/auth.middleware.js'
 import {
-  createBikeController,
-  getBikeListController,
-  getBikeByIdController,
-  updateBikeController,
-  changeBikeStatusController,
-  deleteBikeController,
-} from './bike.controller.js';
+    createBikeController,
+    getBikeListController,
+    getBikeByIdController,
+    updateBikeController,
+    changeBikeStatusController,
+    deleteBikeController,
+} from './bike.controller.js'
 
-const router = express.Router();
+const router = express.Router()
 
 // Admin routes
-// Keep the current access behavior while validating request data before it reaches the controller.
-// router.post('/', protectAdmin, validate(createBikeSchema), createBikeController);
-router.post('/', validate(createBikeSchema), createBikeController);
-
-// router.get('/', protectAdmin, getBikeListController);
-router.get('/', getBikeListController);
-// router.get('/:id', protectAdmin, getBikeByIdController);
-router.get('/:id',  getBikeByIdController);
-router.patch('/:id', protectAdmin, validate(updateBikeSchema), updateBikeController);
-router.patch('/:id/status', protectAdmin, validate(changeBikeStatusSchema), changeBikeStatusController);
-router.delete('/:id', protectAdmin, deleteBikeController);
+router.post('/', protect, createBikeController)
+router.get('/', protect, getBikeListController)
+router.get('/:id', protect, getBikeByIdController)
+router.patch('/:id', protect, updateBikeController)
+router.patch('/:id/status', protect, changeBikeStatusController)
+router.delete('/:id', protect, deleteBikeController)
 
 // Public routes - can be mounted separately or with optional auth
-router.get('/public', getBikeListController); // Adjust for public 
-router.get('/public/:id', getBikeByIdController);
+router.get('/public', getBikeListController) // Adjust for public
+router.get('/public/:id', getBikeByIdController)
 
-export default router;
+export default router
