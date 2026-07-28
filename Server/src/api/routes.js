@@ -20,6 +20,7 @@ router.use('/campuses', campusRoutes)
 router.use('/driving-licenses', drivingLicenseRoutes)
 
 // Mount routes (adjust prefixes to match existing style, e.g., /api/...)
+router.use('/bikes', bikeRoutes) // Admin part
 router.use('/admin/bikes', bikeRoutes) // Admin part
 // Public bikes can be exposed separately
 router.use('/bookings', bookingUserRoutes)

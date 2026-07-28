@@ -20,13 +20,14 @@ router.post('/', validate(createBikeSchema), createBikeController);
 
 // router.get('/', protectAdmin, getBikeListController);
 router.get('/', getBikeListController);
-router.get('/:id', protectAdmin, getBikeByIdController);
+// router.get('/:id', protectAdmin, getBikeByIdController);
+router.get('/:id',  getBikeByIdController);
 router.patch('/:id', protectAdmin, validate(updateBikeSchema), updateBikeController);
 router.patch('/:id/status', protectAdmin, validate(changeBikeStatusSchema), changeBikeStatusController);
 router.delete('/:id', protectAdmin, deleteBikeController);
 
 // Public routes - can be mounted separately or with optional auth
-router.get('/public', getBikeListController); // Adjust for public
+router.get('/public', getBikeListController); // Adjust for public 
 router.get('/public/:id', getBikeByIdController);
 
 export default router;

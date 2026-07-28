@@ -6,7 +6,7 @@ const payload = (response) => {
 }
 
 export async function getVehicles(params = {}) {
-    const response = await apiClient.get('/admin/bikes', { params })
+    const response = await apiClient.get('/bikes', { params })
     return payload(response)
 }
 

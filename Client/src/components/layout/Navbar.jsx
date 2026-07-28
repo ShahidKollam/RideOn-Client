@@ -212,7 +212,7 @@ export default function Navbar() {
 
                             <X
                                 className={cn(
-                                    "absolute inset-0 transition-all duration-300",
+                                    "absolute pr-1 pb-1 inset-0 transition-all duration-300",
                                     mobileOpen
                                         ? "rotate-0 scale-100 opacity-100"
                                         : "-rotate-90 scale-0 opacity-0",

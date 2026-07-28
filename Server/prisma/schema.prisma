@@ -15,7 +15,7 @@ model User {
   hostel               String?
   department           String?
   yearOfStudy          Int?
-  drivingLicenseNumber String?
+  drivingLicenseNumber String?          @unique
   phone                String?
   campusId             String
   campus               Campus           @relation(fields: [campusId], references: [id])
