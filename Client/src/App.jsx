@@ -11,6 +11,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import PublicRoute from '@/components/auth/PublicRoute'
 import LoadingScreen from '@/components/ui/LoadingScreen'
+import ScrollToTop from '@/components/layout/ScrollToTop'
 
 const VehiclesPage = lazy(() => import('@/pages/VehiclesPage'))
 const VehicleDetailsPage = lazy(() => import('@/pages/VehicleDetailsPage'))
@@ -24,6 +25,7 @@ const ContactPage = lazy(() => import('@/pages/ContactPage'))
 export default function App() {
     return (
         <BrowserRouter>
+            <ScrollToTop />
             <Routes>
                 <Route element={<AppLayout />}>
                     <Route path="/" element={<Home />} />

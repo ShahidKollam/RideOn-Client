@@ -1,28 +1,42 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 
-export const createBike = async (data) => {
 
-    // Verify campus exists
+export const createBike = async (data) => {
+    // Verify campus exists and is active
     const campus = await prisma.campus.findUnique({
-        where: { id: data.campusId },
+        where: {
+            id: data.campusId,
+        },
     })
+
     if (!campus || !campus.isActive) {
         throw new ApiError(400, 'Invalid or inactive campus')
     }
 
-    // Check unique registration number
+    // Check if registration number already exists
     const existingBike = await prisma.bike.findUnique({
-        where: { registrationNumber: data.registrationNumber },
+        where: {
+            registrationNumber: data.registrationNumber,
+        },
     })
+
     if (existingBike) {
         throw new ApiError(409, 'Bike with this registration number already exists')
     }
 
+    // Create bike
     const bike = await prisma.bike.create({
         data: {
-            ...data,
-            imageUrls: data.imageUrls || [],
+            campusId: data.campusId,
+            registrationNumber: data.registrationNumber,
+            name: data.name,
+            brand: data.brand,
+            model: data.model,
+            year: data.year,
+            color: data.color,
+            imageUrls: data.imageUrls ?? [],
+            currentOdometer: data.currentOdometer ?? 0,
         },
         include: {
             campus: true,
@@ -65,8 +79,6 @@ export const getBikeById = async (id) => {
 }
 
 export const getBikeList = async (query = {}) => {
-  // console.log("QUERY:", query);
-
     const { page = 1, limit = 10, search, campusId, status, isActive } = query
 
     const where = {
@@ -80,7 +92,7 @@ export const getBikeList = async (query = {}) => {
         where.OR = [
             { registrationNumber: { contains: search, mode: 'insensitive' } },
             { name: { contains: search, mode: 'insensitive' } },
-            { brand: { contains: search, mode: 'insensitive' } }, 
+            { brand: { contains: search, mode: 'insensitive' } },
             { model: { contains: search, mode: 'insensitive' } },
         ]
     }

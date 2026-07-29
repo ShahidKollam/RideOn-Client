@@ -12,7 +12,8 @@ import {
 const router = express.Router()
 
 // Admin routes
-router.post('/', protect, createBikeController)
+// router.post('/', protect, createBikeController)
+router.post('/', createBikeController)
 router.get('/', protect, getBikeListController)
 router.get('/:id', protect, getBikeByIdController)
 router.patch('/:id', protect, updateBikeController)

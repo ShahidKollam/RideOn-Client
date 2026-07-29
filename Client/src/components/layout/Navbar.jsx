@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 
 const navLinks = [
     { label: "Home", path: "/" },
-    { label: "How It Works", section: "how-it-works" },
+    // { label: "How It Works", section: "how-it-works" },
     { label: "Vehicles", path: "/vehicles" },
     { label: "About Us", path: "/about" },
     { label: "Contact Us", path: "/contact" },

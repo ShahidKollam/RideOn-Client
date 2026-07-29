@@ -16,6 +16,6 @@ export async function getVehicle(id) {
 }
 
 export async function getCampuses() {
-    const response = await apiClient.get('/campuses/active')
+    const response = await apiClient.get('/campus/active')
     return payload(response) || []
 }

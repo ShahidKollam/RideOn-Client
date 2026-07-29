@@ -17,7 +17,7 @@ const router = express.Router()
 router.use('/auth', authRoutes)
 router.use('/users', userRoutes)
 router.use('/admin', adminRoutes)
-router.use('/campuses', campusRoutes)
+router.use('/campus', campusRoutes)
 router.use('/driving-licenses', drivingLicenseRoutes)
 
 // Mount routes (adjust prefixes to match existing style, e.g., /api/...)

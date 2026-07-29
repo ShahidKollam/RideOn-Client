@@ -40,7 +40,8 @@ export default function VehiclesPage() {
                 <div className="max-w-2xl">
                     <p className="text-sm font-bold uppercase tracking-[0.16em] text-rideon-green">Ride your way</p>
                     <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-rideon-dark sm:text-4xl">
-                        Find your campus ride
+                        Find your <span className="text-rideon-blue">campus ride,</span><br />
+                        move with <span className="text-rideon-green">freedom.</span>
                     </h1>
                     <p className="mt-3 text-sm leading-6 text-slate-500 sm:text-base">
                         Choose an available vehicle and make every campus trip simple.

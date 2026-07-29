@@ -1,4 +1,4 @@
 # Campus API
 
 ## Get Active Campuses
-**GET** `/api/campuses/active`
+**GET** `/api/campus/active`

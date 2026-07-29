@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Clock3, MapPin } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, Info, ShieldCheck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+
+import BookingSummary from '@/components/bookings/BookingSummary'
 import { Button } from '@/components/ui/button'
 import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { useAuth } from '@/context/AuthContext'
@@ -13,6 +15,7 @@ const toLocalInput = (date) => {
     const offset = date.getTimezoneOffset() * 60000
     return new Date(date - offset).toISOString().slice(0, 16)
 }
+
 export default function BookingPage() {
     const { id } = useParams()
     const navigate = useNavigate()
@@ -21,22 +24,24 @@ export default function BookingPage() {
     const [vehicle, setVehicle] = useState(null)
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
-    const start = useMemo(() => {
+    const minimumPickup = useMemo(() => {
         const value = new Date()
         value.setMinutes(0, 0, 0)
         value.setHours(value.getHours() + 1)
         return toLocalInput(value)
     }, [])
-    const [values, setValues] = useState({ pickupAt: start, returnAt: '', notes: '' })
+    const [values, setValues] = useState({ pickupAt: minimumPickup, returnAt: '', notes: '' })
+
     useEffect(() => {
-        getVehicle(id)
-            .then(setVehicle)
-            .catch((err) => setError(getApiErrorMessage(err, 'We could not load this vehicle.')))
+        getVehicle(id).then(setVehicle).catch((requestError) => setError(getApiErrorMessage(requestError, 'We could not load this vehicle.')))
     }, [id])
-    const duration =
-        values.returnAt && new Date(values.returnAt) > new Date(values.pickupAt)
-            ? Math.ceil((new Date(values.returnAt) - new Date(values.pickupAt)) / 36e5)
-            : 0
+
+    const duration = values.returnAt && new Date(values.returnAt) > new Date(values.pickupAt)
+        ? Math.ceil((new Date(values.returnAt) - new Date(values.pickupAt)) / 36e5)
+        : 0
+
+    const updateValue = (field, value) => setValues((current) => ({ ...current, [field]: value }))
+
     const submit = async (event) => {
         event.preventDefault()
         if (!isAuthenticated) {
@@ -44,135 +49,57 @@ export default function BookingPage() {
             return
         }
         if (!duration) {
-            showToast({
-                type: 'error',
-                title: 'Select a valid return time',
-                description: 'Your return must be at least one hour after pickup.',
-            })
+            showToast({ type: 'error', title: 'Select a valid return time', description: 'Your return must be at least one hour after pickup.' })
             return
         }
         const pricingId = import.meta.env.VITE_DEFAULT_PRICING_ID
         if (!pricingId) {
-            showToast({
-                type: 'error',
-                title: 'Booking is not configured',
-                description: 'A pricing package must be configured before bookings can be created.',
-            })
+            showToast({ type: 'error', title: 'Booking is not configured', description: 'A pricing package must be configured before bookings can be created.' })
             return
         }
         setSubmitting(true)
         try {
-            const booking = await createBooking({
-                campusId: vehicle.campusId,
-                pickupAt: new Date(values.pickupAt).toISOString(),
-                returnAt: new Date(values.returnAt).toISOString(),
-                pricingId,
-                notes: values.notes.trim() || undefined,
-            })
-            navigate(`/booking-success/${booking.id}`, { state: { booking } })
-        } catch (err) {
-            showToast({ type: 'error', title: 'Could not create booking', description: getApiErrorMessage(err) })
+            const booking = await createBooking({ campusId: vehicle.campusId, pickupAt: new Date(values.pickupAt).toISOString(), returnAt: new Date(values.returnAt).toISOString(), pricingId, notes: values.notes.trim() || undefined })
+            navigate(`/booking-success/${booking.id}`, { state: { booking, vehicle } })
+        } catch (requestError) {
+            showToast({ type: 'error', title: 'Could not create booking', description: getApiErrorMessage(requestError) })
         } finally {
             setSubmitting(false)
         }
     }
-    if (error)
-        return (
-            <div className="pt-28 px-4">
-                <ErrorState message={error} />
-            </div>
-        )
-    if (!vehicle)
-        return (
-            <div className="mx-auto max-w-5xl px-4 pt-28">
-                <SkeletonCard className="h-96" />
-            </div>
-        )
+
+    if (error) return <div className="px-4 pt-28"><ErrorState message={error} /></div>
+    if (!vehicle) return <div className="mx-auto max-w-6xl px-4 pt-28"><SkeletonCard className="h-[34rem]" /></div>
+
     return (
         <div className="bg-slate-50/60 pt-24 pb-12 sm:pt-28">
-            <div className="mx-auto max-w-5xl px-4 sm:px-6">
-                <div className="max-w-xl">
-                    <p className="text-sm font-bold uppercase tracking-[.16em] text-rideon-green">Reserve your ride</p>
-                    <h1 className="mt-2 text-3xl font-extrabold text-rideon-dark">Choose your ride times</h1>
-                    <p className="mt-2 text-sm text-slate-500">
-                        Your reservation will remain payment pending until payment is available.
-                    </p>
-                </div>
-                <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_330px]">
-                    <form onSubmit={submit} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
-                        <div className="grid gap-5 sm:grid-cols-2">
-                            <label className="text-sm font-semibold text-rideon-dark">
-                                Pickup time
-                                <input
-                                    required
-                                    type="datetime-local"
-                                    min={start}
-                                    value={values.pickupAt}
-                                    onChange={(e) => setValues((v) => ({ ...v, pickupAt: e.target.value }))}
-                                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-rideon-blue"
-                                />
-                            </label>
-                            <label className="text-sm font-semibold text-rideon-dark">
-                                Return time
-                                <input
-                                    required
-                                    type="datetime-local"
-                                    min={values.pickupAt}
-                                    value={values.returnAt}
-                                    onChange={(e) => setValues((v) => ({ ...v, returnAt: e.target.value }))}
-                                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-rideon-blue"
-                                />
-                            </label>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <Link to={`/vehicles/${id}`} className="inline-flex items-center gap-2 text-sm font-bold text-rideon-blue transition-transform hover:-translate-x-0.5"><ArrowLeft className="size-4" />Back to vehicle</Link>
+                <div className="mt-4 grid gap-7 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
+                    <div>
+                        <div className="max-w-2xl">
+                            <p className="text-sm font-bold uppercase tracking-[.16em] text-rideon-green">Reserve your ride</p>
+                            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-rideon-dark sm:text-4xl">Book your <span className="text-rideon-blue">ride time,</span><br />move with <span className="text-rideon-green">freedom.</span></h1>
+                            <p className="mt-3 text-sm leading-6 text-slate-500">Select the times that work for you. Your reservation remains payment pending until payment is available.</p>
                         </div>
-                        <label className="mt-5 block text-sm font-semibold text-rideon-dark">
-                            Notes <span className="font-normal text-slate-400">(optional)</span>
-                            <textarea
-                                value={values.notes}
-                                onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
-                                rows="3"
-                                placeholder="Anything our team should know?"
-                                className="mt-2 w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-rideon-blue"
-                            />
-                        </label>
-                        <Button
-                            type="submit"
-                            disabled={submitting || vehicle.status !== 'AVAILABLE'}
-                            className="mt-6 h-11 w-full bg-rideon-blue text-white hover:bg-rideon-blue/90"
-                        >
-                            {submitting ? 'Creating booking…' : 'Confirm booking'}
-                        </Button>
-                    </form>
-                    <aside className="h-fit rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Booking summary</p>
-                        <h2 className="mt-2 text-lg font-extrabold text-rideon-dark">
-                            {vehicle.name || `${vehicle.brand} ${vehicle.model}`}
-                        </h2>
-                        <div className="mt-5 space-y-3 text-sm text-slate-600">
-                            <p className="flex gap-2">
-                                <MapPin className="size-4 shrink-0 text-rideon-blue" />
-                                {vehicle.campus?.name || 'Campus pickup'}
-                            </p>
-                            <p className="flex gap-2">
-                                <CalendarDays className="size-4 shrink-0 text-rideon-blue" />
-                                {duration ? `${duration} hour${duration > 1 ? 's' : ''}` : 'Choose a return time'}
-                            </p>
-                            <p className="flex gap-2">
-                                <Clock3 className="size-4 shrink-0 text-rideon-blue" />
-                                You can cancel while payment is pending.
-                            </p>
-                        </div>
-                        {!user?.onboardingStatus?.includes('PROFILE_COMPLETED') && isAuthenticated && (
-                            <p className="mt-5 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-700">
-                                Complete and approve your ride profile before creating a booking.
-                            </p>
-                        )}
-                        <Link
-                            to={`/vehicles/${id}`}
-                            className="mt-5 inline-block text-sm font-bold text-rideon-blue hover:underline"
-                        >
-                            Back to vehicle
-                        </Link>
-                    </aside>
+
+                        <form onSubmit={submit} className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] sm:p-6">
+                            <div className="flex items-center gap-3"><span className="flex size-7 items-center justify-center rounded-full bg-rideon-blue text-sm font-extrabold text-white">1</span><h2 className="font-extrabold text-rideon-dark">Select ride time</h2></div>
+                            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                                <label className="text-sm font-bold text-rideon-dark">Pickup time<input required type="datetime-local" min={minimumPickup} value={values.pickupAt} onChange={(event) => updateValue('pickupAt', event.target.value)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
+                                <label className="text-sm font-bold text-rideon-dark">Return time<input required type="datetime-local" min={values.pickupAt} value={values.returnAt} onChange={(event) => updateValue('returnAt', event.target.value)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
+                            </div>
+                            <div className="mt-4 flex gap-2 rounded-xl bg-rideon-blue/5 px-3 py-3 text-xs leading-5 text-slate-600"><Info className="mt-0.5 size-4 shrink-0 text-rideon-blue" />Minimum rental duration is one hour.</div>
+                            <label className="mt-5 block text-sm font-bold text-rideon-dark">Notes <span className="font-normal text-slate-400">(optional)</span><textarea value={values.notes} onChange={(event) => updateValue('notes', event.target.value)} rows="3" placeholder="Anything our team should know?" className="mt-2 w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
+                            <Button type="submit" disabled={submitting || vehicle.status !== 'AVAILABLE'} className="mt-6 h-12 w-full bg-rideon-blue text-sm font-bold text-white shadow-[0_8px_18px_rgba(29,140,248,0.24)] hover:bg-rideon-blue/90">{submitting ? 'Creating reservation…' : <><CalendarDays className="size-4" />Create reservation</>}</Button>
+                        </form>
+
+                        <section className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 sm:flex sm:items-start sm:justify-between sm:gap-5">
+                            <div className="flex gap-3"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-700" /><div><h2 className="text-sm font-extrabold text-rideon-dark">Cancellation policy</h2><p className="mt-1 text-xs leading-5 text-slate-600">You can cancel this booking any time while payment is pending.</p></div></div>
+                            <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 sm:mt-0"><CheckCircle2 className="size-4" />Flexible before payment</span>
+                        </section>
+                    </div>
+                    <BookingSummary vehicle={vehicle} pickupAt={values.pickupAt} returnAt={values.returnAt} duration={duration} status={vehicle.status} />
                 </div>
             </div>
         </div>
