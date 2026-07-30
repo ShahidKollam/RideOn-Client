@@ -1,20 +1,27 @@
 import { z } from 'zod';
 
 export const createBookingSchema = z.object({
+  bikeId: z.string().min(1),
   campusId: z.string().min(1),
   pickupAt: z.string().datetime(),
   returnAt: z.string().datetime(),
-  pricingId: z.string().min(1), // For snapshot
   notes: z.string().optional(),
 });
 
 export const adminCreateBookingSchema = z.object({
   userId: z.string().min(1),
+  bikeId: z.string().min(1),
   campusId: z.string().min(1),
   pickupAt: z.string().datetime(),
   returnAt: z.string().datetime(),
-  pricingId: z.string().min(1),
   notes: z.string().optional(),
+});
+
+export const checkAvailabilitySchema = z.object({
+  bikeId: z.string().min(1),
+  campusId: z.string().min(1),
+  pickupAt: z.string().datetime(),
+  returnAt: z.string().datetime(),
 });
 
 export const cancelBookingSchema = z.object({

@@ -8,10 +8,12 @@ import {
   returnBookingController,
   cancelBookingController,
 } from './booking.controller.js';
+import { validate } from '../../middlewares/validation.middleware.js';
+import { adminCreateBookingSchema } from './booking.validation.js';
 
 const router = express.Router();
 
-router.post('/', protectAdmin, adminCreateBookingController);
+router.post('/', protectAdmin, validate(adminCreateBookingSchema), adminCreateBookingController);
 router.get('/', protectAdmin, getBookingsController);
 router.get('/:id', protectAdmin, getBookingController);
 router.patch('/:id/pickup', protectAdmin, pickupBookingController);

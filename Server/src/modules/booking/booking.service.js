@@ -1,6 +1,7 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
-import { calculatePrice } from './pricing.service.js'
+import { getBookingAvailability } from './availability.service.js'
+import { checkBikeAvailability } from '../bike/bike.service.js'
 
 const generateBookingNumber = () => {
     const year = new Date().getFullYear()
@@ -13,11 +14,14 @@ export const createBooking = async (data, userIdFromAuth = null) => {
     if (!userId) throw new ApiError(400, 'User ID required')
 
     // Validate user
-    const user = await prisma.user.findUnique({ where: { id: userId } })
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { drivingLicense: true },
+    })
     if (!user) throw new ApiError(404, 'User not found')
     if (!user.isVerified) throw new ApiError(400, 'User email not verified')
-    if (!user.profileCompleted) throw new ApiError(400, 'Complete your profile')
-    if (!user.drivingLicenseApproved) throw new ApiError(400, 'Driving license not approved')
+    if (user.onboardingStatus !== 'PROFILE_COMPLETED') throw new ApiError(400, 'Complete your profile')
+    if (user.drivingLicense?.status !== 'APPROVED') throw new ApiError(400, 'Driving license not approved')
 
     // Check no active booking
     const activeBooking = await prisma.booking.findFirst({
@@ -28,85 +32,55 @@ export const createBooking = async (data, userIdFromAuth = null) => {
     })
     if (activeBooking) throw new ApiError(400, 'User has an active booking')
 
-    // Validate dates
-    const pickupAt = new Date(data.pickupAt)
-    const returnAt = new Date(data.returnAt)
-    if (pickupAt >= returnAt) throw new ApiError(400, 'Pickup must be before return')
-    const durationHours = Math.ceil((returnAt - pickupAt) / (1000 * 60 * 60))
-    if (durationHours < 1) throw new ApiError(400, 'Minimum duration 1 hour')
-
-    // Get pricing
-    const pricing = await prisma.pricing.findUnique({
-        where: { id: data.pricingId, isActive: true },
-    })
-    if (!pricing || pricing.campusId !== data.campusId) {
-        throw new ApiError(400, 'Invalid or inactive pricing package')
-    }
-
-    // Verify campus
-    const campus = await prisma.campus.findUnique({ where: { id: data.campusId } })
-    if (!campus || !campus.isActive) throw new ApiError(400, 'Invalid campus')
-
-    const priceSnapshot = calculatePrice(pricing, durationHours)
-
     const bookingNumber = generateBookingNumber()
+    const booking = await prisma.$transaction(async (tx) => {
+        // Re-check inside the create transaction so an earlier availability result
+        // cannot bypass the required buffer.
+        const summary = await getBookingAvailability(data, tx)
+        if (!summary.available) throw new ApiError(409, summary.reason)
 
-    const booking = await prisma.booking.create({
-        data: {
-            bookingNumber,
-            userId,
-            campusId: data.campusId,
-            pickupAt,
-            returnAt,
-            durationHours,
-            status: 'PAYMENT_PENDING',
-            paymentStatus: 'PENDING',
-            baseAmount: priceSnapshot.baseAmount,
-            depositAmount: priceSnapshot.depositAmount,
-            totalAmount: priceSnapshot.baseAmount + priceSnapshot.depositAmount, // simplified
-            includedKm: priceSnapshot.includedKm,
-            extraKmRate: priceSnapshot.extraKmRate,
-            notes: data.notes,
-        },
-        include: {
-            user: true,
-            campus: true,
-        },
-    })
+        return tx.booking.create({
+            data: {
+                bookingNumber,
+                userId,
+                bikeId: data.bikeId,
+                campusId: data.campusId,
+                pricingId: summary.pricing.id,
+                pickupAt: new Date(data.pickupAt),
+                returnAt: new Date(data.returnAt),
+                durationHours: summary.durationHours,
+                status: 'PAYMENT_PENDING',
+                paymentStatus: 'PENDING',
+                baseAmount: summary.baseAmount,
+                depositAmount: summary.depositAmount,
+                totalAmount: summary.totalAmount,
+                includedKm: summary.includedKm,
+                extraKmRate: summary.extraKmRate,
+                notes: data.notes,
+            },
+            include: { user: true, campus: true, pricing: true, bike: true },
+        })
+    }, { isolationLevel: 'Serializable' })
 
     return booking
 }
 
 export const findAvailableBike = async (pickupAt, returnAt, campusId) => {
-    const overlappingBookings = await prisma.booking.findMany({
-        where: {
-            campusId,
-            bikeId: { not: null },
-            status: { in: ['CONFIRMED', 'ACTIVE'] },
-            OR: [
-                {
-                    pickupAt: { lt: new Date(returnAt) },
-                    returnAt: { gt: new Date(pickupAt) },
-                },
-            ],
-        },
-        select: { bikeId: true },
-    })
-
-    const bookedBikeIds = overlappingBookings.map((b) => b.bikeId).filter(Boolean)
-
-    const availableBike = await prisma.bike.findFirst({
+    const bikes = await prisma.bike.findMany({
         where: {
             campusId,
             status: 'AVAILABLE',
             isActive: true,
-            id: { notIn: bookedBikeIds },
         },
         orderBy: { currentOdometer: 'asc' },
     })
 
-    if (!availableBike) throw new ApiError(400, 'No available bikes for the selected time')
-    return availableBike
+    for (const bike of bikes) {
+        const availability = await checkBikeAvailability(bike.id, new Date(pickupAt), new Date(returnAt))
+        if (availability.available) return bike
+    }
+
+    throw new ApiError(400, 'No available bikes for the selected time')
 }
 
 export const assignBike = async (bookingId, bikeId) => {

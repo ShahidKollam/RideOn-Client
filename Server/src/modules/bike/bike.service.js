@@ -1,6 +1,50 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 
+export const BOOKING_BUFFER_MINUTES = 15
+const blockingBookingStatuses = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
+
+export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client = prisma) => {
+    const bike = await client.bike.findUnique({ where: { id: bikeId } })
+    if (!bike || !bike.isActive || bike.status !== 'AVAILABLE') {
+        return { available: false, reason: 'Bike is not available' }
+    }
+
+    const bufferStart = new Date(pickupAt.getTime() - BOOKING_BUFFER_MINUTES * 60 * 1000)
+    const bufferedReturnAt = new Date(returnAt.getTime() + BOOKING_BUFFER_MINUTES * 60 * 1000)
+    const conflict = await client.booking.findFirst({
+        where: {
+            bikeId,
+            status: { in: blockingBookingStatuses },
+            pickupAt: { lt: bufferedReturnAt },
+            returnAt: { gt: bufferStart },
+        },
+        orderBy: { pickupAt: 'asc' },
+    })
+
+    return conflict
+        ? { available: false, reason: '15-minute buffer required between bookings' }
+        : { available: true }
+}
+
+export const findNextAvailableBike = async (bikeId, pickupAt, returnAt, client = prisma) => {
+    const durationMs = returnAt.getTime() - pickupAt.getTime()
+    const bookings = await client.booking.findMany({
+        where: { bikeId, status: { in: blockingBookingStatuses } },
+        select: { pickupAt: true, returnAt: true },
+        orderBy: { pickupAt: 'asc' },
+    })
+
+    let availableFrom = new Date(pickupAt)
+    for (const booking of bookings) {
+        const bufferedReturnAt = new Date(booking.returnAt.getTime() + BOOKING_BUFFER_MINUTES * 60 * 1000)
+        if (availableFrom.getTime() + durationMs <= booking.pickupAt.getTime() - BOOKING_BUFFER_MINUTES * 60 * 1000) break
+        if (availableFrom < bufferedReturnAt) availableFrom = bufferedReturnAt
+    }
+
+    return { availableFrom }
+}
+
 
 export const createBike = async (data) => {
     // Verify campus exists and is active

@@ -5,7 +5,7 @@ const formatDateTime = (value) => {
     return new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export default function BookingSummary({ vehicle, pickupAt, returnAt, duration = 0, status = 'AVAILABLE' }) {
+export default function BookingSummary({ vehicle, pickupAt, returnAt, availability, status = 'AVAILABLE' }) {
     const image = vehicle?.imageUrls?.[0]
     const isAvailable = status === 'AVAILABLE'
 
@@ -32,15 +32,14 @@ export default function BookingSummary({ vehicle, pickupAt, returnAt, duration =
                 <dl className="mt-4 space-y-3 text-sm">
                     <div className="flex gap-3"><CalendarDays className="mt-0.5 size-4 shrink-0 text-rideon-blue" /><div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">PICKUP</dt><dd className="mt-0.5 font-semibold text-slate-600">{formatDateTime(pickupAt)}</dd></div></div>
                     <div className="flex gap-3"><CalendarDays className="mt-0.5 size-4 shrink-0 text-rideon-blue" /><div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">RETURN</dt><dd className="mt-0.5 font-semibold text-slate-600">{formatDateTime(returnAt)}</dd></div></div>
-                    <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3 text-slate-600"><Clock3 className="size-4 text-rideon-blue" />Duration</span><strong className="text-rideon-dark">{duration ? `${duration} hour${duration === 1 ? '' : 's'}` : '—'}</strong></div>
+                    <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-3 text-slate-600"><Clock3 className="size-4 text-rideon-blue" />Duration</span><strong className="text-rideon-dark">{availability?.durationHours ? `${availability.durationHours} hour${availability.durationHours === 1 ? '' : 's'}` : '—'}</strong></div>
                 </dl>
             </section>
 
             <section className="mt-5 border-t border-slate-100 pt-5">
                 <p className="text-xs font-extrabold uppercase tracking-wider text-rideon-blue">Pricing</p>
                 <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-bold text-rideon-dark">Calculated at confirmation</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">Your eligible package, deposit, and included distance are applied when your reservation is created.</p>
+                    {availability ? <><p className="text-sm font-bold text-rideon-dark">{availability.pricing.packageName}</p><dl className="mt-2 space-y-1 text-xs text-slate-500"><div className="flex justify-between"><dt>Rental</dt><dd>₹{availability.baseAmount}</dd></div><div className="flex justify-between"><dt>Deposit</dt><dd>₹{availability.depositAmount}</dd></div><div className="flex justify-between font-bold text-rideon-dark"><dt>Total</dt><dd>₹{availability.totalAmount}</dd></div></dl></> : <><p className="text-sm font-bold text-rideon-dark">Check availability</p><p className="mt-1 text-xs leading-5 text-slate-500">Your package and total are supplied by the server after availability is checked.</p></>}
                 </div>
             </section>
 

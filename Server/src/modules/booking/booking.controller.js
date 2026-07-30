@@ -1,16 +1,21 @@
 import { createBooking, cancelBooking, pickupBooking, returnBooking, getBooking, getBookings } from './booking.service.js';
-import { createBookingSchema, adminCreateBookingSchema, cancelBookingSchema, bookingQuerySchema } from './booking.validation.js';
+import { checkAvailability } from './availability.service.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 import ApiResponse from '../../utils/ApiResponse.js';
 
 export const createBookingController = asyncHandler(async (req, res) => {
   const booking = await createBooking(req.body, req.user.id);
-  res.status(201).json(new ApiResponse(201, booking, 'Booking created successfully'));
+  res.status(201).json(new ApiResponse(201, 'Booking created successfully', booking));
 });
 
 export const adminCreateBookingController = asyncHandler(async (req, res) => {
   const booking = await createBooking(req.body);
-  res.status(201).json(new ApiResponse(201, booking, 'Booking created by admin successfully'));
+  res.status(201).json(new ApiResponse(201, 'Booking created by admin successfully', booking));
+});
+
+export const checkAvailabilityController = asyncHandler(async (req, res) => {
+  const summary = await checkAvailability(req.body);
+  res.status(200).json(new ApiResponse(200, 'Availability checked successfully', summary));
 });
 
 export const getBookingsController = asyncHandler(async (req, res) => {

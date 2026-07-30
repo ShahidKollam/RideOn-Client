@@ -150,6 +150,7 @@ model Pricing {
   updatedAt     DateTime @updatedAt
 
   campus Campus @relation(fields: [campusId], references: [id])
+  bookings Booking[]
 
   @@index([campusId])
   @@index([displayOrder])
@@ -163,6 +164,7 @@ model Booking {
   userId         String
   bikeId         String?
   campusId       String
+  pricingId      String
   pickupAt       DateTime
   returnAt       DateTime
   durationHours  Int
@@ -190,11 +192,13 @@ model Booking {
   user   User   @relation(fields: [userId], references: [id])
   bike   Bike?  @relation(fields: [bikeId], references: [id])
   campus Campus @relation(fields: [campusId], references: [id])
+  pricing Pricing @relation(fields: [pricingId], references: [id])
 
   @@index([bookingNumber])
   @@index([userId])
   @@index([bikeId])
   @@index([campusId])
+  @@index([pricingId])
   @@index([status])
   @@index([pickupAt])
   @@index([returnAt])

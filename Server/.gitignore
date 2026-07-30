@@ -5,5 +5,8 @@ node_modules
 dist
 *.log
 prisma/migrations
+!prisma/migrations/
+!prisma/migrations/20260730120000_add_booking_pricing_snapshot/
+!prisma/migrations/20260730120000_add_booking_pricing_snapshot/migration.sql
 
 /src/generated/prisma

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, CheckCircle2, Info, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Info, ShieldCheck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import BookingSummary from '@/components/bookings/BookingSummary'
@@ -8,13 +8,16 @@ import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
-import { createBooking } from '@/services/bookingService'
+import { checkAvailability, createBooking } from '@/services/bookingService'
 import { getVehicle } from '@/services/vehicleService'
 
-const toLocalInput = (date) => {
+const toDateInput = (date) => {
     const offset = date.getTimezoneOffset() * 60000
-    return new Date(date - offset).toISOString().slice(0, 16)
+    return new Date(date - offset).toISOString().slice(0, 10)
 }
+
+const toTimeInput = (date) => date.toTimeString().slice(0, 5)
+const combineDateAndTime = (date, time) => date && time ? new Date(`${date}T${time}`) : null
 
 export default function BookingPage() {
     const { id } = useParams()
@@ -24,42 +27,49 @@ export default function BookingPage() {
     const [vehicle, setVehicle] = useState(null)
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
-    const minimumPickup = useMemo(() => {
+    const [availability, setAvailability] = useState(null)
+    const initialPickup = useMemo(() => {
         const value = new Date()
         value.setMinutes(0, 0, 0)
         value.setHours(value.getHours() + 1)
-        return toLocalInput(value)
+        return { date: toDateInput(value), time: toTimeInput(value) }
     }, [])
-    const [values, setValues] = useState({ pickupAt: minimumPickup, returnAt: '', notes: '' })
+    const [values, setValues] = useState({ pickupDate: initialPickup.date, pickupTime: initialPickup.time, returnDate: '', returnTime: '', notes: '' })
 
     useEffect(() => {
         getVehicle(id).then(setVehicle).catch((requestError) => setError(getApiErrorMessage(requestError, 'We could not load this vehicle.')))
     }, [id])
 
-    const duration = values.returnAt && new Date(values.returnAt) > new Date(values.pickupAt)
-        ? Math.ceil((new Date(values.returnAt) - new Date(values.pickupAt)) / 36e5)
-        : 0
+    const pickupAt = combineDateAndTime(values.pickupDate, values.pickupTime)
+    const returnAt = combineDateAndTime(values.returnDate, values.returnTime)
+    const updateValue = (field, value) => {
+        setAvailability(null)
+        setValues((current) => ({ ...current, [field]: value }))
+    }
 
-    const updateValue = (field, value) => setValues((current) => ({ ...current, [field]: value }))
-
-    const submit = async (event) => {
+    const checkBookingAvailability = async (event) => {
         event.preventDefault()
         if (!isAuthenticated) {
             navigate('/auth/login', { state: { from: `/booking/${id}` } })
             return
         }
-        if (!duration) {
-            showToast({ type: 'error', title: 'Select a valid return time', description: 'Your return must be at least one hour after pickup.' })
-            return
-        }
-        const pricingId = import.meta.env.VITE_DEFAULT_PRICING_ID
-        if (!pricingId) {
-            showToast({ type: 'error', title: 'Booking is not configured', description: 'A pricing package must be configured before bookings can be created.' })
-            return
-        }
         setSubmitting(true)
         try {
-            const booking = await createBooking({ campusId: vehicle.campusId, pickupAt: new Date(values.pickupAt).toISOString(), returnAt: new Date(values.returnAt).toISOString(), pricingId, notes: values.notes.trim() || undefined })
+            const summary = await checkAvailability({ bikeId: vehicle.id, campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            setAvailability(summary)
+            if (!summary.available) showToast({ type: 'error', title: 'Bike unavailable', description: summary.reason || 'Choose another time.' })
+        } catch (requestError) {
+            showToast({ type: 'error', title: 'Could not check availability', description: getApiErrorMessage(requestError) })
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    const submitBooking = async () => {
+        if (!availability?.available) return
+        setSubmitting(true)
+        try {
+            const booking = await createBooking({ bikeId: vehicle.id, campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString(), notes: values.notes.trim() })
             navigate(`/booking-success/${booking.id}`, { state: { booking, vehicle } })
         } catch (requestError) {
             showToast({ type: 'error', title: 'Could not create booking', description: getApiErrorMessage(requestError) })
@@ -83,15 +93,18 @@ export default function BookingPage() {
                             <p className="mt-3 text-sm leading-6 text-slate-500">Select the times that work for you. Your reservation remains payment pending until payment is available.</p>
                         </div>
 
-                        <form onSubmit={submit} className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] sm:p-6">
+                        <form onSubmit={checkBookingAvailability} className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] sm:p-6">
                             <div className="flex items-center gap-3"><span className="flex size-7 items-center justify-center rounded-full bg-rideon-blue text-sm font-extrabold text-white">1</span><h2 className="font-extrabold text-rideon-dark">Select ride time</h2></div>
-                            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                                <label className="text-sm font-bold text-rideon-dark">Pickup time<input required type="datetime-local" min={minimumPickup} value={values.pickupAt} onChange={(event) => updateValue('pickupAt', event.target.value)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
-                                <label className="text-sm font-bold text-rideon-dark">Return time<input required type="datetime-local" min={values.pickupAt} value={values.returnAt} onChange={(event) => updateValue('returnAt', event.target.value)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
+                            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <label className="text-sm font-bold text-rideon-dark">Pickup date<div className="relative mt-2"><CalendarDays className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-rideon-blue" /><input required type="date" min={initialPickup.date} value={values.pickupDate} onChange={(event) => updateValue('pickupDate', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></div></label>
+                                <label className="text-sm font-bold text-rideon-dark">Pickup time<div className="relative mt-2"><Clock3 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-rideon-blue" /><input required type="time" min={values.pickupDate === initialPickup.date ? initialPickup.time : undefined} value={values.pickupTime} onChange={(event) => updateValue('pickupTime', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></div></label>
+                                <label className="text-sm font-bold text-rideon-dark">Return date<div className="relative mt-2"><CalendarDays className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-rideon-blue" /><input required type="date" min={values.pickupDate} value={values.returnDate} onChange={(event) => updateValue('returnDate', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></div></label>
+                                <label className="text-sm font-bold text-rideon-dark">Return time<div className="relative mt-2"><Clock3 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-rideon-blue" /><input required type="time" value={values.returnTime} onChange={(event) => updateValue('returnTime', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm font-medium text-slate-600 outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></div></label>
                             </div>
-                            <div className="mt-4 flex gap-2 rounded-xl bg-rideon-blue/5 px-3 py-3 text-xs leading-5 text-slate-600"><Info className="mt-0.5 size-4 shrink-0 text-rideon-blue" />Minimum rental duration is one hour.</div>
+                            <div className="mt-4 flex gap-2 rounded-xl bg-rideon-blue/5 px-3 py-3 text-xs leading-5 text-slate-600"><Info className="mt-0.5 size-4 shrink-0 text-rideon-blue" />Availability, rental duration, and pricing are confirmed by the server.</div>
                             <label className="mt-5 block text-sm font-bold text-rideon-dark">Notes <span className="font-normal text-slate-400">(optional)</span><textarea value={values.notes} onChange={(event) => updateValue('notes', event.target.value)} rows="3" placeholder="Anything our team should know?" className="mt-2 w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/10" /></label>
-                            <Button type="submit" disabled={submitting || vehicle.status !== 'AVAILABLE'} className="mt-6 h-12 w-full bg-rideon-blue text-sm font-bold text-white shadow-[0_8px_18px_rgba(29,140,248,0.24)] hover:bg-rideon-blue/90">{submitting ? 'Creating reservation…' : <><CalendarDays className="size-4" />Create reservation</>}</Button>
+                            <Button type="submit" disabled={submitting || vehicle.status !== 'AVAILABLE'} className="mt-6 h-12 w-full bg-rideon-blue text-sm font-bold text-white shadow-[0_8px_18px_rgba(29,140,248,0.24)] hover:bg-rideon-blue/90">{submitting ? 'Checking availability…' : <><CalendarDays className="size-4" />Check availability</>}</Button>
+                            {availability?.available && <Button type="button" onClick={submitBooking} disabled={submitting} className="mt-3 h-12 w-full bg-rideon-green text-sm font-bold text-white hover:bg-rideon-green/90">Continue to payment</Button>}
                         </form>
 
                         <section className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 sm:flex sm:items-start sm:justify-between sm:gap-5">
@@ -99,7 +112,7 @@ export default function BookingPage() {
                             <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 sm:mt-0"><CheckCircle2 className="size-4" />Flexible before payment</span>
                         </section>
                     </div>
-                    <BookingSummary vehicle={vehicle} pickupAt={values.pickupAt} returnAt={values.returnAt} duration={duration} status={vehicle.status} />
+                    <BookingSummary vehicle={vehicle} pickupAt={pickupAt?.toISOString()} returnAt={returnAt?.toISOString()} availability={availability} status={vehicle.status} />
                 </div>
             </div>
         </div>

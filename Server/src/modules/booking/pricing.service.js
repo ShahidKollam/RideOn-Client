@@ -73,16 +73,27 @@ export const deletePricing = async (id) => {
     return { message: 'Pricing soft deleted' }
 }
 
-// Helper for booking
-export const calculatePrice = (pricingData, durationHours) => {
-    // Simple calc, can be enhanced
+export const findPricingByDuration = async (durationHours, campusId, client = prisma) => {
+    const pricing = await client.pricing.findFirst({
+        where: {
+            campusId,
+            isActive: true,
+            durationHours: { gte: durationHours },
+        },
+        orderBy: [{ durationHours: 'asc' }, { displayOrder: 'asc' }],
+    })
+
+    if (!pricing) throw new ApiError(400, 'No active pricing package matches the selected duration')
+    return pricing
+}
+
+// Helper for booking. Pricing is selected by the server before this is called.
+export const calculatePrice = (pricingData) => {
     const baseAmount = pricingData.price // Assume price is for the duration
-    // More logic if needed based on duration match
     return {
         baseAmount,
         depositAmount: pricingData.depositAmount,
         includedKm: pricingData.includedKm,
         extraKmRate: pricingData.extraKmRate,
-        durationHours: pricingData.durationHours,
     }
 }
