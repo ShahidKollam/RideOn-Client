@@ -8,8 +8,21 @@ export const createPricing = async (data) => {
     }
 
     const pricing = await prisma.pricing.create({
-        data,
-        include: { campus: true },
+        data: {
+            campusId: data.campusId,
+            packageName: data.packageName,
+            durationHours: data.durationHours,
+            price: data.price,
+            includedKm: data.includedKm,
+            extraKmRate: data.extraKmRate,
+            depositAmount: data.depositAmount,
+            displayOrder: data.displayOrder,
+            isFeatured: data.isFeatured,
+            isActive: data.isActive,
+        },
+        include: {
+            campus: true,
+        },
     })
 
     return pricing
@@ -23,8 +36,20 @@ export const updatePricing = async (id, data) => {
 
     const updated = await prisma.pricing.update({
         where: { id },
-        data,
-        include: { campus: true },
+        data: {
+            packageName: data.packageName,
+            durationHours: data.durationHours,
+            price: data.price,
+            includedKm: data.includedKm,
+            extraKmRate: data.extraKmRate,
+            depositAmount: data.depositAmount,
+            displayOrder: data.displayOrder,
+            isFeatured: data.isFeatured,
+            isActive: data.isActive,
+        },
+        include: {
+            campus: true,
+        },
     })
 
     return updated
