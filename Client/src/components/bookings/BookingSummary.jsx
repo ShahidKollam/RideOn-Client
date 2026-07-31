@@ -7,14 +7,14 @@ function DetailRow({ icon: Icon, label, value }) {
     return <div className="flex items-center justify-between gap-5 text-[14px]"><span className="flex items-center gap-4 text-[#40537e]"><Icon className="size-[19px] text-[#31558d]" />{label}</span><strong className="text-right font-semibold text-[#101c45]">{value}</strong></div>
 }
 
-export default function BookingSummary({ vehicle, pickupAt, returnAt, availability, status = 'AVAILABLE' }) {
+export default function BookingSummary({ vehicle, pickupAt, returnAt, availability, status = 'AVAILABLE', className = '' }) {
     const image = vehicle?.imageUrls?.[0]
     const name = vehicle?.name || `${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim()
     const isAvailable = availability?.available ?? status === 'AVAILABLE'
     const includedKm = availability?.includedKm
 
     return (
-        <aside className="h-fit rounded-xl border border-slate-200 bg-white p-6 shadow-[0_8px_20px_rgba(28,55,113,0.045)] xl:sticky xl:top-24">
+        <aside className={`h-fit rounded-xl border border-slate-200 bg-white p-6 shadow-[0_8px_20px_rgba(28,55,113,0.045)] xl:sticky xl:top-24 ${className}`}>
             <h2 className="text-[22px] font-extrabold tracking-[-0.025em] text-[#0b1742]">Booking summary</h2>
             <div className="mt-5 flex gap-5">
                 <div className="flex size-[150px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-2">{image ? <img src={image} alt={name} className="size-full object-contain" /> : <Gauge className="size-9 text-rideon-blue/40" />}</div>

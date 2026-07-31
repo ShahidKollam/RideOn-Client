@@ -21,7 +21,7 @@ export const createBooking = async (data, userIdFromAuth = null) => {
     if (!user) throw new ApiError(404, 'User not found')
     if (!user.isVerified) throw new ApiError(400, 'User email not verified')
     if (user.onboardingStatus !== 'PROFILE_COMPLETED') throw new ApiError(400, 'Complete your profile')
-    if (user.drivingLicense?.status !== 'APPROVED') throw new ApiError(400, 'Driving license not approved')
+    // if (user.drivingLicense?.status !== 'APPROVED') throw new ApiError(400, 'Driving license not approved') // dont remove this line
 
     // Check no active booking
     const activeBooking = await prisma.booking.findFirst({
@@ -33,34 +33,37 @@ export const createBooking = async (data, userIdFromAuth = null) => {
     if (activeBooking) throw new ApiError(400, 'User has an active booking')
 
     const bookingNumber = generateBookingNumber()
-    const booking = await prisma.$transaction(async (tx) => {
-        // Re-check inside the create transaction so an earlier availability result
-        // cannot bypass the required buffer.
-        const summary = await getBookingAvailability(data, tx)
-        if (!summary.available) throw new ApiError(409, summary.reason)
+    const booking = await prisma.$transaction(
+        async (tx) => {
+            // Re-check inside the create transaction so an earlier availability result
+            // cannot bypass the required buffer.
+            const summary = await getBookingAvailability(data, tx)
+            if (!summary.available) throw new ApiError(409, summary.reason)
 
-        return tx.booking.create({
-            data: {
-                bookingNumber,
-                userId,
-                bikeId: data.bikeId,
-                campusId: data.campusId,
-                pricingId: summary.pricing.id,
-                pickupAt: new Date(data.pickupAt),
-                returnAt: new Date(data.returnAt),
-                durationHours: summary.durationHours,
-                status: 'PAYMENT_PENDING',
-                paymentStatus: 'PENDING',
-                baseAmount: summary.baseAmount,
-                depositAmount: summary.depositAmount,
-                totalAmount: summary.totalAmount,
-                includedKm: summary.includedKm,
-                extraKmRate: summary.extraKmRate,
-                notes: data.notes,
-            },
-            include: { user: true, campus: true, pricing: true, bike: true },
-        })
-    }, { isolationLevel: 'Serializable' })
+            return tx.booking.create({
+                data: {
+                    bookingNumber,
+                    userId,
+                    bikeId: data.bikeId,
+                    campusId: data.campusId,
+                    pricingId: summary.pricing.id,
+                    pickupAt: new Date(data.pickupAt),
+                    returnAt: new Date(data.returnAt),
+                    durationHours: summary.durationHours,
+                    status: 'PAYMENT_PENDING',
+                    paymentStatus: 'PENDING',
+                    baseAmount: summary.baseAmount,
+                    depositAmount: summary.depositAmount,
+                    totalAmount: summary.totalAmount,
+                    includedKm: summary.includedKm,
+                    extraKmRate: summary.extraKmRate,
+                    notes: data.notes,
+                },
+                include: { user: true, campus: true, pricing: true, bike: true },
+            })
+        },
+        { isolationLevel: 'Serializable' }
+    )
 
     return booking
 }
