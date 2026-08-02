@@ -149,7 +149,7 @@ model Pricing {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  campus Campus @relation(fields: [campusId], references: [id])
+  campus   Campus    @relation(fields: [campusId], references: [id])
   bookings Booking[]
 
   @@index([campusId])
@@ -189,9 +189,9 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id])
-  bike   Bike?  @relation(fields: [bikeId], references: [id])
-  campus Campus @relation(fields: [campusId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  bike    Bike?   @relation(fields: [bikeId], references: [id])
+  campus  Campus  @relation(fields: [campusId], references: [id])
   pricing Pricing @relation(fields: [pricingId], references: [id])
 
   @@index([bookingNumber])
@@ -214,11 +214,26 @@ enum BookingStatus {
   FAILED
   NO_SHOW
 }
-
+ 
 enum PaymentStatus {
   PENDING
   PAID
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED
+}
+
+model SystemSetting {
+  id String @id @default(cuid())
+
+  gstEnabled Boolean @default(true)
+  gstRate    Float   @default(18)
+
+  platformFeeEnabled Boolean @default(true)
+  platformFee        Float   @default(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }

@@ -27,6 +27,14 @@ app.use(cookieParser())
 // Logging
 app.use(pinoHttp({ logger }))
 
+app.use((req, res, next) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`${req.method} ${req.originalUrl}`)
+    }
+    console.log(`${req.method} ${req.originalUrl}`)
+    next()
+})
+
 // Body parser    
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))

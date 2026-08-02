@@ -5,7 +5,7 @@ import logger from './config/logger.js'
 const PORT = config.port
 
 const server = app.listen(PORT, () => {
-    logger.info(`\n<> Server running on port ${PORT} in ${config.nodeEnv} mode`)
+    logger.info(`\n[-] Server running on port ${PORT} in ${config.nodeEnv} mode`)
 })
 
 process.on('unhandledRejection', (err) => {
@@ -15,3 +15,4 @@ process.on('unhandledRejection', (err) => {
         process.exit(1) 
     })
 })
+ 

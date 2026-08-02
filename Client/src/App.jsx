@@ -21,6 +21,7 @@ const BookingsPage = lazy(() => import('@/pages/BookingsPage'))
 const BookingDetailsPage = lazy(() => import('@/pages/BookingDetailsPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const ContactPage = lazy(() => import('@/pages/ContactPage'))
+const PricingPage = lazy(() => import('@/pages/PricingPage'))
 
 export default function App() {
     return (
@@ -31,6 +32,7 @@ export default function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/vehicles" element={<Suspense fallback={<LoadingScreen />}><VehiclesPage /></Suspense>} />
                     <Route path="/vehicles/:id" element={<Suspense fallback={<LoadingScreen />}><VehicleDetailsPage /></Suspense>} />
+                    <Route path="/pricing" element={<Suspense fallback={<LoadingScreen />}><PricingPage /></Suspense>} />
                     <Route path="/booking/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
                     <Route path="/booking-success/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingSuccessPage /></Suspense></ProtectedRoute>} />
                     <Route path="/bookings" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />

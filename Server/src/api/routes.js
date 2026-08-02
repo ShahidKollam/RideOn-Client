@@ -10,22 +10,27 @@ import bikeRoutes from '../modules/bike/bike.routes.js'
 import bookingUserRoutes from '../modules/booking/booking.user.routes.js'
 import bookingAdminRoutes from '../modules/booking/booking.admin.routes.js'
 import pricingAdminRoutes from '../modules/booking/pricing.admin.routes.js'
+import pricingUserRoutes from '../modules/booking/pricing.user.routes.js'
 import bikeAdminRoutes from '../modules/bike/bike.admin.routes.js'
+import settingsAdminRoutes from '../modules/settings/settings.routes.js'
 
 const router = express.Router()
 
 router.use('/auth', authRoutes)
 router.use('/users', userRoutes)
-router.use('/admin', adminRoutes)
 router.use('/campus', campusRoutes)
 router.use('/driving-licenses', drivingLicenseRoutes)
+router.use('/pricing', pricingUserRoutes)
+router.use('/bikes', bikeRoutes) 
 
-// Mount routes (adjust prefixes to match existing style, e.g., /api/...)
-router.use('/bikes', bikeRoutes) // Admin part
+
+router.use('/admin', adminRoutes)
 router.use('/admin/bikes', bikeAdminRoutes) // Admin part
-// Public bikes can be exposed separately
 router.use('/bookings', bookingUserRoutes)
 router.use('/admin/bookings', bookingAdminRoutes)
 router.use('/admin/pricing', pricingAdminRoutes)
+
+router.use('/admin/settings', settingsAdminRoutes)
+
 
 export default router

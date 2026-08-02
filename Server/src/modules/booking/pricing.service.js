@@ -65,7 +65,7 @@ export const getPricingById = async (id) => {
 }
 
 export const getPricingList = async (query = {}) => {
-    const { page = 1, limit = 10, campusId, isActive } = query
+    const { page = 1, limit = 20, campusId, isActive } = query
 
     const where = {
         isActive: isActive !== undefined ? isActive : true,
@@ -77,8 +77,10 @@ export const getPricingList = async (query = {}) => {
             where,
             skip: (page - 1) * limit,
             take: limit,
-            orderBy: { displayOrder: 'asc', createdAt: 'desc' },
-            include: { campus: true },
+            orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+            include: {
+                campus: true,
+            },
         }),
         prisma.pricing.count({ where }),
     ])

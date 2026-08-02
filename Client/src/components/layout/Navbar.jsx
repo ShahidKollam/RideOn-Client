@@ -11,6 +11,7 @@ const navLinks = [
     { label: "Home", path: "/" },
     // { label: "How It Works", section: "how-it-works" },
     { label: "Vehicles", path: "/vehicles" },
+    { label: "Pricing", path: "/pricing" },
     { label: "About Us", path: "/about" },
     { label: "Contact Us", path: "/contact" },
 ]
