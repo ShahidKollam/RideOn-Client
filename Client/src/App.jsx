@@ -29,6 +29,7 @@ export default function App() {
             <ScrollToTop />
             <Routes>
                 <Route element={<AppLayout />}>
+
                     <Route path="/" element={<Home />} />
                     <Route path="/vehicles" element={<Suspense fallback={<LoadingScreen />}><VehiclesPage /></Suspense>} />
                     <Route path="/vehicles/:id" element={<Suspense fallback={<LoadingScreen />}><VehicleDetailsPage /></Suspense>} />

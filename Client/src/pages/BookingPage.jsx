@@ -18,6 +18,7 @@ const toDateInput = (date) => {
 
 const toTimeInput = (date) => date.toTimeString().slice(0, 5)
 const combineDateAndTime = (date, time) => date && time ? new Date(`${date}T${time}`) : null
+const money = (value) => value === undefined || value === null ? '\u2014' : `\u20B9${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 
 function TimeField({ label, date, time, minDate, minTime, onDateChange, onTimeChange }) {
     return (
@@ -54,7 +55,7 @@ export default function BookingPage() {
         value.setHours(value.getHours() + 1)
         return { date: toDateInput(value), time: toTimeInput(value) }
     }, [])
-    const [values, setValues] = useState({ pickupDate: initialPickup.date, pickupTime: initialPickup.time, returnDate: '', returnTime: '' })
+    const [values, setValues] = useState({ pickupDate: initialPickup.date, pickupTime: initialPickup.time, returnDate: toDateInput(new Date()), returnTime: '' })
     const [summaryOpen, setSummaryOpen] = useState(false)
 
     useEffect(() => {
@@ -151,7 +152,7 @@ export default function BookingPage() {
                             {availability.available ? <>
                                 <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]"><span className="flex items-center gap-2"><CheckCircle2 className="size-5" />Great! Your selected bike is available.</span></div>
                                 <div className="mt-4 flex items-center gap-4"><div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100">{image ? <img src={image} alt={vehicleName} className="size-full object-contain" /> : <Settings2 className="size-7 text-rideon-blue/40" />}</div><div className="min-w-0"><span className="rounded bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">Available</span><h3 className="mt-2 truncate text-[16px] font-bold">{vehicleName}</h3><p className="mt-1 flex items-center gap-1.5 text-xs text-[#40537e]"><MapPin className="size-3.5 text-rideon-blue" />{vehicle.campus?.name || 'Campus pickup'}</p></div></div>
-                                <div className="mt-4 flex items-center justify-between rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3"><span className="text-sm font-semibold">Total amount</span><strong className="text-xl text-rideon-blue">{availability.totalAmount === undefined ? '—' : `₹${availability.totalAmount}`}</strong></div>
+                                <div className="mt-4 rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3"><div className="flex items-center justify-between text-xs text-[#40537e]"><span>Subtotal + GST</span><span>{money(availability.subtotal)} + {money(availability.gstAmount)}</span></div><div className="mt-2 flex items-center justify-between"><span className="text-sm font-semibold">Total amount</span><strong className="text-xl text-rideon-blue">{money(availability.totalAmount)}</strong></div></div>
                                 <button type="button" onClick={() => setSummaryOpen(true)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#a9c9ff] py-3 text-sm font-semibold text-rideon-blue">View booking details <ChevronDown className="size-4" /></button>
                             </> : <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{availability.reason || 'This bike is not available for the selected time.'}</div>}
                         </section>}

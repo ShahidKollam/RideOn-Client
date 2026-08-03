@@ -1,0 +1,1 @@
+1 = Helmet > single helmet free and second helmet 30 rs rend and 10 fine if hour extended

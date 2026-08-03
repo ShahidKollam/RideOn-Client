@@ -110,17 +110,53 @@ export const findPricingByDuration = async (durationHours, campusId, client = pr
         orderBy: [{ durationHours: 'asc' }, { displayOrder: 'asc' }],
     })
 
-    if (!pricing) throw new ApiError(400, 'No active pricing package matches the selected duration')
+    if (!pricing) {
+        throw new ApiError(400, 'No active pricing package matches the selected duration')
+    }
+
     return pricing
 }
 
-// Helper for booking. Pricing is selected by the server before this is called.
-export const calculatePrice = (pricingData) => {
-    const baseAmount = pricingData.price // Assume price is for the duration
+/**
+ * Calculate final price including Platform Fee + GST
+ */
+export const calculatePrice = async (pricingData) => {
+    // Get current system settings
+    let settings = await prisma.systemSetting.findFirst()
+
+    if (!settings) {
+        // Fallback defaults (should rarely happen)
+        settings = {
+            gstEnabled: true,
+            gstRate: 18,
+            platformFeeEnabled: true,
+            platformFee: 20,
+        }
+    }
+
+    const baseAmount = pricingData.price
+    const depositAmount = pricingData.depositAmount
+
+    // Platform Fee
+    const platformFee = settings.platformFeeEnabled ? settings.platformFee : 0
+
+    // Subtotal
+    const subtotal = baseAmount + platformFee
+
+    // GST
+    const gstAmount = settings.gstEnabled ? Number(((subtotal * settings.gstRate) / 100).toFixed(2)) : 0
+
+    // Final Total
+    const totalAmount = Number((subtotal + gstAmount + depositAmount).toFixed(2))
+
     return {
         baseAmount,
-        depositAmount: pricingData.depositAmount,
+        platformFee,
+        subtotal,
+        gstAmount,
+        depositAmount,
         includedKm: pricingData.includedKm,
         extraKmRate: pricingData.extraKmRate,
+        totalAmount,
     }
 }
