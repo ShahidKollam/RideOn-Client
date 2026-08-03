@@ -1,6 +1,7 @@
 import { ArrowRight, Tag } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function PromoBanner() {
     return (
@@ -35,9 +36,9 @@ export default function PromoBanner() {
               hover:bg-white/95
               sm:w-auto
             "
+                        asChild
                     >
-                        Book Now
-                        <ArrowRight className="size-4" />
+                        <Link to="/booking">Book Now <ArrowRight className="size-4" /></Link>
                     </Button>
                 </div>
             </div>

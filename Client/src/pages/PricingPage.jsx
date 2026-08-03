@@ -61,7 +61,7 @@ export default function PricingPage() {
                     </div>
                     <aside className="border-t border-slate-200 bg-white p-5 sm:p-6 lg:border-t-0 lg:border-l">
                         <div className="space-y-3"><InfoCard icon={ShieldCheck} title="Refundable security deposit" value={deposit === undefined ? 'Shown at booking' : money(deposit)} description="Refunded after safe return of the bike." tone="green" /><InfoCard icon={Gauge} title="Extra KM charge" value={packages[0] ? `${money(packages[0].extraKmRate)} / km` : 'Shown at booking'} description="Applicable for every km after the included limit." tone="blue" /><InfoCard icon={Fuel} title="Fuel policy" description="Return the bike with the same fuel level as provided." tone="amber" /></div>
-                        <Button className="mt-3 h-auto w-full justify-between rounded-lg bg-[#0764f5] px-5 py-4 text-left text-white hover:bg-[#075be0]" asChild><Link to="/vehicles"><span><span className="block text-base font-bold">Book your ride</span><span className="mt-1 block text-sm font-normal text-white/90">Pick your time, confirm and ride!</span></span><ArrowRight className="size-5 shrink-0" /></Link></Button>
+                        <Button className="mt-3 h-auto w-full justify-between rounded-lg bg-[#0764f5] px-5 py-4 text-left text-white hover:bg-[#075be0]" asChild><Link to="/booking"><span><span className="block text-base font-bold">Book your ride</span><span className="mt-1 block text-sm font-normal text-white/90">Pick your time, confirm and ride!</span></span><ArrowRight className="size-5 shrink-0" /></Link></Button>
                     </aside>
                 </section>
 

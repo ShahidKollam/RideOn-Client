@@ -127,7 +127,7 @@ export default function HeroSection() {
                                 )}
                                 asChild
                             >
-                                <Link to="/auth/login">
+                                <Link to="/booking">
                                     <Bike className="size-4 sm:size-[18px]" strokeWidth={2.25} />
                                     Book Your Ride
                                 </Link>

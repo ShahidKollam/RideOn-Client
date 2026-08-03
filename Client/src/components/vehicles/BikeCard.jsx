@@ -63,7 +63,7 @@ export default function BikeCard({ vehicle }) {
                 </div>
                 {isAvailable ? (
                     <Link
-                        to={`/booking/${vehicle.id}`}
+                        to="/booking"
                         className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-rideon-blue px-4 text-sm font-bold text-white shadow-[0_6px_16px_rgba(29,140,248,0.24)] transition-all hover:bg-rideon-blue/90 hover:shadow-[0_10px_22px_rgba(29,140,248,0.3)] active:scale-[0.98]"
                     >
                         <CalendarDays className="size-4" />Book this bike

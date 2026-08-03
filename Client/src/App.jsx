@@ -34,6 +34,7 @@ export default function App() {
                     <Route path="/vehicles" element={<Suspense fallback={<LoadingScreen />}><VehiclesPage /></Suspense>} />
                     <Route path="/vehicles/:id" element={<Suspense fallback={<LoadingScreen />}><VehicleDetailsPage /></Suspense>} />
                     <Route path="/pricing" element={<Suspense fallback={<LoadingScreen />}><PricingPage /></Suspense>} />
+                    <Route path="/booking" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
                     <Route path="/booking/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
                     <Route path="/booking-success/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingSuccessPage /></Suspense></ProtectedRoute>} />
                     <Route path="/bookings" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />

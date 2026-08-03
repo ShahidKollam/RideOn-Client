@@ -114,7 +114,7 @@ export default function Footer() {
                         </div>
 
                         <Link
-                            to="/vehicles"
+                            to="/booking"
                             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-rideon-blue px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rideon-blue/90"
                         >
                             <Bike size={16} />

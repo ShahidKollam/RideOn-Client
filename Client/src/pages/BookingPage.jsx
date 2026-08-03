@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, FileText, Info, MapPin, Search, Settings2, ShieldCheck, X } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import BookingSummary from '@/components/bookings/BookingSummary'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { checkAvailability, createBooking } from '@/services/bookingService'
-import { getVehicle } from '@/services/vehicleService'
+import { getVehicles } from '@/services/vehicleService'
 
 const toDateInput = (date) => {
     const offset = date.getTimezoneOffset() * 60000
@@ -40,7 +40,6 @@ function TimeField({ label, date, time, minDate, minTime, onDateChange, onTimeCh
 }
 
 export default function BookingPage() {
-    const { id } = useParams()
     const navigate = useNavigate()
     const { isAuthenticated } = useAuth()
     const { showToast } = useToast()
@@ -59,8 +58,12 @@ export default function BookingPage() {
     const [summaryOpen, setSummaryOpen] = useState(false)
 
     useEffect(() => {
-        getVehicle(id).then(setVehicle).catch((requestError) => setError(getApiErrorMessage(requestError, 'We could not load this vehicle.')))
-    }, [id])
+        getVehicles({ isActive: true, limit: 1 }).then((data) => {
+            const representativeVehicle = data?.bikes?.[0]
+            if (!representativeVehicle) throw new Error('No active vehicle available')
+            setVehicle(representativeVehicle)
+        }).catch((requestError) => setError(getApiErrorMessage(requestError, 'We could not load the vehicle for booking.')))
+    }, [])
 
     const pickupAt = combineDateAndTime(values.pickupDate, values.pickupTime)
     const returnAt = combineDateAndTime(values.returnDate, values.returnTime)
@@ -77,13 +80,13 @@ export default function BookingPage() {
             return
         }
         if (!isAuthenticated) {
-            navigate('/auth/login', { state: { from: `/booking/${id}` } })
+            navigate('/auth/login', { state: { from: '/booking' } })
             return
         }
 
         setSubmitting(true)
         try {
-            const summary = await checkAvailability({ bikeId: vehicle.id, campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            const summary = await checkAvailability({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
             setAvailability(summary)
             if (!summary.available) showToast({ type: 'error', title: 'Bike unavailable', description: summary.reason || 'Choose another time.' })
         } catch (requestError) {
@@ -97,7 +100,7 @@ export default function BookingPage() {
         if (!availability?.available) return
         setSubmitting(true)
         try {
-            const booking = await createBooking({ bikeId: vehicle.id, campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            const booking = await createBooking({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
             navigate(`/booking-success/${booking.id}`, { state: { booking, vehicle } })
         } catch (requestError) {
             showToast({ type: 'error', title: 'Could not create booking', description: getApiErrorMessage(requestError) })
@@ -129,7 +132,7 @@ export default function BookingPage() {
                             </div>
                             {dateError && <p role="alert" className="mt-3 text-sm font-medium text-red-600">{dateError}</p>}
                             <div className="mt-5 flex min-h-11 items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 text-[13px] text-[#344879]"><Info className="size-5 shrink-0 text-rideon-blue" />Minimum rental duration is 1 hour.</div>
-                            <Button type="submit" disabled={submitting || vehicle.status !== 'AVAILABLE'} className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]">{submitting ? 'Checking availability…' : <><Search className="size-[18px]" />Check availability</>}</Button>
+                            <Button type="submit" disabled={submitting} className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]">{submitting ? 'Checking availability…' : <><Search className="size-[18px]" />Check availability</>}</Button>
                         </form>
 
                         {availability && <section className="mt-4 hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] md:block sm:p-6">
@@ -162,11 +165,11 @@ export default function BookingPage() {
                             <Button type="button" variant="outline" className="h-11 shrink-0 rounded-lg border-[#f3d9a8] bg-white px-5 text-[14px] text-[#1d294b]"><FileText className="size-[18px]" />View policy</Button>
                         </section>
                     </main>
-                    <BookingSummary className="hidden md:block" vehicle={vehicle} pickupAt={pickupAt?.toISOString()} returnAt={returnAt?.toISOString()} availability={availability} status={vehicle.status} />
+                    <BookingSummary className="hidden md:block" vehicle={vehicle} pickupAt={pickupAt?.toISOString()} returnAt={returnAt?.toISOString()} availability={availability} status="AVAILABLE" />
                 </div>
             </div>
             {availability?.available && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"><Button type="button" onClick={submitBooking} disabled={submitting} className="h-12 w-full rounded-lg bg-[#0764f5] text-[15px] font-semibold text-white hover:bg-[#075be0]">{submitting ? 'Continuing…' : <>Continue to payment <ArrowRight className="size-[18px]" /></>}</Button></div>}
-            {summaryOpen && <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/30 p-0 md:hidden" role="dialog" aria-modal="true" aria-label="Booking details" onMouseDown={() => setSummaryOpen(false)}><div className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" /><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-bold">Booking details</h2><button type="button" aria-label="Close booking details" onClick={() => setSummaryOpen(false)} className="rounded-md p-1 text-[#081440]"><X className="size-5" /></button></div><BookingSummary className="border-0 p-0 shadow-none" vehicle={vehicle} pickupAt={pickupAt?.toISOString()} returnAt={returnAt?.toISOString()} availability={availability} status={vehicle.status} /></div></div>}
+            {summaryOpen && <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/30 p-0 md:hidden" role="dialog" aria-modal="true" aria-label="Booking details" onMouseDown={() => setSummaryOpen(false)}><div className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" /><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-bold">Booking details</h2><button type="button" aria-label="Close booking details" onClick={() => setSummaryOpen(false)} className="rounded-md p-1 text-[#081440]"><X className="size-5" /></button></div><BookingSummary className="border-0 p-0 shadow-none" vehicle={vehicle} pickupAt={pickupAt?.toISOString()} returnAt={returnAt?.toISOString()} availability={availability} status="AVAILABLE" /></div></div>}
         </div>
     )
 }
