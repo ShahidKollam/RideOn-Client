@@ -28,7 +28,8 @@ model User {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   magicLinkTokens      MagicLinkToken[]
-  bookings             Booking[] // New relation
+  bookings             Booking[]
+  payments             Payment[]
 
   @@map("users")
 }
@@ -58,9 +59,9 @@ model Campus {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   users     User[]
-  bikes     Bike[] // New
-  pricings  Pricing[] // New
-  bookings  Booking[] // New
+  bikes     Bike[]
+  pricings  Pricing[]
+  bookings  Booking[]
 
   @@map("campuses")
 }
@@ -189,10 +190,11 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id])
-  bike    Bike?   @relation(fields: [bikeId], references: [id])
-  campus  Campus  @relation(fields: [campusId], references: [id])
-  pricing Pricing @relation(fields: [pricingId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  bike    Bike?    @relation(fields: [bikeId], references: [id])
+  campus  Campus   @relation(fields: [campusId], references: [id])
+  pricing Pricing  @relation(fields: [pricingId], references: [id])
+  payment Payment?
 
   @@index([bookingNumber])
   @@index([userId])
@@ -214,7 +216,7 @@ enum BookingStatus {
   FAILED
   NO_SHOW
 }
- 
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -236,4 +238,30 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  userId           String
+  bookingId        String?       @unique
+  gateway          String        @default("RAZORPAY")
+  gatewayOrderId   String        @unique
+  gatewayPaymentId String?
+  amount           Float
+  currency         String        @default("INR")
+  status           PaymentStatus @default(PENDING)
+  paymentMethod    String?
+  gatewayResponse  Json?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([userId])
+  @@index([gatewayOrderId])
+  @@index([gatewayPaymentId])
+  @@index([status])
+  @@map("payments")
 }

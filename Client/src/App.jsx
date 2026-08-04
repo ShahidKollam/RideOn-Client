@@ -22,6 +22,7 @@ const BookingDetailsPage = lazy(() => import('@/pages/BookingDetailsPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const ContactPage = lazy(() => import('@/pages/ContactPage'))
 const PricingPage = lazy(() => import('@/pages/PricingPage'))
+const PaymentFailedPage = lazy(() => import('@/pages/PaymentFailedPage'))
 
 export default function App() {
     return (
@@ -37,6 +38,7 @@ export default function App() {
                     <Route path="/booking" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
                     <Route path="/booking/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
                     <Route path="/booking-success/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingSuccessPage /></Suspense></ProtectedRoute>} />
+                    <Route path="/payment-failed" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><PaymentFailedPage /></Suspense></ProtectedRoute>} />
                     <Route path="/bookings" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />
                     <Route path="/bookings/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingDetailsPage /></Suspense></ProtectedRoute>} />
                     <Route path="/about" element={<Suspense fallback={<LoadingScreen />}><AboutPage /></Suspense>} />

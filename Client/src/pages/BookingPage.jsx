@@ -8,7 +8,8 @@ import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
-import { checkAvailability, createBooking } from '@/services/bookingService'
+import { checkAvailability } from '@/services/bookingService'
+import { createPaymentOrder, markPaymentFailed, verifyPayment } from '@/services/paymentService'
 import { getVehicles } from '@/services/vehicleService'
 
 const toDateInput = (date) => {
@@ -19,6 +20,23 @@ const toDateInput = (date) => {
 const toTimeInput = (date) => date.toTimeString().slice(0, 5)
 const combineDateAndTime = (date, time) => date && time ? new Date(`${date}T${time}`) : null
 const money = (value) => value === undefined || value === null ? '\u2014' : `\u20B9${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+const loadRazorpayCheckout = () => new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true)
+    const existingScript = document.querySelector('script[data-rideon-razorpay]')
+    if (existingScript) {
+        existingScript.addEventListener('load', () => resolve(Boolean(window.Razorpay)), { once: true })
+        existingScript.addEventListener('error', () => resolve(false), { once: true })
+        return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.async = true
+    script.dataset.rideonRazorpay = 'true'
+    script.onload = () => resolve(Boolean(window.Razorpay))
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+})
 
 function TimeField({ label, date, time, minDate, minTime, onDateChange, onTimeChange }) {
     return (
@@ -41,7 +59,7 @@ function TimeField({ label, date, time, minDate, minTime, onDateChange, onTimeCh
 
 export default function BookingPage() {
     const navigate = useNavigate()
-    const { isAuthenticated } = useAuth()
+    const { isAuthenticated, user } = useAuth()
     const { showToast } = useToast()
     const [vehicle, setVehicle] = useState(null)
     const [error, setError] = useState('')
@@ -100,11 +118,51 @@ export default function BookingPage() {
         if (!availability?.available) return
         setSubmitting(true)
         try {
-            const booking = await createBooking({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
-            navigate(`/booking-success/${booking.id}`, { state: { booking, vehicle } })
+            const order = await createPaymentOrder({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            const checkoutLoaded = await loadRazorpayCheckout()
+            if (!checkoutLoaded) throw new Error('Razorpay Checkout could not be loaded. Please try again.')
+
+            let paymentFlowEnded = false
+            const failPayment = (message) => {
+                if (paymentFlowEnded) return
+                paymentFlowEnded = true
+                markPaymentFailed(order.orderId).catch(() => {})
+                navigate('/payment-failed', { state: { message } })
+            }
+
+            const checkout = new window.Razorpay({
+                key: order.keyId,
+                amount: order.amountInPaise,
+                currency: order.currency,
+                name: 'RideOn',
+                description: 'Bike rental booking',
+                order_id: order.orderId,
+                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
+                theme: { color: '#0764f5' },
+                handler: async (response) => {
+                    setSubmitting(true)
+                    try {
+                        const result = await verifyPayment({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        })
+                        paymentFlowEnded = true
+                        navigate(`/booking-success/${result.booking.id}`, { state: { booking: result.booking, payment: result.payment } })
+                    } catch (requestError) {
+                        failPayment(getApiErrorMessage(requestError, 'Payment verification failed. Please contact support if money was deducted.'))
+                    } finally {
+                        setSubmitting(false)
+                    }
+                },
+                modal: { ondismiss: () => failPayment('Payment was cancelled before completion. No booking has been created.') },
+            })
+
+            checkout.on('payment.failed', (response) => failPayment(response.error?.description || 'Your payment could not be completed.'))
+            checkout.open()
+            setSubmitting(false)
         } catch (requestError) {
-            showToast({ type: 'error', title: 'Could not create booking', description: getApiErrorMessage(requestError) })
-        } finally {
+            showToast({ type: 'error', title: 'Could not start payment', description: getApiErrorMessage(requestError) })
             setSubmitting(false)
         }
     }
@@ -139,7 +197,7 @@ export default function BookingPage() {
                             <div className="flex items-center gap-4"><span className="flex size-[29px] items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">2</span><h2 className="text-[16px] font-bold">Availability result</h2></div>
                             {availability.available ? <>
                                 <div className="mt-5 overflow-hidden rounded-lg border border-[#a9dfb9]">
-                                    <div className="flex items-center gap-4 border-b border-[#a9dfb9] bg-[#f2fff5] px-6 py-4 text-[15px] font-semibold text-[#138a34]"><CheckCircle2 className="size-6 fill-[#20a64b] text-white" />Great! Your selected bike is available for the chosen time.</div>
+                                    <div className="flex items-center gap-4 border-b border-[#a9dfb9] bg-[#f2fff5] px-6 py-4 text-[15px] font-semibold text-[#138a34]"><CheckCircle2 className="size-6 fill-[#20a64b] text-white" />Great! A bike is available for the chosen time.</div>
                                     <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
                                         <div className="flex min-w-0 flex-1 items-center gap-5"><div className="flex size-32 shrink-0 items-center justify-center overflow-hidden">{image ? <img src={image} alt={vehicleName} className="h-full w-full object-contain" /> : <Settings2 className="size-9 text-rideon-blue/40" />}</div><div className="min-w-0"><span className="inline-flex rounded-md bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">Available</span><h3 className="mt-2 truncate text-[18px] font-bold">{vehicleName}</h3><div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-[#344879]"><span className="inline-flex items-center gap-2"><MapPin className="size-4 text-rideon-blue" />{vehicle.campus?.name || 'Campus pickup'}</span><span className="inline-flex items-center gap-2"><Settings2 className="size-4 text-[#344879]" />{vehicle.model || 'Automatic'}</span></div></div></div>
                                         <span className="inline-flex shrink-0 items-center gap-3 rounded-md bg-[#f2fff5] px-4 py-3 text-[13px] font-medium text-[#138a34]"><CheckCircle2 className="size-5" />Confirmed for selected time</span>
@@ -153,7 +211,7 @@ export default function BookingPage() {
                         {availability && <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(28,55,113,0.035)] md:hidden">
                             <div className="flex items-center gap-3"><span className="flex size-7 items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">2</span><h2 className="text-[15px] font-bold">Availability result</h2></div>
                             {availability.available ? <>
-                                <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]"><span className="flex items-center gap-2"><CheckCircle2 className="size-5" />Great! Your selected bike is available.</span></div>
+                                <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]"><span className="flex items-center gap-2"><CheckCircle2 className="size-5" />Great! A bike is available for the chosen time.</span></div>
                                 <div className="mt-4 flex items-center gap-4"><div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100">{image ? <img src={image} alt={vehicleName} className="size-full object-contain" /> : <Settings2 className="size-7 text-rideon-blue/40" />}</div><div className="min-w-0"><span className="rounded bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">Available</span><h3 className="mt-2 truncate text-[16px] font-bold">{vehicleName}</h3><p className="mt-1 flex items-center gap-1.5 text-xs text-[#40537e]"><MapPin className="size-3.5 text-rideon-blue" />{vehicle.campus?.name || 'Campus pickup'}</p></div></div>
                                 <div className="mt-4 rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3"><div className="flex items-center justify-between text-xs text-[#40537e]"><span>Subtotal + GST</span><span>{money(availability.subtotal)} + {money(availability.gstAmount)}</span></div><div className="mt-2 flex items-center justify-between"><span className="text-sm font-semibold">Total amount</span><strong className="text-xl text-rideon-blue">{money(availability.totalAmount)}</strong></div></div>
                                 <button type="button" onClick={() => setSummaryOpen(true)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#a9c9ff] py-3 text-sm font-semibold text-rideon-blue">View booking details <ChevronDown className="size-4" /></button>

@@ -13,6 +13,7 @@ import pricingAdminRoutes from '../modules/booking/pricing.admin.routes.js'
 import pricingUserRoutes from '../modules/booking/pricing.user.routes.js'
 import bikeAdminRoutes from '../modules/bike/bike.admin.routes.js'
 import settingsAdminRoutes from '../modules/settings/settings.routes.js'
+import paymentRoutes from '../modules/payment/payment.routes.js'
 
 const router = express.Router()
 
@@ -22,6 +23,8 @@ router.use('/campus', campusRoutes)
 router.use('/driving-licenses', drivingLicenseRoutes)
 router.use('/pricing', pricingUserRoutes)
 router.use('/bikes', bikeRoutes) 
+router.use('/payment', paymentRoutes)
+router.use('/payments', paymentRoutes)
 
 
 router.use('/admin', adminRoutes)
