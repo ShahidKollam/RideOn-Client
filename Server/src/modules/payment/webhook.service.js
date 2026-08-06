@@ -1,35 +1,42 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
-import { verifyWebhookSignature, fromPaise } from '../../lib/razorpay.js'
+import { verifyWebhookSignature } from '../../lib/razorpay.js'
 import { PAYMENT_STATUS, RAZORPAY_WEBHOOK_EVENTS } from './payment.constants.js'
 
 /**
  * Process Razorpay webhook.
  * Must be called with the raw body string for signature verification.
- * Fully idempotent – never creates duplicate bookings or payments.
+ * Fully idempotent – never creates bookings. Only updates payment status.
  */
 export const processWebhook = async (rawBody, signature) => {
+    console.log('🟡 [webhook] START')
+
     if (!signature) {
+        console.error('❌ [webhook] Missing signature')
         throw new ApiError(400, 'Missing webhook signature')
     }
 
     const isValid = verifyWebhookSignature(rawBody, signature)
     if (!isValid) {
+        console.error('❌ [webhook] Invalid signature')
         throw new ApiError(400, 'Invalid webhook signature')
     }
+    console.log('✅ [webhook] Signature valid')
 
     let payload
     try {
         payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody
     } catch {
+        console.error('❌ [webhook] Invalid payload JSON')
         throw new ApiError(400, 'Invalid webhook payload')
     }
 
     const event = payload.event
     const paymentEntity = payload.payload?.payment?.entity
+    console.log('🟡 [webhook] Event:', event)
 
     if (!paymentEntity) {
-        // Acknowledge unknown/irrelevant events so Razorpay stops retrying
+        console.warn('⚠️  [webhook] No payment entity – acknowledging')
         return { processed: false, reason: 'No payment entity in payload' }
     }
 
@@ -37,6 +44,7 @@ export const processWebhook = async (rawBody, signature) => {
     const gatewayPaymentId = paymentEntity.id
 
     if (!gatewayOrderId) {
+        console.warn('⚠️  [webhook] Missing order_id')
         return { processed: false, reason: 'Missing order_id' }
     }
 
@@ -46,12 +54,15 @@ export const processWebhook = async (rawBody, signature) => {
     })
 
     if (!payment) {
-        // Order may have been created outside this system – acknowledge
+        console.warn('⚠️  [webhook] Payment not found in system:', gatewayOrderId)
         return { processed: false, reason: 'Payment order not found in system' }
     }
 
-    // Idempotency: already handled
+    console.log('💳 [webhook] Payment status before:', payment.status, '| bookingId:', payment.bookingId)
+
+    // Idempotency: already fully handled
     if (payment.status === PAYMENT_STATUS.PAID && payment.gatewayPaymentId) {
+        console.log('♻️  [webhook] Already processed')
         return {
             processed: true,
             alreadyProcessed: true,
@@ -61,9 +72,7 @@ export const processWebhook = async (rawBody, signature) => {
     }
 
     if (event === RAZORPAY_WEBHOOK_EVENTS.PAYMENT_CAPTURED || event === RAZORPAY_WEBHOOK_EVENTS.ORDER_PAID) {
-        // Only update payment status / ids if still PENDING.
-        // Booking creation is owned by the verify endpoint (frontend callback).
-        // Webhook is a safety net for status reconciliation, not a second booking path.
+        // Only update payment status. Booking creation stays with verify / reconciliation.
         if (payment.status === PAYMENT_STATUS.PENDING || payment.status === PAYMENT_STATUS.FAILED) {
             const updated = await prisma.payment.update({
                 where: { id: payment.id },
@@ -78,10 +87,19 @@ export const processWebhook = async (rawBody, signature) => {
                             event,
                             paymentEntity,
                             receivedAt: new Date().toISOString(),
+                            executedFirst: !payment.gatewayResponse?.verification,
                         },
                     },
                 },
             })
+
+            console.log('💳 [webhook] Payment status after:', updated.status, '| bookingId:', updated.bookingId)
+            console.log(
+                updated.bookingId
+                    ? 'ℹ️  [webhook] Booking already linked (verify ran first)'
+                    : 'ℹ️  [webhook] Webhook executed first – booking will be created by verify or reconcile'
+            )
+            console.log('🟡 [webhook] END | processed')
 
             return {
                 processed: true,
@@ -111,9 +129,12 @@ export const processWebhook = async (rawBody, signature) => {
                     },
                 },
             })
+            console.log('💳 [webhook] Payment marked FAILED')
+            console.log('🟡 [webhook] END | failed event processed')
             return { processed: true, alreadyProcessed: false, paymentId: payment.id }
         }
     }
 
+    console.log('🟡 [webhook] END | unhandled or already settled:', event)
     return { processed: false, reason: `Unhandled or already settled event: ${event}` }
 }

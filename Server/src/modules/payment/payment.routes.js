@@ -9,11 +9,7 @@ import {
     getPaymentsController,
     webhookController,
 } from './payment.controller.js'
-import {
-    createOrderSchema,
-    verifyPaymentSchema,
-    paymentQuerySchema,
-} from './payment.validation.js'
+import { createOrderSchema, verifyPaymentSchema, paymentQuerySchema } from './payment.validation.js'
 
 const router = express.Router()
 
@@ -23,7 +19,7 @@ router.post('/webhook', webhookController)
 
 // Authenticated user routes
 router.post('/create-order', protect, validate(createOrderSchema), createOrderController)
-router.post('/verify', protect, validate(verifyPaymentSchema), verifyPaymentController) 
+router.post('/verify', protect, validate(verifyPaymentSchema), verifyPaymentController)
 router.post('/mark-failed', protect, markPaymentFailedController)
 router.get('/', protect, getPaymentsController)
 router.get('/:id', protect, getPaymentController)

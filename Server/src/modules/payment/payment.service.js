@@ -5,6 +5,7 @@ import { findAvailableBike } from '../bike/bike.service.js'
 import {
     createRazorpayOrder,
     verifyPaymentSignature,
+    fetchRazorpayPayment,
     toPaise,
     fromPaise,
 } from '../../lib/razorpay.js'
@@ -22,10 +23,116 @@ const isSerializationError = (error) =>
 const isUniqueConstraintError = (error) => error?.code === 'P2002'
 
 /**
+ * Shared booking creation used by verify + reconciliation.
+ * Must be called inside a Prisma transaction (tx).
+ * Idempotent: if payment already has bookingId, returns existing booking.
+ */
+const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, source = 'verify') => {
+    console.log(`📦 [${source}] Booking creation started for payment ${payment.id}`)
+
+    // Idempotency guard
+    if (payment.bookingId) {
+        console.log(`♻️  [${source}] Booking already linked: ${payment.bookingId}`)
+        const booking = await tx.booking.findUnique({
+            where: { id: payment.bookingId },
+            include: {
+                user: true,
+                campus: true,
+                pricing: true,
+                bike: true,
+            },
+        })
+        return { payment, booking, alreadyProcessed: true }
+    }
+
+    const intent = payment.gatewayResponse?.intent
+    if (!intent) {
+        throw new ApiError(400, 'Payment intent data missing')
+    }
+
+    const userId = payment.userId
+
+    // Re-verify availability inside transaction
+    const summary = await getBookingAvailability(
+        {
+            campusId: intent.campusId,
+            pickupAt: intent.pickupAt,
+            returnAt: intent.returnAt,
+        },
+        tx
+    )
+    if (!summary.available) {
+        console.error(`❌ [${source}] No bikes available for payment ${payment.id}`)
+        throw new ApiError(409, summary.reason || 'No available bikes')
+    }
+
+    // Assign bike
+    const bike = await findAvailableBike(
+        new Date(intent.pickupAt),
+        new Date(intent.returnAt),
+        intent.campusId,
+        tx
+    )
+    console.log(`🚲 [${source}] Bike assigned: ${bike.id} (${bike.registrationNumber || bike.name})`)
+
+    // Create booking
+    const bookingNumber = generateBookingNumber()
+    const booking = await tx.booking.create({
+        data: {
+            bookingNumber,
+            userId,
+            bikeId: bike.id,
+            campusId: intent.campusId,
+            pricingId: intent.pricingId,
+            pickupAt: new Date(intent.pickupAt),
+            returnAt: new Date(intent.returnAt),
+            durationHours: intent.durationHours,
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID',
+            baseAmount: intent.baseAmount,
+            depositAmount: intent.depositAmount,
+            totalAmount: payment.amount,
+            includedKm: intent.includedKm,
+            extraKmRate: intent.extraKmRate,
+            notes: intent.notes || null,
+        },
+        include: {
+            user: true,
+            campus: true,
+            pricing: true,
+            bike: true,
+        },
+    })
+    console.log(`✅ [${source}] Booking created: ${booking.id} (${booking.bookingNumber})`)
+
+    // Update payment → PAID and link booking
+    console.log(`💳 [${source}] Payment status before update: ${payment.status}`)
+    const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+            bookingId: booking.id,
+            gatewayPaymentId: razorpay_payment_id || payment.gatewayPaymentId,
+            status: PAYMENT_STATUS.PAID,
+            paidAt: payment.paidAt || new Date(),
+            gatewayResponse: {
+                ...payment.gatewayResponse,
+                bookingCreatedBy: source,
+                bookingCreatedAt: new Date().toISOString(),
+            },
+        },
+    })
+    console.log(`💳 [${source}] Payment status after update: ${updatedPayment.status} | bookingId: ${updatedPayment.bookingId}`)
+
+    return { payment: updatedPayment, booking, alreadyProcessed: false }
+}
+
+/**
  * Step 1–4: Check availability, calculate amount, create Razorpay order, return to frontend.
  * Does NOT create a booking.
  */
 export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userId) => {
+    console.log('🟢 [createOrder] START', { userId, campusId, pickupAt, returnAt })
+
     if (!userId) throw new ApiError(401, 'Authentication required')
 
     const user = await prisma.user.findUnique({
@@ -49,6 +156,7 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
     // Availability + pricing (source of truth on backend)
     const summary = await getBookingAvailability({ campusId, pickupAt, returnAt })
     if (!summary.available) {
+        console.warn('⚠️  [createOrder] No availability', summary.reason)
         throw new ApiError(409, summary.reason || 'No available bikes for the selected time')
     }
 
@@ -78,6 +186,7 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
             extraKmRate: String(summary.extraKmRate),
         },
     })
+    console.log('🧾 [createOrder] Razorpay order created:', razorpayOrder.id)
 
     // Persist pending payment (bookingId still null until verification succeeds)
     const payment = await prisma.payment.create({
@@ -107,6 +216,7 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
             },
         },
     })
+    console.log('🟢 [createOrder] END | paymentId:', payment.id, '| status:', payment.status)
 
     return {
         paymentId: payment.id,
@@ -132,7 +242,7 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
 }
 
 /**
- * Step 8–14: Verify signature, then in a transaction:
+ * Step 8–14: Verify signature + Razorpay Payments API, then in a transaction:
  * re-check availability → create booking → save payment → commit.
  * Fully idempotent.
  */
@@ -140,17 +250,21 @@ export const verifyPayment = async (
     { razorpay_order_id, razorpay_payment_id, razorpay_signature },
     userId
 ) => {
+    console.log('🔵 [verify] START', { razorpay_order_id, razorpay_payment_id, userId })
+
     if (!userId) throw new ApiError(401, 'Authentication required')
 
-    // Signature verification (never trust frontend)
+    // 1. Signature verification (never trust frontend)
     const isValid = verifyPaymentSignature({
         razorpay_order_id,
         razorpay_payment_id,
         razorpay_signature,
     })
     if (!isValid) {
+        console.error('❌ [verify] Invalid payment signature')
         throw new ApiError(400, 'Invalid payment signature')
     }
+    console.log('✅ [verify] Signature valid')
 
     const existingPayment = await prisma.payment.findUnique({
         where: { gatewayOrderId: razorpay_order_id },
@@ -158,15 +272,18 @@ export const verifyPayment = async (
     })
 
     if (!existingPayment) {
+        console.error('❌ [verify] Payment order not found')
         throw new ApiError(404, 'Payment order not found')
     }
 
     if (existingPayment.userId !== userId) {
+        console.error('❌ [verify] Not authorized')
         throw new ApiError(403, 'Not authorized for this payment')
     }
 
     // Idempotency: already completed
     if (existingPayment.status === PAYMENT_STATUS.PAID && existingPayment.bookingId) {
+        console.log('♻️  [verify] Already processed | bookingId:', existingPayment.bookingId)
         return {
             payment: existingPayment,
             booking: existingPayment.booking,
@@ -179,26 +296,74 @@ export const verifyPayment = async (
         throw new ApiError(400, 'Payment intent data missing')
     }
 
-    // Amount sanity check against stored order
-    // (Razorpay amount is authoritative; we compare with our stored amount)
     if (Number(existingPayment.amount) <= 0) {
         throw new ApiError(400, 'Invalid payment amount')
     }
 
+    // 2. Production-grade: fetch payment from Razorpay and validate
+    console.log('🔍 [verify] Fetching payment from Razorpay API...')
+    let razorpayPayment
+    try {
+        razorpayPayment = await fetchRazorpayPayment(razorpay_payment_id)
+    } catch (err) {
+        console.error('❌ [verify] Razorpay Payments API failed:', err.message)
+        throw new ApiError(502, 'Unable to verify payment with gateway')
+    }
+
+    console.log('🔍 [verify] Razorpay payment status:', razorpayPayment.status, '| amount:', razorpayPayment.amount)
+
+    // Status must be captured
+    if (razorpayPayment.status !== 'captured') {
+        console.error('❌ [verify] Payment not captured. Status:', razorpayPayment.status)
+        throw new ApiError(400, `Payment not captured. Current status: ${razorpayPayment.status}`)
+    }
+
+    // Amount must match (Razorpay uses paise)
+    const expectedPaise = toPaise(existingPayment.amount)
+    if (Number(razorpayPayment.amount) !== expectedPaise) {
+        console.error('❌ [verify] Amount mismatch', {
+            expected: expectedPaise,
+            got: razorpayPayment.amount,
+        })
+        throw new ApiError(400, 'Payment amount mismatch')
+    }
+
+    // Currency must match
+    if ((razorpayPayment.currency || '').toUpperCase() !== (existingPayment.currency || 'INR').toUpperCase()) {
+        console.error('❌ [verify] Currency mismatch', {
+            expected: existingPayment.currency,
+            got: razorpayPayment.currency,
+        })
+        throw new ApiError(400, 'Payment currency mismatch')
+    }
+
+    // Order ID must match
+    if (razorpayPayment.order_id !== razorpay_order_id) {
+        console.error('❌ [verify] Order ID mismatch', {
+            expected: razorpay_order_id,
+            got: razorpayPayment.order_id,
+        })
+        throw new ApiError(400, 'Payment order mismatch')
+    }
+
+    console.log('✅ [verify] Razorpay payment validated (captured + amount + currency + order)')
+
+    // 3. Transaction: create booking + update payment
     const MAX_ATTEMPTS = 2
     let lastError = null
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
+            console.log(`🔄 [verify] Transaction START (attempt ${attempt})`)
             const result = await prisma.$transaction(
                 async (tx) => {
-                    // Re-fetch payment inside transaction for consistency
                     const payment = await tx.payment.findUnique({
                         where: { id: existingPayment.id },
                     })
                     if (!payment) throw new ApiError(404, 'Payment not found')
 
                     if (payment.status === PAYMENT_STATUS.PAID && payment.bookingId) {
+                        console.log('♻️  [verify] Already linked inside transaction')
                         const booking = await tx.booking.findUnique({
                             where: { id: payment.bookingId },
                             include: {
@@ -211,84 +376,51 @@ export const verifyPayment = async (
                         return { payment, booking, alreadyProcessed: true }
                     }
 
-                    // Re-verify availability inside transaction
-                    const summary = await getBookingAvailability(
-                        {
-                            campusId: intent.campusId,
-                            pickupAt: intent.pickupAt,
-                            returnAt: intent.returnAt,
-                        },
-                        tx
-                    )
-                    if (!summary.available) {
-                        throw new ApiError(409, summary.reason || 'No available bikes')
-                    }
-
-                    // Assign bike
-                    const bike = await findAvailableBike(
-                        new Date(intent.pickupAt),
-                        new Date(intent.returnAt),
-                        intent.campusId,
-                        tx
-                    )
-
-                    // Create booking only after successful payment verification
-                    const bookingNumber = generateBookingNumber()
-                    const booking = await tx.booking.create({
-                        data: {
-                            bookingNumber,
-                            userId,
-                            bikeId: bike.id,
-                            campusId: intent.campusId,
-                            pricingId: intent.pricingId,
-                            pickupAt: new Date(intent.pickupAt),
-                            returnAt: new Date(intent.returnAt),
-                            durationHours: intent.durationHours,
-                            status: 'CONFIRMED',
-                            paymentStatus: 'PAID',
-                            baseAmount: intent.baseAmount,
-                            depositAmount: intent.depositAmount,
-                            totalAmount: existingPayment.amount,
-                            includedKm: intent.includedKm,
-                            extraKmRate: intent.extraKmRate,
-                            notes: intent.notes || null,
-                        },
-                        include: {
-                            user: true,
-                            campus: true,
-                            pricing: true,
-                            bike: true,
-                        },
-                    })
-
-                    // Update payment → PAID and link booking
-                    const updatedPayment = await tx.payment.update({
-                        where: { id: payment.id },
-                        data: {
-                            bookingId: booking.id,
-                            gatewayPaymentId: razorpay_payment_id,
-                            status: PAYMENT_STATUS.PAID,
-                            paidAt: new Date(),
-                            gatewayResponse: {
-                                ...payment.gatewayResponse,
-                                verification: {
-                                    razorpay_order_id,
-                                    razorpay_payment_id,
-                                    verifiedAt: new Date().toISOString(),
+                    // Store gateway payment details from API
+                    const paymentWithGatewayData = {
+                        ...payment,
+                        gatewayResponse: {
+                            ...payment.gatewayResponse,
+                            verification: {
+                                razorpay_order_id,
+                                razorpay_payment_id,
+                                verifiedAt: new Date().toISOString(),
+                                razorpayPaymentSnapshot: {
+                                    id: razorpayPayment.id,
+                                    status: razorpayPayment.status,
+                                    amount: razorpayPayment.amount,
+                                    currency: razorpayPayment.currency,
+                                    method: razorpayPayment.method,
+                                    order_id: razorpayPayment.order_id,
                                 },
                             },
                         },
+                    }
+
+                    // Persist gateway snapshot before booking create (same transaction)
+                    await tx.payment.update({
+                        where: { id: payment.id },
+                        data: {
+                            gatewayPaymentId: razorpay_payment_id,
+                            paymentMethod: razorpayPayment.method || null,
+                            gatewayResponse: paymentWithGatewayData.gatewayResponse,
+                        },
                     })
 
-                    return { payment: updatedPayment, booking, alreadyProcessed: false }
+                    const refreshed = await tx.payment.findUnique({ where: { id: payment.id } })
+                    return createBookingForPaidPayment(tx, refreshed, razorpay_payment_id, 'verify')
                 },
                 { isolationLevel: 'Serializable' }
             )
 
+            console.log('🔄 [verify] Transaction COMMIT')
+            console.log('🔵 [verify] END | alreadyProcessed:', result.alreadyProcessed)
             return result
         } catch (error) {
+            console.error('🔄 [verify] Transaction ROLLBACK:', error.message)
             lastError = error
             if (attempt < MAX_ATTEMPTS && (isSerializationError(error) || isUniqueConstraintError(error))) {
+                console.warn('⚠️  [verify] Retrying after serialization/unique error...')
                 continue
             }
             throw error
@@ -316,6 +448,7 @@ export const markPaymentFailed = async (razorpay_order_id, userId) => {
         return payment
     }
 
+    console.log('⚠️  [markFailed] Payment', payment.id, '→ FAILED')
     return prisma.payment.update({
         where: { id: payment.id },
         data: { status: PAYMENT_STATUS.FAILED },
@@ -340,7 +473,7 @@ export const getPaymentById = async (paymentId, userId = null) => {
     if (!payment) throw new ApiError(404, 'Payment not found')
     return payment
 }
- 
+
 export const getUserPayments = async (userId, query = {}) => {
     const { page = 1, limit = 10, status } = query
     const where = { userId }
@@ -376,4 +509,82 @@ export const getUserPayments = async (userId, query = {}) => {
             totalPages: Math.ceil(total / limit),
         },
     }
+}
+
+/**
+ * Background reconciliation:
+ * Finds payments that are PAID but have no booking yet (e.g. webhook arrived,
+ * frontend verify never completed) and creates the booking.
+ * Fully idempotent. Safe to run on a cron every 1–5 minutes.
+ */
+export const reconcilePaidPaymentsWithoutBooking = async () => {
+    console.log('🟣 [reconcile] START')
+
+    const orphanPayments = await prisma.payment.findMany({
+        where: {
+            status: PAYMENT_STATUS.PAID,
+            bookingId: null,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 20, // batch limit
+    })
+
+    console.log(`🟣 [reconcile] Found ${orphanPayments.length} PAID payment(s) without booking`)
+
+    const results = []
+
+    for (const payment of orphanPayments) {
+        try {
+            console.log(`🟣 [reconcile] Processing payment ${payment.id} | order: ${payment.gatewayOrderId}`)
+
+            if (!payment.gatewayResponse?.intent) {
+                console.warn(`⚠️  [reconcile] Skipping ${payment.id} – missing intent`)
+                results.push({ paymentId: payment.id, status: 'skipped', reason: 'missing intent' })
+                continue
+            }
+
+            const result = await prisma.$transaction(
+                async (tx) => {
+                    // Re-fetch inside transaction for race safety
+                    const fresh = await tx.payment.findUnique({ where: { id: payment.id } })
+                    if (!fresh) return null
+                    if (fresh.bookingId) {
+                        console.log(`♻️  [reconcile] Already linked by another process: ${fresh.bookingId}`)
+                        return { alreadyProcessed: true, bookingId: fresh.bookingId }
+                    }
+
+                    const created = await createBookingForPaidPayment(
+                        tx,
+                        fresh,
+                        fresh.gatewayPaymentId,
+                        'reconcile'
+                    )
+                    return created
+                },
+                { isolationLevel: 'Serializable' }
+            )
+
+            if (result?.booking) {
+                console.log(`✅ [reconcile] Booking created for payment ${payment.id} → ${result.booking.id}`)
+                results.push({
+                    paymentId: payment.id,
+                    status: 'booked',
+                    bookingId: result.booking.id,
+                    alreadyProcessed: result.alreadyProcessed,
+                })
+            } else if (result?.alreadyProcessed) {
+                results.push({
+                    paymentId: payment.id,
+                    status: 'already_linked',
+                    bookingId: result.bookingId,
+                })
+            }
+        } catch (err) {
+            console.error(`❌ [reconcile] Failed for payment ${payment.id}:`, err.message)
+            results.push({ paymentId: payment.id, status: 'error', error: err.message })
+        }
+    }
+
+    console.log('🟣 [reconcile] END', { processed: results.length })
+    return { processed: results.length, results }
 }

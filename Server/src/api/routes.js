@@ -23,7 +23,7 @@ router.use('/campus', campusRoutes)
 router.use('/driving-licenses', drivingLicenseRoutes)
 router.use('/pricing', pricingUserRoutes)
 router.use('/bikes', bikeRoutes) 
-router.use('/payment', paymentRoutes)
+// router.use('/payment', paymentRoutes)
 router.use('/payments', paymentRoutes)
 
 

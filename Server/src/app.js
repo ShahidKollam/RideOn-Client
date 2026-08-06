@@ -10,6 +10,10 @@ import { config } from './config/env.js'
 import routes from './api/routes.js'
 import errorHandler from './middlewares/error.middleware.js'
 import notFound from './middlewares/notFound.middleware.js'
+// app.js or server.js
+
+import cron from 'node-cron'
+import { reconcilePaidPaymentsWithoutBooking } from './modules/payment/payment.service.js'
 
 const app = express()
 
@@ -21,9 +25,9 @@ app.use(
         origin: config.frontendUrl,
         credentials: true,
     })
-) 
+)
 app.use(cookieParser())
-                     
+
 // Logging
 app.use(pinoHttp({ logger }))
 
@@ -34,8 +38,8 @@ app.use((req, res, next) => {
     console.log(`${req.method} ${req.originalUrl}`)
     next()
 })
- 
-// Body parser    
+
+// Body parser
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -47,9 +51,17 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() })
 })
 
+cron.schedule('*/2 * * * *', async () => {
+    try {
+        console.log('🟣 Running payment reconciliation...')
+        await reconcilePaidPaymentsWithoutBooking()
+    } catch (err) {
+        console.error(err)
+    }
+})
+
 // Error handling
 app.use(notFound)
 app.use(errorHandler)
 
 export default app
- 

@@ -39,6 +39,15 @@ export const createRazorpayOrder = async ({ amountInPaise, currency = 'INR', rec
 }
 
 /**
+ * Fetch payment details from Razorpay (GET /v1/payments/{payment_id})
+ */
+export const fetchRazorpayPayment = async (paymentId) => {
+    const razorpay = getRazorpay()
+    const payment = await razorpay.payments.fetch(paymentId)
+    return payment
+}
+
+/**
  * Verify payment signature from frontend checkout callback
  */
 export const verifyPaymentSignature = ({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) => {
