@@ -51,14 +51,16 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() })
 })
 
-cron.schedule('*/2 * * * *', async () => {
-    try {
-        console.log('🟣 Running payment reconciliation...')
-        await reconcilePaidPaymentsWithoutBooking()
-    } catch (err) {
-        console.error(err)
-    }
-})
+if (process.env.NODE_ENV !== 'development') { 
+    cron.schedule('*/2 * * * *', async () => {
+        try {
+            console.log('🟣 Running payment reconciliation...')
+            await reconcilePaidPaymentsWithoutBooking()
+        } catch (err) {
+            console.error('❌ Reconciliation failed:', err)
+        }
+    })
+}
 
 // Error handling
 app.use(notFound)

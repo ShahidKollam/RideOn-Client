@@ -6,7 +6,88 @@ import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { getVehicle } from '@/services/vehicleService'
 
-export default function VehicleDetailsPage() { const { id } = useParams(); const [vehicle, setVehicle] = useState(null); const [error, setError] = useState('')
-    useEffect(() => { getVehicle(id).then(setVehicle).catch((err) => setError(getApiErrorMessage(err, 'We could not find this vehicle.'))) }, [id])
-    if (error) return <div className="pt-28 px-4"><ErrorState message={error} /></div>; if (!vehicle) return <div className="mx-auto max-w-6xl px-4 pt-28"><SkeletonCard className="h-[32rem]" /></div>
-    const image = vehicle.imageUrls?.[0]; return <div className="bg-slate-50/60 pt-24 pb-12 sm:pt-28"><div className="mx-auto max-w-6xl px-4 sm:px-6"><Link to="/vehicles" className="inline-flex items-center gap-2 text-sm font-semibold text-rideon-blue"><ArrowLeft className="size-4" />All vehicles</Link><div className="mt-5 grid gap-7 lg:grid-cols-2"><div className="overflow-hidden rounded-2xl bg-white shadow-sm">{image ? <img src={image} alt={vehicle.name} className="aspect-[4/3] size-full object-cover" /> : <div className="flex aspect-[4/3] items-center justify-center text-slate-400">RideOn vehicle</div>}</div><div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7"><p className="text-sm font-bold text-rideon-blue">{vehicle.brand}</p><h1 className="mt-1 text-3xl font-extrabold text-rideon-dark">{vehicle.name || `${vehicle.brand} ${vehicle.model}`}</h1><p className="mt-3 text-sm text-slate-500">{vehicle.model}{vehicle.year ? ` · ${vehicle.year}` : ''}{vehicle.color ? ` · ${vehicle.color}` : ''}</p><div className="mt-6 grid gap-3 border-y border-slate-100 py-5 text-sm text-slate-600"><span className="flex items-center gap-3"><MapPin className="size-5 text-rideon-blue" />{vehicle.campus?.name || 'Campus pickup'}</span><span className="flex items-center gap-3"><Gauge className="size-5 text-rideon-blue" />{vehicle.currentOdometer?.toLocaleString() || 0} km on odometer</span><span className="flex items-center gap-3"><ShieldCheck className="size-5 text-rideon-green" />Safety checked before handover</span></div><Button className="mt-6 h-11 w-full bg-rideon-blue font-semibold text-white hover:bg-rideon-blue/90" disabled={vehicle.status !== 'AVAILABLE'} asChild={vehicle.status === 'AVAILABLE'}>{vehicle.status === 'AVAILABLE' ? <Link to="/booking"><CalendarDays className="size-4" />Book this ride</Link> : <span>Currently unavailable</span>}</Button></div></div></div></div> }
+export default function VehicleDetailsPage() {
+    const { id } = useParams()
+    const [vehicle, setVehicle] = useState(null)
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        getVehicle(id)
+            .then(setVehicle)
+            .catch((err) => setError(getApiErrorMessage(err, 'We could not find this vehicle.')))
+    }, [id])
+    
+    if (error)
+        return (
+            <div className="pt-28 px-4">
+                <ErrorState message={error} />
+            </div>
+        )
+    if (!vehicle)
+        return (
+            <div className="mx-auto max-w-6xl px-4 pt-28">
+                <SkeletonCard className="h-[32rem]" />
+            </div>
+        )
+    const image = vehicle.imageUrls?.[0]
+    return (
+        <div className="bg-slate-50/60 pt-24 pb-12 sm:pt-28">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+                <Link to="/vehicles" className="inline-flex items-center gap-2 text-sm font-semibold text-rideon-blue">
+                    <ArrowLeft className="size-4" />
+                    All vehicles
+                </Link>
+                <div className="mt-5 grid gap-7 lg:grid-cols-2">
+                    <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                        {image ? (
+                            <img src={image} alt={vehicle.name} className="aspect-[4/3] size-full object-cover" />
+                        ) : (
+                            <div className="flex aspect-[4/3] items-center justify-center text-slate-400">
+                                RideOn vehicle
+                            </div>
+                        )}
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+                        <p className="text-sm font-bold text-rideon-blue">{vehicle.brand}</p>
+                        <h1 className="mt-1 text-3xl font-extrabold text-rideon-dark">
+                            {vehicle.name || `${vehicle.brand} ${vehicle.model}`}
+                        </h1>
+                        <p className="mt-3 text-sm text-slate-500">
+                            {vehicle.model}
+                            {vehicle.year ? ` · ${vehicle.year}` : ''}
+                            {vehicle.color ? ` · ${vehicle.color}` : ''}
+                        </p>
+                        <div className="mt-6 grid gap-3 border-y border-slate-100 py-5 text-sm text-slate-600">
+                            <span className="flex items-center gap-3">
+                                <MapPin className="size-5 text-rideon-blue" />
+                                {vehicle.campus?.name || 'Campus pickup'}
+                            </span>
+                            <span className="flex items-center gap-3">
+                                <Gauge className="size-5 text-rideon-blue" />
+                                {vehicle.currentOdometer?.toLocaleString() || 0} km on odometer
+                            </span>
+                            <span className="flex items-center gap-3">
+                                <ShieldCheck className="size-5 text-rideon-green" />
+                                Safety checked before handover
+                            </span>
+                        </div>
+                        <Button
+                            className="mt-6 h-11 w-full bg-rideon-blue font-semibold text-white hover:bg-rideon-blue/90"
+                            disabled={vehicle.status !== 'AVAILABLE'}
+                            asChild={vehicle.status === 'AVAILABLE'}
+                        >
+                            {vehicle.status === 'AVAILABLE' ? (
+                                <Link to="/booking">
+                                    <CalendarDays className="size-4" />
+                                    Book this ride
+                                </Link>
+                            ) : (
+                                <span>Currently unavailable</span>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

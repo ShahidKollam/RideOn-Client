@@ -34,7 +34,7 @@ function validateStepOne(values) {
     if (!values.nitcEmail.trim()) {
         errors.nitcEmail = 'NITC email is required.'
     } else if (!nitcEmailPattern.test(values.nitcEmail.trim())) {
-        errors.nitcEmail = 'Use your @nitc.ac.in email address.'
+        // errors.nitcEmail = 'Use your @nitc.ac.in email address.'
     }
 
     return errors
@@ -108,10 +108,10 @@ export default function SignupForm() {
     const handleResendLink = async () => {
         const email = values.nitcEmail.trim().toLowerCase()
 
-        if (!nitcEmailPattern.test(email)) {
-            setErrors({ nitcEmail: 'Use your @nitc.ac.in email address.' })
-            return
-        }
+        // if (!nitcEmailPattern.test(email)) {
+        //     setErrors({ nitcEmail: 'Use your @nitc.ac.in email address.' })
+        //     return
+        // }
 
         setResending(true)
 

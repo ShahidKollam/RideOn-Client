@@ -20,10 +20,10 @@ export default function LoginPage() {
 
         const email = loginEmail.trim().toLowerCase()
 
-        if (!nitcEmailPattern.test(email)) {
-            setError('Use your @nitc.ac.in email address.')
-            return
-        }
+        // if (!nitcEmailPattern.test(email)) {
+        //     setError('Use your @nitc.ac.in email address.')
+        //     return
+        // }
 
         setError('')
         setLoading(true)
