@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, FileText, Info, MapPin, Search, Settings2, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, FileText, HardHat, Info, MapPin, Search, Settings2, ShieldCheck, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import BookingSummary from '@/components/bookings/BookingSummary'
@@ -66,6 +66,7 @@ export default function BookingPage() {
     const [dateError, setDateError] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [availability, setAvailability] = useState(null)
+    const [helmetCount, setHelmetCount] = useState(0)
     const initialPickup = useMemo(() => {
         const value = new Date()
         value.setMinutes(0, 0, 0)
@@ -90,6 +91,10 @@ export default function BookingPage() {
         setDateError('')
         setValues((current) => ({ ...current, [field]: value }))
     }
+    const updateHelmetCount = (value) => {
+        setAvailability(null)
+        setHelmetCount(value)
+    }
 
     const checkBookingAvailability = async (event) => {
         event.preventDefault()
@@ -104,7 +109,7 @@ export default function BookingPage() {
 
         setSubmitting(true)
         try {
-            const summary = await checkAvailability({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            const summary = await checkAvailability({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString(), helmetCount })
             setAvailability(summary)
             if (!summary.available) showToast({ type: 'error', title: 'Bike unavailable', description: summary.reason || 'Choose another time.' })
         } catch (requestError) {
@@ -118,7 +123,7 @@ export default function BookingPage() {
         if (!availability?.available) return
         setSubmitting(true)
         try {
-            const order = await createPaymentOrder({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString() })
+            const order = await createPaymentOrder({ campusId: vehicle.campusId, pickupAt: pickupAt.toISOString(), returnAt: returnAt.toISOString(), helmetCount })
             const checkoutLoaded = await loadRazorpayCheckout()
             if (!checkoutLoaded) throw new Error('Razorpay Checkout could not be loaded. Please try again.')
 
@@ -189,7 +194,8 @@ export default function BookingPage() {
                                 <TimeField label="Return" date={values.returnDate} time={values.returnTime} minDate={values.pickupDate} minTime={values.returnDate === values.pickupDate ? values.pickupTime : undefined} error={Boolean(dateError)} onDateChange={(value) => updateValue('returnDate', value)} onTimeChange={(value) => updateValue('returnTime', value)} />
                             </div>
                             {dateError && <p role="alert" className="mt-3 text-sm font-medium text-red-600">{dateError}</p>}
-                            <div className="mt-5 flex min-h-11 items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 text-[13px] text-[#344879]"><Info className="size-5 shrink-0 text-rideon-blue" />Minimum rental duration is 1 hour.</div>
+                            <fieldset className="mt-5 rounded-lg border border-[#bde8c9] bg-[#fcfffd] p-4"><legend className="sr-only">Helmet selection</legend><div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full bg-green-50 text-rideon-green"><HardHat className="size-5" /></span><h3 className="text-[16px] font-bold text-[#0b1742]">Helmet</h3></div><div className="mt-3 space-y-2">{[0, 1, 2].map((count) => <label key={count} className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors ${helmetCount === count ? 'bg-blue-50 text-[#0b1742]' : 'text-[#344879] hover:bg-slate-50'}`}><span className="flex items-center gap-3"><input type="radio" name="helmetCount" value={count} checked={helmetCount === count} onChange={() => updateHelmetCount(count)} className="size-4 accent-rideon-blue" />{count === 0 ? 'No helmet' : count === 1 ? '1 helmet' : '2 helmets'}</span>{count === 0 ? <span className="text-xs font-semibold text-slate-500">No charge</span> : availability ? <span className="font-semibold text-rideon-green">{count === helmetCount ? money(availability.helmetAmount) : count === 1 ? money(availability.helmetFirstPrice) : money(availability.helmetSecondPrice)}</span> : <span className="text-xs text-slate-500">Price after availability</span>}</label>)}</div></fieldset>
+                            <div className="mt-5 flex min-h-11 items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 text-[13px] text-[#344879]"><Info className="size-5 shrink-0 text-rideon-blue" />Minimum rental duration is 1 hour. Maximum rental duration is 72 hours.</div>
                             <Button type="submit" disabled={submitting} className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]">{submitting ? 'Checking availability…' : <><Search className="size-[18px]" />Check availability</>}</Button>
                         </form>
 
@@ -213,7 +219,7 @@ export default function BookingPage() {
                             {availability.available ? <>
                                 <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]"><span className="flex items-center gap-2"><CheckCircle2 className="size-5" />Great! A bike is available for the chosen time.</span></div>
                                 <div className="mt-4 flex items-center gap-4"><div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100">{image ? <img src={image} alt={vehicleName} className="size-full object-contain" /> : <Settings2 className="size-7 text-rideon-blue/40" />}</div><div className="min-w-0"><span className="rounded bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">Available</span><h3 className="mt-2 truncate text-[16px] font-bold">{vehicleName}</h3><p className="mt-1 flex items-center gap-1.5 text-xs text-[#40537e]"><MapPin className="size-3.5 text-rideon-blue" />{vehicle.campus?.name || 'Campus pickup'}</p></div></div>
-                                <div className="mt-4 rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3"><div className="flex items-center justify-between text-xs text-[#40537e]"><span>Subtotal + GST</span><span>{money(availability.subtotal)} + {money(availability.gstAmount)}</span></div><div className="mt-2 flex items-center justify-between"><span className="text-sm font-semibold">Total amount</span><strong className="text-xl text-rideon-blue">{money(availability.totalAmount)}</strong></div></div>
+                                <div className="mt-4 rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3"><div className="flex items-center justify-between text-xs text-[#40537e]"><span>Subtotal + GST</span><span>{money(availability.subtotal)} + {money(availability.gstAmount)}</span></div><div className="mt-2 flex items-center justify-between"><span className="text-sm font-semibold">Total amount</span><strong className="text-xl text-rideon-blue">{money(availability.totalAmountWithHelmet ?? availability.totalAmount)}</strong></div></div>
                                 <button type="button" onClick={() => setSummaryOpen(true)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#a9c9ff] py-3 text-sm font-semibold text-rideon-blue">View booking details <ChevronDown className="size-4" /></button>
                             </> : <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{availability.reason || 'This bike is not available for the selected time.'}</div>}
                         </section>}
