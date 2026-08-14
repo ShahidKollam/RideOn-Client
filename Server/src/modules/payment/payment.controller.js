@@ -14,10 +14,10 @@ import ApiResponse from '../../utils/ApiResponse.js'
  * Body: { campusId, pickupAt, returnAt, notes? }
  */
 export const createOrderController = asyncHandler(async (req, res) => {
-    const { campusId, pickupAt, returnAt, notes } = req.body
+    const { campusId, pickupAt, returnAt, notes, helmetCount = 0 } = req.body
 
     const order = await createOrder(
-        { campusId, pickupAt, returnAt, notes },
+        { campusId, pickupAt, returnAt, notes, helmetCount },
         req.user.id
     )
 

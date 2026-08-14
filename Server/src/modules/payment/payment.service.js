@@ -94,6 +94,8 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
             totalAmount: payment.amount,
             includedKm: intent.includedKm,
             extraKmRate: intent.extraKmRate,
+            helmetCount: intent.helmetCount ?? 0,
+            helmetAmount: intent.helmetAmount ?? 0,
             notes: intent.notes || null,
         },
         include: {
@@ -130,8 +132,8 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
  * Step 1–4: Check availability, calculate amount, create Razorpay order, return to frontend.
  * Does NOT create a booking.
  */
-export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userId) => {
-    console.log('🟢 [createOrder] START', { userId, campusId, pickupAt, returnAt })
+export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetCount = 0 }, userId) => {
+    console.log('🟢 [createOrder] START', { userId, campusId, pickupAt, returnAt, helmetCount })
 
     if (!userId) throw new ApiError(401, 'Authentication required')
 
@@ -160,7 +162,19 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
         throw new ApiError(409, summary.reason || 'No available bikes for the selected time')
     }
 
-    const amount = summary.totalAmount
+    // Helmet add-on (admin prices from SystemSetting)
+    const settings = await prisma.systemSetting.findFirst()
+    const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
+    const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
+    const count = Math.min(2, Math.max(0, Number(helmetCount) || 0))
+    const helmetAmount =
+        count === 0
+            ? 0
+            : count === 1
+              ? Number(helmetFirstPrice) || 0
+              : Number(((Number(helmetFirstPrice) || 0) + (Number(helmetSecondPrice) || 0)).toFixed(2))
+
+    const amount = Number((summary.totalAmount + helmetAmount).toFixed(2))
     const amountInPaise = toPaise(amount)
 
     // Create Razorpay order. Intent is stored in notes (not duplicated as booking fields).
@@ -184,6 +198,8 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
             totalAmount: String(amount),
             includedKm: String(summary.includedKm),
             extraKmRate: String(summary.extraKmRate),
+            helmetCount: String(count),
+            helmetAmount: String(helmetAmount),
         },
     })
     console.log('🧾 [createOrder] Razorpay order created:', razorpayOrder.id)
@@ -212,6 +228,8 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
                     gstAmount: summary.gstAmount ?? 0,
                     includedKm: summary.includedKm,
                     extraKmRate: summary.extraKmRate,
+                    helmetCount: count,
+                    helmetAmount,
                 },
             },
         },
@@ -234,6 +252,8 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes }, userI
             platformFee: summary.platformFee ?? 0,
             gstAmount: summary.gstAmount ?? 0,
             depositAmount: summary.depositAmount,
+            helmetCount: count,
+            helmetAmount,
             totalAmount: amount,
             includedKm: summary.includedKm,
             extraKmRate: summary.extraKmRate,

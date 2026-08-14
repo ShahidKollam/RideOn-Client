@@ -57,7 +57,7 @@ export default function SignupStepTwo({
                         <label htmlFor="mobileNumber" className="block text-sm font-bold text-rideon-dark">
                             Mobile Number
                         </label>
-                        <div className="mt-3 flex h-12 overflow-hidden rounded-lg border border-slate-300 bg-white transition-colors focus-within:border-rideon-blue focus-within:ring-2 focus-within:ring-rideon-blue/15">
+                        <div className={cn('mt-3 flex h-12 overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-rideon-blue focus-within:ring-2 focus-within:ring-rideon-blue/15', errors.mobileNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300')}>
                             <div className="flex w-20 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-sm font-bold text-rideon-dark">
                                 +91
                             </div>
@@ -75,7 +75,7 @@ export default function SignupStepTwo({
                             />
                         </div>
                         {errors.mobileNumber && (
-                            <p id="mobileNumber-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                            <p id="mobileNumber-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.mobileNumber}
                             </p>
                         )}
@@ -102,7 +102,7 @@ export default function SignupStepTwo({
                             ))}
                         </select>
                         {errors.hostel && (
-                            <p id="hostel-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                            <p id="hostel-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.hostel}
                             </p>
                         )}
@@ -129,7 +129,7 @@ export default function SignupStepTwo({
                             ))}
                         </select>
                         {errors.department && (
-                            <p id="department-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                            <p id="department-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.department}
                             </p>
                         )}
@@ -156,7 +156,7 @@ export default function SignupStepTwo({
                             ))}
                         </select>
                         {errors.yearOfStudy && (
-                            <p id="yearOfStudy-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                            <p id="yearOfStudy-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.yearOfStudy}
                             </p>
                         )}
@@ -178,13 +178,13 @@ export default function SignupStepTwo({
                             className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
                         />
                         {errors.licenseNumber && (
-                            <p id="licenseNumber-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                            <p id="licenseNumber-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.licenseNumber}
                             </p>
                         )}
                     </div>
 
-                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-6 text-slate-500">
+                    <label className={cn('flex items-start gap-3 rounded-lg border bg-slate-50/70 px-4 py-3 text-sm leading-6 text-slate-500', errors.acceptedTerms ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200')}>
                         <input
                             type="checkbox"
                             checked={Boolean(values.acceptedTerms)}
@@ -201,7 +201,7 @@ export default function SignupStepTwo({
                         </span>
                     </label>
                     {errors.acceptedTerms && (
-                        <p className="text-sm font-medium text-rideon-blue">
+                        <p className="text-sm font-medium text-red-600">
                             {errors.acceptedTerms}
                         </p>
                     )}

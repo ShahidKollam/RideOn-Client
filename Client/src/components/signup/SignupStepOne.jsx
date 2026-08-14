@@ -40,7 +40,7 @@ export default function SignupStepOne({
                         className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
                     />
                     {errors.fullName && (
-                        <p id="fullName-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                        <p id="fullName-error" className="mt-2 text-sm font-medium text-red-600">
                             {errors.fullName}
                         </p>
                     )}
@@ -62,7 +62,7 @@ export default function SignupStepOne({
                         className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
                     />
                     {errors.studentId && (
-                        <p id="studentId-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                        <p id="studentId-error" className="mt-2 text-sm font-medium text-red-600">
                             {errors.studentId}
                         </p>
                     )}
@@ -84,7 +84,7 @@ export default function SignupStepOne({
                         className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
                     />
                     {errors.nitcEmail && (
-                        <p id="nitcEmail-error" className="mt-2 text-sm font-medium text-rideon-blue">
+                        <p id="nitcEmail-error" className="mt-2 text-sm font-medium text-red-600">
                             {errors.nitcEmail}
                         </p>
                     )}

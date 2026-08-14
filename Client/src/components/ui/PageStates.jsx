@@ -19,8 +19,8 @@ export function ErrorState({ message, onRetry }) {
     return (
         <div className="rounded-2xl border border-red-100 bg-red-50 px-6 py-10 text-center">
             <AlertCircle className="mx-auto size-8 text-red-500" />
-            <p className="mt-3 text-sm font-medium text-slate-600">{message}</p>
-            {onRetry && <button type="button" onClick={onRetry} className="mt-4 text-sm font-bold text-rideon-blue hover:underline">Try again</button>}
+            <p className="mt-3 text-sm font-medium text-red-700">{message}</p>
+            {onRetry && <button type="button" onClick={onRetry} className="mt-4 text-sm font-bold text-red-700 hover:underline">Try again</button>}
         </div>
     )
 }

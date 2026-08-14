@@ -177,6 +177,9 @@ model Booking {
   totalAmount    Float
   includedKm     Int
   extraKmRate    Float
+  helmetCount    Int           @default(0)
+  helmetAmount   Float         @default(0)
+  lateHelmetFee  Float?
   pickupOdometer Int?
   returnOdometer Int?
   actualKm       Int?
@@ -233,6 +236,11 @@ model SystemSetting {
 
   platformFeeEnabled Boolean @default(true)
   platformFee        Float   @default(20)
+
+  // Optional helmet add-on (not duration-based)
+  helmetFirstPrice  Float @default(0)
+  helmetSecondPrice Float @default(0)
+  lateHelmetFee     Float @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

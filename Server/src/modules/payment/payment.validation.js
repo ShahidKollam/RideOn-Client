@@ -5,6 +5,13 @@ export const createOrderSchema = z.object({
     pickupAt: z.string().datetime({ message: 'pickupAt must be a valid ISO datetime' }),
     returnAt: z.string().datetime({ message: 'returnAt must be a valid ISO datetime' }),
     notes: z.string().max(500).optional(),
+    helmetCount: z
+        .number()
+        .int()
+        .min(0, 'helmetCount must be 0, 1 or 2')
+        .max(2, 'Maximum 2 helmets allowed')
+        .optional()
+        .default(0),
 })
 
 export const verifyPaymentSchema = z.object({

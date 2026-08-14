@@ -121,4 +121,9 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  input[aria-invalid="true"],
+  select[aria-invalid="true"],
+  textarea[aria-invalid="true"] {
+    @apply border-red-500 ring-2 ring-red-500/15;
+  }
 }

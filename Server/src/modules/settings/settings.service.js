@@ -6,6 +6,9 @@ const DEFAULT_SETTINGS = {
     gstRate: 18,
     platformFeeEnabled: true,
     platformFee: 20,
+    helmetFirstPrice: 0,
+    helmetSecondPrice: 0,
+    lateHelmetFee: 0,
 }
 
 /**
@@ -24,6 +27,22 @@ const getOrCreateSettings = async () => {
     return settings
 }
 
+/**
+ * Compute helmet add-on amount from admin prices and selected count (0–2).
+ */
+export const calculateHelmetAmount = (settings, helmetCount = 0) => {
+    const count = Math.min(2, Math.max(0, Number(helmetCount) || 0))
+    if (count <= 0) return { helmetCount: 0, helmetAmount: 0 }
+
+    const first = Number(settings.helmetFirstPrice) || 0
+    const second = Number(settings.helmetSecondPrice) || 0
+
+    const helmetAmount =
+        count === 1 ? first : Number((first + second).toFixed(2))
+
+    return { helmetCount: count, helmetAmount }
+}
+
 export const getSettings = async () => {
     const settings = await getOrCreateSettings()
 
@@ -32,6 +51,9 @@ export const getSettings = async () => {
         gstRate: settings.gstRate,
         platformFeeEnabled: settings.platformFeeEnabled,
         platformFee: settings.platformFee,
+        helmetFirstPrice: settings.helmetFirstPrice,
+        helmetSecondPrice: settings.helmetSecondPrice,
+        lateHelmetFee: settings.lateHelmetFee,
     }
 }
 
@@ -45,6 +67,9 @@ export const updateSettings = async (data) => {
             ...(data.gstRate !== undefined && { gstRate: data.gstRate }),
             ...(data.platformFeeEnabled !== undefined && { platformFeeEnabled: data.platformFeeEnabled }),
             ...(data.platformFee !== undefined && { platformFee: data.platformFee }),
+            ...(data.helmetFirstPrice !== undefined && { helmetFirstPrice: data.helmetFirstPrice }),
+            ...(data.helmetSecondPrice !== undefined && { helmetSecondPrice: data.helmetSecondPrice }),
+            ...(data.lateHelmetFee !== undefined && { lateHelmetFee: data.lateHelmetFee }),
         },
     })
 
@@ -53,5 +78,8 @@ export const updateSettings = async (data) => {
         gstRate: updated.gstRate,
         platformFeeEnabled: updated.platformFeeEnabled,
         platformFee: updated.platformFee,
+        helmetFirstPrice: updated.helmetFirstPrice,
+        helmetSecondPrice: updated.helmetSecondPrice,
+        lateHelmetFee: updated.lateHelmetFee,
     }
 }

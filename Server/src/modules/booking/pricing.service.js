@@ -1,6 +1,10 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 
+/** Business rules: min 1h (enforced in availability), max 72h */
+export const MAX_RENTAL_HOURS = 72
+export const MIN_RENTAL_HOURS = 1
+
 export const createPricing = async (data) => {
     const campus = await prisma.campus.findUnique({ where: { id: data.campusId } })
     if (!campus || !campus.isActive) {
@@ -100,25 +104,150 @@ export const deletePricing = async (id) => {
     return { message: 'Pricing soft deleted' }
 }
 
+/**
+ * Build a list of package segments that cover `durationHours`.
+ *
+ * Rules:
+ * - Prefer largest package with durationHours <= remaining (greedy).
+ * - If nothing fits remaining (> 0), round UP to the smallest package
+ *   with durationHours >= remaining.
+ * - Does not require 25–72h package rows in DB.
+ *
+ * Examples (packages 1,2,3,6,12,24):
+ *   6h  → [6]
+ *   13h → [12, 1]
+ *   25h → [24, 1]
+ *   50h → [24, 24, 2]
+ *   72h → [24, 24, 24]
+ */
+export const composePackagesForDuration = (durationHours, packages) => {
+    if (!packages?.length) {
+        throw new ApiError(400, 'No active pricing packages for this campus')
+    }
+
+    const sortedDesc = [...packages].sort((a, b) => b.durationHours - a.durationHours)
+    const sortedAsc = [...packages].sort((a, b) => a.durationHours - b.durationHours)
+
+    let remaining = durationHours
+    const segments = []
+    // Safety: avoid infinite loop (max segments if all 1h)
+    const maxSteps = durationHours + 2
+
+    for (let step = 0; step < maxSteps && remaining > 0; step++) {
+        // Largest package that still fits remaining
+        const fit = sortedDesc.find((p) => p.durationHours <= remaining)
+        if (fit) {
+            segments.push(fit)
+            remaining -= fit.durationHours
+            continue
+        }
+
+        // Nothing fits → round up to smallest package that covers remaining
+        const roundUp = sortedAsc.find((p) => p.durationHours >= remaining)
+        if (!roundUp) {
+            throw new ApiError(
+                400,
+                `No pricing package can cover the remaining ${remaining} hour(s)`
+            )
+        }
+        segments.push(roundUp)
+        remaining = 0
+    }
+
+    if (remaining > 0) {
+        throw new ApiError(400, 'Unable to compose pricing for the selected duration')
+    }
+
+    return segments
+}
+
+/**
+ * Resolve pricing for a rental duration.
+ * - Single package when one covers the duration (existing behaviour).
+ * - Otherwise composes multiple packages (e.g. 25h = 24h + 1h).
+ *
+ * Returns a synthetic "primary" pricing object (largest segment) plus
+ * composed totals used by calculatePrice / booking snapshot.
+ */
 export const findPricingByDuration = async (durationHours, campusId, client = prisma) => {
-    const pricing = await client.pricing.findFirst({
+    if (durationHours < MIN_RENTAL_HOURS) {
+        throw new ApiError(400, `Minimum rental duration is ${MIN_RENTAL_HOURS} hour`)
+    }
+    if (durationHours > MAX_RENTAL_HOURS) {
+        throw new ApiError(400, `Maximum rental duration is ${MAX_RENTAL_HOURS} hours`)
+    }
+
+    const packages = await client.pricing.findMany({
         where: {
             campusId,
             isActive: true,
-            durationHours: { gte: durationHours },
         },
         orderBy: [{ durationHours: 'asc' }, { displayOrder: 'asc' }],
     })
 
-    if (!pricing) {
+    if (!packages.length) {
         throw new ApiError(400, 'No active pricing package matches the selected duration')
     }
 
-    return pricing
+    // 1) Exact package match → use it alone (same as current system for 1h, 6h, 12h, 24h, …)
+    const exact = packages.find((p) => p.durationHours === durationHours)
+    if (exact) {
+        return {
+            ...exact,
+            _composed: false,
+            _segments: [exact],
+            _composedPrice: exact.price,
+            _composedIncludedKm: exact.includedKm,
+            _composedDeposit: exact.depositAmount,
+            _composedExtraKmRate: exact.extraKmRate,
+            _packageName: exact.packageName,
+        }
+    }
+
+    // 2) Otherwise compose from building-block packages (greedy largest-fit;
+    //    residual rounds UP to the smallest package that covers it).
+    //    Examples: 13h → 12h + 1h; 25h → 24h + 1h; 50h → 24h + 24h + 2h; 72h → 24×3
+    const segments = composePackagesForDuration(durationHours, packages)
+    const primary = segments.reduce((best, p) =>
+        p.durationHours > best.durationHours ? p : best
+    )
+
+    const isSingle = segments.length === 1
+    const composedPrice = Number(
+        segments.reduce((sum, p) => sum + Number(p.price), 0).toFixed(2)
+    )
+    const composedIncludedKm = segments.reduce((sum, p) => sum + Number(p.includedKm), 0)
+    // Deposit once per booking — highest among segments
+    const composedDeposit = Math.max(...segments.map((p) => Number(p.depositAmount)))
+    // Extra km rate from primary (largest) package
+    const composedExtraKmRate = Number(primary.extraKmRate)
+
+    const packageName = isSingle
+        ? primary.packageName
+        : segments.map((p) => `${p.durationHours}h`).join(' + ')
+
+    return {
+        ...primary,
+        price: composedPrice,
+        includedKm: composedIncludedKm,
+        depositAmount: composedDeposit,
+        extraKmRate: composedExtraKmRate,
+        packageName,
+        // Keep primary.id for Booking.pricingId FK; amounts are the composed snapshot
+        durationHours: segments.reduce((s, p) => s + p.durationHours, 0),
+        _composed: !isSingle,
+        _segments: segments,
+        _composedPrice: composedPrice,
+        _composedIncludedKm: composedIncludedKm,
+        _composedDeposit: composedDeposit,
+        _composedExtraKmRate: composedExtraKmRate,
+        _packageName: packageName,
+    }
 }
 
 /**
  * Calculate final price including Platform Fee + GST
+ * Accepts a single Pricing row or the object returned by findPricingByDuration.
  */
 export const calculatePrice = async (pricingData) => {
     // Get current system settings
@@ -134,17 +263,19 @@ export const calculatePrice = async (pricingData) => {
         }
     }
 
-    const baseAmount = pricingData.price
-    const depositAmount = pricingData.depositAmount
+    const baseAmount = Number(pricingData.price)
+    const depositAmount = Number(pricingData.depositAmount)
 
-    // Platform Fee
+    // Platform Fee (once per booking)
     const platformFee = settings.platformFeeEnabled ? settings.platformFee : 0
 
     // Subtotal
     const subtotal = baseAmount + platformFee
 
     // GST
-    const gstAmount = settings.gstEnabled ? Number(((subtotal * settings.gstRate) / 100).toFixed(2)) : 0
+    const gstAmount = settings.gstEnabled
+        ? Number(((subtotal * settings.gstRate) / 100).toFixed(2))
+        : 0
 
     // Final Total
     const totalAmount = Number((subtotal + gstAmount + depositAmount).toFixed(2))
@@ -158,5 +289,17 @@ export const calculatePrice = async (pricingData) => {
         includedKm: pricingData.includedKm,
         extraKmRate: pricingData.extraKmRate,
         totalAmount,
+        // Optional composition metadata for UI / debugging
+        ...(pricingData._composed
+            ? {
+                  pricingComposed: true,
+                  pricingSegments: pricingData._segments?.map((s) => ({
+                      id: s.id,
+                      packageName: s.packageName,
+                      durationHours: s.durationHours,
+                      price: s.price,
+                  })),
+              }
+            : { pricingComposed: false }),
     }
 }

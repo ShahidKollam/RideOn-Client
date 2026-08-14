@@ -45,7 +45,7 @@ export function ToastProvider({ children }) {
                             className={cn(
                                 'flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-[0_14px_36px_rgba(15,23,42,0.14)]',
                                 toast.type === 'success' && 'border-rideon-green/30',
-                                toast.type === 'error' && 'border-red-200',
+                                toast.type === 'error' && 'border-red-200 bg-red-50',
                                 toast.type === 'info' && 'border-rideon-blue/25'
                             )}
                         >
@@ -60,16 +60,16 @@ export function ToastProvider({ children }) {
                             />
 
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold text-rideon-dark">{toast.title}</p>
+                                <p className={cn('text-sm font-bold text-rideon-dark', toast.type === 'error' && 'text-red-700')}>{toast.title}</p>
                                 {toast.description && (
-                                    <p className="mt-1 text-sm leading-5 text-slate-500">{toast.description}</p>
+                                    <p className={cn('mt-1 text-sm leading-5 text-slate-500', toast.type === 'error' && 'text-red-600')}>{toast.description}</p>
                                 )}
                             </div>
 
                             <button
                                 type="button"
                                 onClick={() => removeToast(toast.id)}
-                                className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-rideon-dark"
+                                className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-rideon-dark', toast.type === 'error' && 'text-red-400 hover:bg-red-100 hover:text-red-700')}
                                 aria-label="Dismiss notification"
                             >
                                 <X className="size-4" />

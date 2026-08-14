@@ -6,7 +6,8 @@ const logger =
               level: 'info',
           })
         : pino({
-              level: 'debug',
+            //   level: 'debug',
+              level: 'info',
               transport: {
                   target: 'pino-pretty',
                   options: {

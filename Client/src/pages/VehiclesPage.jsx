@@ -19,13 +19,13 @@ const policies = [
 
 export default function VehiclesPage() {
     return (
-        <div className="min-h-screen bg-[#fcfdff] pb-8 pt-24 sm:pt-28">
+        <div className="min-h-screen bg-[#fcfdff] pb-8 pt-24 sm:pt-10">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <section className="grid items-center gap-6 lg:min-h-[25rem] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                     <div className="relative z-10">
                         <p className="text-sm font-bold uppercase tracking-[0.16em] text-rideon-green">Our vehicle</p>
                         <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-rideon-dark sm:text-5xl">
-                            Honda Activa <span className="text-rideon-green">6G</span>
+                            Honda <span className="text-rideon-blue">Activa</span>
                         </h1>
                         <p className="mt-4 max-w-md text-base leading-7 text-[#40537e] sm:text-lg">
                             Reliable, fuel-efficient and built for everyday campus rides. Comfort you can count on.

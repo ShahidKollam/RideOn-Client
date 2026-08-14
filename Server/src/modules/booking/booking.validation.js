@@ -1,10 +1,19 @@
 import { z } from 'zod'
 
+const helmetCountSchema = z
+    .number()
+    .int()
+    .min(0, 'helmetCount must be 0, 1 or 2')
+    .max(2, 'Maximum 2 helmets allowed')
+    .optional()
+    .default(0)
+
 export const createBookingSchema = z.object({
     campusId: z.string().min(1, 'Campus ID is required'),
     pickupAt: z.string().datetime(),
     returnAt: z.string().datetime(),
     notes: z.string().optional(),
+    helmetCount: helmetCountSchema,
 })
 
 export const adminCreateBookingSchema = z.object({
@@ -13,12 +22,14 @@ export const adminCreateBookingSchema = z.object({
     pickupAt: z.string().datetime(),
     returnAt: z.string().datetime(),
     notes: z.string().optional(),
+    helmetCount: helmetCountSchema,
 })
 
 export const checkAvailabilitySchema = z.object({
     campusId: z.string().min(1, 'Campus ID is required'),
     pickupAt: z.string().datetime(),
     returnAt: z.string().datetime(),
+    helmetCount: helmetCountSchema,
 })
 
 export const cancelBookingSchema = z.object({

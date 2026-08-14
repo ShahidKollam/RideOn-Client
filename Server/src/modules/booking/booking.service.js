@@ -64,6 +64,12 @@ export const createBooking = async (data, userIdFromAuth = null) => {
                         tx
                     )
 
+                    const helmetCount = Math.min(2, Math.max(0, Number(data.helmetCount) || 0))
+                    const helmetAmount = summary.helmetAmount ?? 0
+                    const totalAmount = Number(
+                        ((summary.totalAmountWithHelmet ?? summary.totalAmount) || summary.totalAmount).toFixed(2)
+                    )
+
                     return tx.booking.create({
                         data: {
                             bookingNumber,
@@ -78,9 +84,11 @@ export const createBooking = async (data, userIdFromAuth = null) => {
                             paymentStatus: 'PENDING',
                             baseAmount: summary.baseAmount,
                             depositAmount: summary.depositAmount,
-                            totalAmount: summary.totalAmount,
+                            totalAmount,
                             includedKm: summary.includedKm,
                             extraKmRate: summary.extraKmRate,
+                            helmetCount,
+                            helmetAmount,
                             notes: data.notes,
                         },
                         include: {
@@ -185,10 +193,24 @@ export const returnBooking = async (bookingId, returnOdometer) => {
     const actualKm = returnOdometer - booking.pickupOdometer
     const extraKm = Math.max(0, actualKm - booking.includedKm)
     const extraKmCharge = extraKm * booking.extraKmRate
-    // Late fee logic simplified
-    const lateFee = 0 // Implement based on time
 
-    const finalTotal = booking.totalAmount + extraKmCharge + lateFee
+    // Late fee (time-based) – placeholder until full late-fee rules are defined
+    const now = new Date()
+    const isLate = now > new Date(booking.returnAt)
+    const lateFee = 0 // Implement based on time when product rules are finalized
+
+    // Late helmet fee: apply admin-configured fee when return is late and helmets were taken
+    let lateHelmetFee = 0
+    if (isLate && (booking.helmetCount || 0) > 0) {
+        const settings = await prisma.systemSetting.findFirst()
+        const perFee = Number(settings?.lateHelmetFee) || 0
+        // Flat configured fee (same pattern as other optional fees); multiply by count if product later requires it
+        lateHelmetFee = perFee
+    }
+
+    const finalTotal = Number(
+        (booking.totalAmount + extraKmCharge + lateFee + lateHelmetFee).toFixed(2)
+    )
 
     return await prisma.$transaction(async (tx) => {
         await tx.bike.update({
@@ -208,6 +230,7 @@ export const returnBooking = async (bookingId, returnOdometer) => {
                 extraKm,
                 extraKmCharge,
                 lateFee,
+                lateHelmetFee,
                 totalAmount: finalTotal,
                 status: 'COMPLETED',
             },

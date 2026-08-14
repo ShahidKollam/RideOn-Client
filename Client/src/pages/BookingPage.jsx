@@ -38,19 +38,19 @@ const loadRazorpayCheckout = () => new Promise((resolve) => {
     document.body.appendChild(script)
 })
 
-function TimeField({ label, date, time, minDate, minTime, onDateChange, onTimeChange }) {
+function TimeField({ label, date, time, minDate, minTime, error, onDateChange, onTimeChange }) {
     return (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <label className="flex h-[53px] overflow-hidden rounded-lg border border-slate-200 bg-white text-sm text-rideon-dark">
+            <label className={`flex h-[53px] overflow-hidden rounded-lg border bg-white text-sm text-rideon-dark ${error ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200'}`}>
                 <span className="flex w-[84px] shrink-0 items-center border-r border-slate-200 px-4 font-semibold">{label}</span>
                 <span className="relative flex min-w-0 flex-1 items-center">
                     <CalendarDays className="pointer-events-none absolute left-4 size-[18px] text-rideon-blue" />
-                    <input aria-label={`${label} date`} required type="date" min={minDate} value={date} onChange={(event) => onDateChange(event.target.value)} className="h-full w-full appearance-none bg-transparent pr-3 pl-11 text-sm font-medium outline-none" />
+                    <input aria-label={`${label} date`} aria-invalid={error} required type="date" min={minDate} value={date} onChange={(event) => onDateChange(event.target.value)} className="h-full w-full appearance-none bg-transparent pr-3 pl-11 text-sm font-medium outline-none" />
                 </span>
             </label>
-            <label className="relative flex h-[53px] overflow-hidden rounded-lg border border-slate-200 bg-white text-sm text-rideon-dark">
+            <label className={`relative flex h-[53px] overflow-hidden rounded-lg border bg-white text-sm text-rideon-dark ${error ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200'}`}>
                 <Clock3 className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-rideon-blue" />
-                <input aria-label={`${label} time`} required type="time" min={minTime} value={time} onChange={(event) => onTimeChange(event.target.value)} className="h-full w-full appearance-none bg-transparent px-11 text-sm font-medium outline-none" />
+                <input aria-label={`${label} time`} aria-invalid={error} required type="time" min={minTime} value={time} onChange={(event) => onTimeChange(event.target.value)} className="h-full w-full appearance-none bg-transparent px-11 text-sm font-medium outline-none" />
                 <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-rideon-dark" />
             </label>
         </div>
@@ -185,8 +185,8 @@ export default function BookingPage() {
                         <form onSubmit={checkBookingAvailability} className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] sm:p-6">
                             <div className="flex items-center gap-4"><span className="flex size-[29px] items-center justify-center rounded-full bg-rideon-blue text-sm font-bold text-white">1</span><h2 className="text-[16px] font-bold">Select ride time</h2></div>
                             <div className="mt-6 space-y-4">
-                                <TimeField label="Pickup" date={values.pickupDate} time={values.pickupTime} minDate={initialPickup.date} onDateChange={(value) => updateValue('pickupDate', value)} onTimeChange={(value) => updateValue('pickupTime', value)} />
-                                <TimeField label="Return" date={values.returnDate} time={values.returnTime} minDate={values.pickupDate} minTime={values.returnDate === values.pickupDate ? values.pickupTime : undefined} onDateChange={(value) => updateValue('returnDate', value)} onTimeChange={(value) => updateValue('returnTime', value)} />
+                                <TimeField label="Pickup" date={values.pickupDate} time={values.pickupTime} minDate={initialPickup.date} error={Boolean(dateError)} onDateChange={(value) => updateValue('pickupDate', value)} onTimeChange={(value) => updateValue('pickupTime', value)} />
+                                <TimeField label="Return" date={values.returnDate} time={values.returnTime} minDate={values.pickupDate} minTime={values.returnDate === values.pickupDate ? values.pickupTime : undefined} error={Boolean(dateError)} onDateChange={(value) => updateValue('returnDate', value)} onTimeChange={(value) => updateValue('returnTime', value)} />
                             </div>
                             {dateError && <p role="alert" className="mt-3 text-sm font-medium text-red-600">{dateError}</p>}
                             <div className="mt-5 flex min-h-11 items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 text-[13px] text-[#344879]"><Info className="size-5 shrink-0 text-rideon-blue" />Minimum rental duration is 1 hour.</div>
