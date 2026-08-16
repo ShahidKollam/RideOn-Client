@@ -48,7 +48,7 @@ export const sendMagicLinkService = async (email) => {
     await prisma.magicLinkToken.create({
         data: { tokenHash, userId: user.id, expiresAt },
     })
-    
+
     console.log('Before sendMail')
 
     await sendMagicLink(email, magicToken)

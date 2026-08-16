@@ -20,7 +20,7 @@ export const signupController = asyncHandler(async (req, res) => {
 
 export const sendMagicLinkController = asyncHandler(async (req, res) => {
     const result = await sendMagicLinkService(req.body.email)
-    
+
     res.json(new ApiResponse(200, 'Magic link sent', result))
 })
 
@@ -36,11 +36,11 @@ export const verifyMagicLinkController = asyncHandler(async (req, res) => {
     // })
 
     res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-})
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    })
 
     res.json(new ApiResponse(200, 'Login successful', { accessToken, user }))
 })
@@ -59,7 +59,7 @@ export const refreshTokenController = asyncHandler(async (req, res) => {
     res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
