@@ -20,9 +20,24 @@ const app = express()
 // Security middleware
 app.use(helmet())
 app.use(compression())
+const allowedOrigins = [config.clientUrl, config.adminUrl]
+console.log('Allowed origins for CORS:', allowedOrigins)
+
 app.use(
     cors({
-        origin: config.frontendUrl,
+        origin: (origin, callback) => {
+            // Allow requests without an Origin
+            // (Postman, server-to-server, etc.)
+            if (!origin) {
+                return callback(null, true)
+            }
+
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true)
+            }
+
+            return callback(new Error('Not allowed by CORS'))
+        },
         credentials: true,
     })
 )
@@ -51,7 +66,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() })
 })
 
-// if (process.env.NODE_ENV !== 'development') { 
+// if (process.env.NODE_ENV !== 'development') {
 //     cron.schedule('*/2 * * * *', async () => {
 //         try {
 //             console.log('🟣 Running payment reconciliation...')
