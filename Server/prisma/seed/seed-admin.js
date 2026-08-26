@@ -225,7 +225,7 @@ async function main() {
   const superName = process.env.ADMIN_NAME || 'Super Admin'
 
   const opsEmail = process.env.OPS_ADMIN_EMAIL || 'ops@rideon.com'
-  const opsPassword = process.env.OPS_ADMIN_PASSWORD || 'Ops@12345'
+  const opsPassword = process.env.OPS_ADMIN_PASSWORD || 'Ops@12345' 
   const opsName = process.env.OPS_ADMIN_NAME || 'Ops Admin'
 
   if (superPassword.length < 8 || opsPassword.length < 8) {
