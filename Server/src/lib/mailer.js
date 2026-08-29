@@ -4,7 +4,7 @@ import ApiError from '../utils/ApiError.js'
 
 export const sendMagicLink = async (email, token) => {
     try {
-        const magicLink = `${config.frontendUrl}/auth/verify-login-link?token=${token}`
+        const magicLink = `${config.clientUrl}/auth/verify-login-link?token=${token}`
         console.log('magicLink:', magicLink)
 
         const html = `
