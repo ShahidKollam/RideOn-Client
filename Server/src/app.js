@@ -20,14 +20,15 @@ const app = express()
 // Security middleware
 app.use(helmet())
 app.use(compression())
-const allowedOrigins = [config.clientUrl, config.adminUrl]
+
+const allowedOrigins = config.corsOrigins
+
 console.log('Allowed origins for CORS:', allowedOrigins)
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            // Allow requests without an Origin
-            // (Postman, server-to-server, etc.)
+            // Postman / server-to-server
             if (!origin) {
                 return callback(null, true)
             }
@@ -36,11 +37,14 @@ app.use(
                 return callback(null, true)
             }
 
+            console.log('❌ CORS blocked:', origin)
+
             return callback(new Error('Not allowed by CORS'))
         },
         credentials: true,
     })
 )
+
 app.use(cookieParser())
 
 // Logging
