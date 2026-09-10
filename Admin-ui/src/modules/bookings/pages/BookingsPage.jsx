@@ -1,221 +1,39 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, CalendarCheck, Eye, KeyRound, Undo2, CircleX } from 'lucide-react';
+import { Search, CalendarCheck, Eye, KeyRound, Undo2, CircleX, CreditCard } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { PageHeader } from '../../../components/ui/PageHeader';
-import { DataTable } from '../../../components/ui/DataTable';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
-import { Button } from '../../../components/ui/Button';
-import { Input, Select } from '../../../components/ui/Input';
-import { Card } from '../../../components/ui/Card';
-import { ActionMenu } from '../../../components/ui/ActionMenu';
-import { Drawer } from '../../../components/ui/Drawer';
-import { Modal } from '../../../components/ui/Modal';
-import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-import { useAuth } from '../../../context/AuthContext';
-import { useToast } from '../../../components/ui/Toast';
+import { PageHeader } from '../../../components/ui/PageHeader'; import { DataTable } from '../../../components/ui/DataTable'; import { StatusBadge } from '../../../components/ui/StatusBadge'; import { Button } from '../../../components/ui/Button'; import { Input, Select } from '../../../components/ui/Input'; import { Card } from '../../../components/ui/Card'; import { ActionMenu } from '../../../components/ui/ActionMenu'; import { Drawer } from '../../../components/ui/Drawer'; import { Modal } from '../../../components/ui/Modal'; import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'; import { useAuth } from '../../../context/AuthContext'; import { useToast } from '../../../components/ui/Toast';
 
-function parseList(data) {
-  const rows = data?.bookings || data?.items || data?.data || (Array.isArray(data) ? data : []);
-  const pagination = data?.pagination || {};
-  return {
-    rows,
-    total: pagination.total ?? data?.total ?? rows.length,
-    totalPages: pagination.totalPages ?? Math.max(1, Math.ceil((pagination.total ?? rows.length) / (pagination.limit || 10))),
-  };
-}
+const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const dateTime = (v) => v ? new Date(v).toLocaleString() : '—';
+const Detail = ({ label, value }) => value === undefined || value === null || value === '' || value === false ? null : <div className="flex items-start justify-between gap-4 text-sm"><span className="text-muted">{label}</span><span className="text-right font-medium text-primary-token">{value}</span></div>;
+const Section = ({ title, children }) => <section className="rounded-xl border border-token bg-[var(--color-bg)]/30 p-4"><h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3><div className="space-y-2.5">{children}</div></section>;
+function parseList(res) { const d = res?.data || res || {}; const rows = d.items || d.bookings || (Array.isArray(d) ? d : []); const p = d.pagination || {}; return { rows, total: p.total ?? d.total ?? rows.length, totalPages: p.totalPages ?? Math.max(1, Math.ceil((p.total ?? rows.length) / (p.limit || 10))) }; }
 
 export default function BookingsPage() {
-  const { hasPermission } = useAuth();
-  const toast = useToast();
-  const qc = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [pickupTarget, setPickupTarget] = useState(null);
-  const [returnTarget, setReturnTarget] = useState(null);
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [odometer, setOdometer] = useState('');
-
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['bookings', { page, limit, search, status: statusFilter }],
-    queryFn: async () => {
-      const qs = new URLSearchParams({ page, limit });
-      if (search) qs.set('search', search);
-      if (statusFilter) qs.set('status', statusFilter);
-      const res = await api.get(`/bookings?${qs}`);
-      return res.data || res;
-    },
-  });
-  const { rows, total, totalPages } = parseList(data || {});
-
-  const pickupMut = useMutation({
-    mutationFn: ({ id, pickupOdometer }) => api.patch(`/bookings/${id}/pickup`, { pickupOdometer: Number(pickupOdometer) }),
-    onSuccess: () => { toast.success('Pickup recorded'); setPickupTarget(null); qc.invalidateQueries({ queryKey: ['bookings'] }); },
-    onError: (e) => toast.error(e.message),
-  });
-  const returnMut = useMutation({
-    mutationFn: ({ id, returnOdometer }) => api.patch(`/bookings/${id}/return`, { returnOdometer: Number(returnOdometer) }),
-    onSuccess: () => { toast.success('Return recorded'); setReturnTarget(null); qc.invalidateQueries({ queryKey: ['bookings'] }); },
-    onError: (e) => toast.error(e.message),
-  });
-  const cancelMut = useMutation({
-    mutationFn: (id) => api.patch(`/bookings/${id}/cancel`, {}),
-    onSuccess: () => { toast.success('Booking cancelled'); setCancelTarget(null); qc.invalidateQueries({ queryKey: ['bookings'] }); },
-    onError: (e) => toast.error(e.message),
-  });
-
+  const { hasPermission } = useAuth(); const toast = useToast(); const qc = useQueryClient();
+  const [page, setPage] = useState(1), [limit, setLimit] = useState(10), [search, setSearch] = useState(''), [searchInput, setSearchInput] = useState(''), [statusFilter, setStatusFilter] = useState('');
+  const [selected, setSelected] = useState(null), [pickupTarget, setPickupTarget] = useState(null), [returnTarget, setReturnTarget] = useState(null), [cancelTarget, setCancelTarget] = useState(null), [paymentTarget, setPaymentTarget] = useState(null), [odometer, setOdometer] = useState(''), [paymentMethod, setPaymentMethod] = useState('UPI'), [reference, setReference] = useState('');
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['bookings', { page, limit, search, status: statusFilter }], queryFn: () => { const qs = new URLSearchParams({ page, limit }); if (search) qs.set('search', search); if (statusFilter) qs.set('status', statusFilter); return api.get(`/bookings?${qs}`); } });
+  const { rows, total, totalPages } = parseList(data);
+  const { data: detailRes, isLoading: detailLoading, error: detailError } = useQuery({ queryKey: ['booking', selected?.id], queryFn: () => api.get(`/bookings/${selected.id}`), enabled: !!selected?.id });
+  const booking = detailRes?.data || selected; const refresh = (id) => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['booking', id] }); };
+  const pickupMut = useMutation({ mutationFn: ({ id, value }) => api.patch(`/bookings/${id}/pickup`, { pickupOdometer: Number(value) }), onSuccess: (_, v) => { toast.success('Pickup recorded'); setPickupTarget(null); refresh(v.id); }, onError: e => toast.error(e.message) });
+  const returnMut = useMutation({ mutationFn: ({ id, value }) => api.patch(`/bookings/${id}/return`, { returnOdometer: Number(value) }), onSuccess: (_, v) => { toast.success('Return recorded'); setReturnTarget(null); refresh(v.id); }, onError: e => toast.error(e.message) });
+  const cancelMut = useMutation({ mutationFn: id => api.patch(`/bookings/${id}/cancel`, {}), onSuccess: (_, id) => { toast.success('Booking cancelled'); setCancelTarget(null); refresh(id); }, onError: e => toast.error(e.message) });
+  const collectMut = useMutation({ mutationFn: ({ id, paymentMethod, reference }) => api.post(`/bookings/${id}/payments`, { paymentMethod, reference: reference || undefined }), onSuccess: (_, v) => { toast.success('Additional payment collected'); setPaymentTarget(null); refresh(v.id); }, onError: e => toast.error(e.message) });
+  const pickup = (v) => { setPickupTarget(v); setOdometer(''); }, returning = (v) => { setReturnTarget(v); setOdometer(''); }, cancellable = s => ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE'].includes(s);
   const columns = [
-    {
-      key: 'bookingNumber',
-      header: 'Booking',
-      render: (r) => (
-        <div>
-          <p className="font-medium text-primary-token">{r.bookingNumber || r.id?.slice?.(0, 8) || '—'}</p>
-          <p className="text-xs text-muted">{r.user?.name || r.userName || '—'}</p>
-        </div>
-      ),
-    },
-    { key: 'bike', header: 'Bike', render: (r) => <span className="text-secondary">{r.bike?.name || r.bikeName || '—'}</span> },
-    { key: 'pickupAt', header: 'Pickup', render: (r) => <span className="text-secondary text-xs">{r.pickupAt ? new Date(r.pickupAt).toLocaleString() : '—'}</span> },
-    { key: 'returnAt', header: 'Return', render: (r) => <span className="text-secondary text-xs">{r.returnAt ? new Date(r.returnAt).toLocaleString() : '—'}</span> },
-    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status || 'PENDING'} /> },
-    {
-      key: 'actions',
-      header: '',
-      cellClassName: 'w-12',
-      render: (r) => (
-        <ActionMenu
-          items={[
-            { label: 'View', icon: Eye, onClick: () => setSelected(r) },
-            hasPermission('bookings.update') && r.status === 'CONFIRMED' && {
-              label: 'Pickup', icon: KeyRound, onClick: () => { setPickupTarget(r); setOdometer(''); },
-            },
-            hasPermission('bookings.update') && r.status === 'ACTIVE' && {
-              label: 'Return', icon: Undo2, onClick: () => { setReturnTarget(r); setOdometer(''); },
-            },
-            hasPermission('bookings.cancel') && {
-              label: 'Cancel', icon: CircleX, danger: true, onClick: () => setCancelTarget(r),
-            },
-          ].filter(Boolean)}
-        />
-      ),
-    },
+    { key: 'bookingNumber', header: 'Booking', render: r => <div><p className="font-medium text-primary-token">{r.bookingNumber || '—'}</p><p className="text-xs text-muted">{r.user?.name || '—'}</p></div> }, { key: 'bike', header: 'Bike', render: r => <span className="text-secondary">{r.bike?.name || '—'}</span> }, { key: 'pickupAt', header: 'Pickup', render: r => <span className="text-secondary text-xs">{dateTime(r.pickupAt)}</span> }, { key: 'returnAt', header: 'Return', render: r => <span className="text-secondary text-xs">{dateTime(r.returnAt)}</span> }, { key: 'status', header: 'Status', render: r => <StatusBadge status={r.status || 'PENDING'} /> },
+    { key: 'actions', header: '', cellClassName: 'w-12', render: r => <ActionMenu items={[{ label: 'View', icon: Eye, onClick: () => setSelected(r) }, hasPermission('bookings.update') && r.status === 'CONFIRMED' && { label: 'Record Pickup', icon: KeyRound, onClick: () => pickup(r) }, hasPermission('bookings.update') && r.status === 'ACTIVE' && { label: 'Record Return', icon: Undo2, onClick: () => returning(r) }, hasPermission('bookings.cancel') && cancellable(r.status) && { label: 'Cancel', icon: CircleX, danger: true, onClick: () => setCancelTarget(r) }].filter(Boolean)} /> },
   ];
-
-  return (
-    <div>
-      <PageHeader
-        title="Bookings"
-        description="Manage and monitor RideOn bookings"
-        actions={
-          hasPermission('bookings.create') ? (
-            <Button size="md" variant="primary" onClick={() => toast.info('Create booking — wire to POST /bookings')}>+ New Booking</Button>
-          ) : null
-        }
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {[{ label: 'Total', value: total }, { label: 'On Page', value: rows.length }, { label: 'Page', value: `${page}/${totalPages}` }, { label: 'Per Page', value: limit }].map((s) => (
-          <Card key={s.label} className="p-4"><p className="text-xs text-muted">{s.label}</p><p className="text-lg font-bold text-primary-token">{s.value}</p></Card>
-        ))}
-      </div>
-      <Card className="overflow-hidden">
-        <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-token">
-          <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput.trim()); setPage(1); }} className="flex-1 flex gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <Input className="pl-9" placeholder="Search booking #…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-            </div>
-            <Button type="submit" variant="secondary" size="md">Search</Button>
-          </form>
-          <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-            <option value="">All statuses</option>
-            <option value="PAYMENT_PENDING">Payment Pending</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="NO_SHOW">No Show</option>
-          </Select>
-        </div>
-        <DataTable columns={columns} rows={rows} loading={isLoading} error={error?.message} onRetry={refetch}
-          emptyTitle="No bookings found" emptyIcon={CalendarCheck}
-          page={page} limit={limit} totalPages={totalPages} total={total}
-          onPageChange={setPage} onLimitChange={(l) => { setLimit(l); setPage(1); }}
-          onRowClick={(row) => setSelected(row)} />
-      </Card>
-
-      <Drawer
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.bookingNumber || 'Booking'}
-        description={selected?.user?.name || selected?.userName}
-        footer={
-          selected && (
-            <>
-              {hasPermission('bookings.update') && selected.status === 'CONFIRMED' && (
-                <Button size="md" variant="primary" onClick={() => { setPickupTarget(selected); setOdometer(''); }}>
-                  <KeyRound size={14} /> Pickup
-                </Button>
-              )}
-              {hasPermission('bookings.update') && selected.status === 'ACTIVE' && (
-                <Button size="md" variant="primary" onClick={() => { setReturnTarget(selected); setOdometer(''); }}>
-                  <Undo2 size={14} /> Return
-                </Button>
-              )}
-              {hasPermission('bookings.cancel') && !['CANCELLED', 'COMPLETED', 'FAILED'].includes(selected.status) && (
-                <Button size="md" variant="danger" onClick={() => setCancelTarget(selected)}>
-                  <CircleX size={14} /> Cancel
-                </Button>
-              )}
-            </>
-          )
-        }
-      >
-        {selected && (
-          <div className="space-y-3 text-sm">
-            <div className="mb-1">
-              <StatusBadge status={selected.status || 'PENDING'} />
-            </div>
-            {[
-              ['Number', selected.bookingNumber],
-              ['User', selected.user?.name || selected.userName],
-              ['Bike', selected.bike?.name || selected.bikeName],
-              ['Campus', selected.campus?.name || selected.campusName],
-              ['Pickup', selected.pickupAt && new Date(selected.pickupAt).toLocaleString()],
-              ['Return', selected.returnAt && new Date(selected.returnAt).toLocaleString()],
-              ['Notes', selected.notes],
-            ].map(([l, v]) => (
-              <div key={l} className="flex justify-between gap-4 border-b border-token pb-2">
-                <span className="text-muted">{l}</span>
-                <span className="font-medium text-primary-token text-right">{v || '—'}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Drawer>
-
-      <Modal open={!!pickupTarget} onClose={() => setPickupTarget(null)} title="Record Pickup" description={pickupTarget?.bookingNumber}
-        footer={<><Button variant="secondary" onClick={() => setPickupTarget(null)}>Cancel</Button>
-          <Button variant="primary" loading={pickupMut.isPending} onClick={() => pickupMut.mutate({ id: pickupTarget.id, pickupOdometer: odometer })}>Confirm Pickup</Button></>}>
-        <label className="block text-sm text-secondary mb-1.5">Pickup Odometer</label>
-        <Input type="number" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="e.g. 1250" />
-      </Modal>
-
-      <Modal open={!!returnTarget} onClose={() => setReturnTarget(null)} title="Record Return" description={returnTarget?.bookingNumber}
-        footer={<><Button variant="secondary" onClick={() => setReturnTarget(null)}>Cancel</Button>
-          <Button variant="primary" loading={returnMut.isPending} onClick={() => returnMut.mutate({ id: returnTarget.id, returnOdometer: odometer })}>Confirm Return</Button></>}>
-        <label className="block text-sm text-secondary mb-1.5">Return Odometer</label>
-        <Input type="number" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="e.g. 1320" />
-      </Modal>
-
-      <ConfirmDialog open={!!cancelTarget} onClose={() => setCancelTarget(null)}
-        onConfirm={() => cancelMut.mutate(cancelTarget.id)}
-        title="Cancel booking?" description={`Cancel booking ${cancelTarget?.bookingNumber || ''}?`}
-        confirmLabel="Cancel Booking" loading={cancelMut.isPending} />
-    </div>
-  );
+  const payments = booking?.payments || [], summary = booking?.paymentSummary || {}, outstanding = Number(summary.outstandingAmount || 0);
+  return <div><PageHeader title="Bookings" description="Manage and monitor RideOn bookings" /><div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">{[{ label: 'Total', value: total }, { label: 'On Page', value: rows.length }, { label: 'Page', value: `${page}/${totalPages}` }, { label: 'Per Page', value: limit }].map(s => <Card key={s.label} className="p-4"><p className="text-xs text-muted">{s.label}</p><p className="text-lg font-bold text-primary-token">{s.value}</p></Card>)}</div><Card className="overflow-hidden"><div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-token"><form onSubmit={e => { e.preventDefault(); setSearch(searchInput.trim()); setPage(1); }} className="flex-1 flex gap-2"><div className="relative flex-1 max-w-sm"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><Input className="pl-9" placeholder="Search booking #…" value={searchInput} onChange={e => setSearchInput(e.target.value)} /></div><Button type="submit" variant="secondary">Search</Button></form><Select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}><option value="">All statuses</option>{['PAYMENT_PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</Select></div><DataTable columns={columns} rows={rows} loading={isLoading} error={error?.message} onRetry={refetch} emptyTitle="No bookings found" emptyIcon={CalendarCheck} page={page} limit={limit} totalPages={totalPages} total={total} onPageChange={setPage} onLimitChange={l => { setLimit(l); setPage(1); }} onRowClick={setSelected} /></Card>
+    <Drawer open={!!selected} onClose={() => setSelected(null)} header={booking && <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-semibold text-primary-token">{booking.bookingNumber}</h2><StatusBadge status={booking.status} /></div><p className="mt-1 text-xs text-muted">{booking.user?.name || 'Booking details'}</p></div>} footer={booking && <>{hasPermission('bookings.update') && booking.status === 'CONFIRMED' && <Button onClick={() => pickup(booking)}><KeyRound size={14} /> Record Pickup</Button>}{hasPermission('bookings.update') && booking.status === 'ACTIVE' && <Button onClick={() => returning(booking)}><Undo2 size={14} /> Record Return</Button>}{hasPermission('bookings.update') && booking.status === 'COMPLETED' && outstanding > 0 && <Button onClick={() => { setPaymentTarget(booking); setPaymentMethod('UPI'); setReference(''); }}><CreditCard size={14} /> Collect {money(outstanding)}</Button>}{hasPermission('bookings.cancel') && cancellable(booking.status) && <Button variant="danger" onClick={() => setCancelTarget(booking)}><CircleX size={14} /> Cancel Booking</Button>}</>}>
+      {detailLoading ? <p className="text-sm text-muted">Loading booking details…</p> : detailError ? <p className="text-sm text-red-600">{detailError.message}</p> : booking && <div className="space-y-4"><Section title="Customer"><Detail label="Name" value={booking.user?.name} /><Detail label="Email" value={booking.user?.email} /><Detail label="Phone" value={booking.user?.phone} /></Section><Section title="Bike"><Detail label="Bike" value={booking.bike?.name} /><Detail label="Registration" value={booking.bike?.registrationNumber} /><Detail label="Campus" value={booking.campus?.name} /><Detail label="Status" value={booking.bike?.status && <StatusBadge status={booking.bike.status} />} /></Section><Section title="Rental"><Detail label="Package" value={booking.pricing?.packageName} /><Detail label="Pickup" value={dateTime(booking.pickupAt)} /><Detail label="Scheduled return" value={dateTime(booking.returnAt)} /><Detail label="Duration" value={booking.durationHours != null && `${booking.durationHours} hours`} /></Section>{booking.pickupOdometer != null && <Section title="Ride details"><Detail label="Pickup odometer" value={`${booking.pickupOdometer} km`} /><Detail label="Return odometer" value={booking.returnOdometer != null && `${booking.returnOdometer} km`} /><Detail label="Actual distance" value={booking.actualKm != null && `${booking.actualKm} km`} /><Detail label="Extra distance" value={booking.extraKm != null && `${booking.extraKm} km`} /></Section>}<Section title="Charges"><Detail label="Base rental" value={money(booking.baseAmount)} /><Detail label="Helmet amount" value={money(booking.helmetAmount)} /><Detail label="Discount" value={money(booking.discountAmount)} /><Detail label="Deposit" value={money(booking.depositAmount)} />{booking.extraKmCharge != null && <Detail label="Extra KM charge" value={money(booking.extraKmCharge)} />}{booking.lateFee != null && <Detail label="Late fee" value={money(booking.lateFee)} />}{booking.lateHelmetFee != null && <Detail label="Late helmet fee" value={money(booking.lateHelmetFee)} />}<div className="border-t border-token pt-2"><Detail label="Total" value={money(booking.totalAmount)} /></div></Section><Section title="Payment"><Detail label="Payment status" value={<StatusBadge status={booking.paymentStatus} />} />{payments.map((p, i) => <Detail key={p.id} label={i === 0 ? 'Original payment' : `Additional payment ${i}`} value={`${money(p.amount)} · ${p.status}`} />)}{!payments.length && <p className="text-sm text-muted">No payment records found.</p>}<div className="border-t border-token pt-2"><Detail label="Paid" value={money(summary.paidAmount)} /><Detail label="Outstanding" value={money(outstanding)} /></div></Section></div>}</Drawer>
+    <Modal open={!!pickupTarget} onClose={() => setPickupTarget(null)} title="Record Pickup" description={pickupTarget?.bookingNumber} footer={<><Button variant="secondary" onClick={() => setPickupTarget(null)}>Cancel</Button><Button loading={pickupMut.isPending} disabled={!odometer} onClick={() => pickupMut.mutate({ id: pickupTarget.id, value: odometer })}>Confirm Pickup</Button></>}><div className="space-y-4"><Detail label="Bike" value={pickupTarget?.bike?.name} /><Detail label="Registration number" value={pickupTarget?.bike?.registrationNumber} /><Detail label="Last recorded odometer" value={pickupTarget?.bike?.currentOdometer != null ? `${pickupTarget.bike.currentOdometer} km` : 'Not available'} /><div><label className="block text-sm text-secondary mb-1.5">Pickup odometer</label><Input type="number" min="0" value={odometer} onChange={e => setOdometer(e.target.value)} placeholder="e.g. 1250" /></div><p className="text-xs text-muted">Confirm the reading from the bike dashboard.</p></div></Modal>
+    <Modal open={!!returnTarget} onClose={() => setReturnTarget(null)} title="Record Return" description={returnTarget?.bookingNumber} footer={<><Button variant="secondary" onClick={() => setReturnTarget(null)}>Cancel</Button><Button loading={returnMut.isPending} disabled={!odometer} onClick={() => returnMut.mutate({ id: returnTarget.id, value: odometer })}>Confirm Return</Button></>}><div className="space-y-4"><Detail label="Bike" value={returnTarget?.bike?.name} /><Detail label="Pickup odometer" value={returnTarget?.pickupOdometer != null ? `${returnTarget.pickupOdometer} km` : 'Not available'} /><div><label className="block text-sm text-secondary mb-1.5">Return odometer</label><Input type="number" min="0" value={odometer} onChange={e => setOdometer(e.target.value)} placeholder="e.g. 1310" /></div><p className="text-xs text-muted">Distance and return charges are calculated and saved by the server after confirmation.</p></div></Modal>
+    <Modal open={!!paymentTarget} onClose={() => setPaymentTarget(null)} title="Collect Payment" description={`Outstanding: ${money(paymentTarget?.paymentSummary?.outstandingAmount)}`} footer={<><Button variant="secondary" onClick={() => setPaymentTarget(null)}>Cancel</Button><Button loading={collectMut.isPending} onClick={() => collectMut.mutate({ id: paymentTarget.id, paymentMethod, reference })}>Mark as Paid</Button></>}><div className="space-y-4"><div><label className="block text-sm text-secondary mb-1.5">Amount</label><Input value={money(paymentTarget?.paymentSummary?.outstandingAmount)} disabled /></div><fieldset><legend className="mb-2 text-sm text-secondary">Payment method</legend><div className="flex gap-4 text-sm text-primary-token"><label className="flex items-center gap-2"><input type="radio" checked={paymentMethod === 'UPI'} onChange={() => setPaymentMethod('UPI')} /> UPI</label><label className="flex items-center gap-2"><input type="radio" checked={paymentMethod === 'CASH'} onChange={() => setPaymentMethod('CASH')} /> Cash</label></div></fieldset><div><label className="block text-sm text-secondary mb-1.5">Transaction / Reference <span className="text-muted">(optional)</span></label><Input value={reference} onChange={e => setReference(e.target.value)} /></div></div></Modal>
+    <ConfirmDialog open={!!cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={() => cancelMut.mutate(cancelTarget.id)} title="Cancel booking?" description={`Cancel booking ${cancelTarget?.bookingNumber || ''}?`} confirmLabel="Cancel Booking" loading={cancelMut.isPending} />
+  </div>;
 }

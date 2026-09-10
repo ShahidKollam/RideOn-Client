@@ -35,3 +35,8 @@ export const pickupSchema = z.object({
 export const returnSchema = z.object({
   returnOdometer: z.number().int().min(0),
 })
+
+export const collectPaymentSchema = z.object({
+  paymentMethod: z.enum(['UPI', 'CASH']),
+  reference: z.string().trim().max(120).optional(),
+})

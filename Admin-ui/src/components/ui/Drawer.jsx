@@ -38,7 +38,7 @@ export function Drawer({
     >
       <div
         className={cn(
-          'absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200',
+          'absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity duration-200',
           open ? 'opacity-100' : 'opacity-0'
         )}
         onClick={onClose}
