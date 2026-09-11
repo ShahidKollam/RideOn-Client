@@ -330,6 +330,7 @@ export default function BikesPage() {
           >
             <option value="">All statuses</option>
             <option value="AVAILABLE">Available</option>
+            <option value="IN_USE">In Use</option>
             <option value="MAINTENANCE">Maintenance</option>
             <option value="DISABLED">Disabled</option>
             <option value="RETIRED">Retired</option>
@@ -649,6 +650,7 @@ export default function BikesPage() {
           className="w-full"
         >
           <option value="AVAILABLE">Available</option>
+          <option value="IN_USE">In Use</option>
           <option value="MAINTENANCE">Maintenance</option>
           <option value="DISABLED">Disabled</option>
           <option value="RETIRED">Retired</option>

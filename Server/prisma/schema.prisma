@@ -131,6 +131,7 @@ model Bike {
 
 enum BikeStatus {
   AVAILABLE
+  IN_USE
   MAINTENANCE
   DISABLED
   RETIRED
@@ -224,6 +225,7 @@ enum BookingStatus {
 enum PaymentStatus {
   PENDING
   PAID
+  PARTIALLY_PAID
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED

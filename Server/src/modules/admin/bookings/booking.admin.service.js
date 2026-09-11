@@ -202,7 +202,7 @@ export const pickupBooking = async (id, pickupOdometer) => {
     return prisma.$transaction(async (tx) => {
         await tx.bike.update({
             where: { id: bikeId },
-            data: { status: 'MAINTENANCE' },
+            data: { status: 'IN_USE' },
         })
         return tx.booking.update({
             where: { id },
@@ -258,6 +258,11 @@ export const returnBooking = async (id, returnOdometer) => {
                 },
             })
         }
+        const paidAmount = (await tx.payment.findMany({
+            where: { bookingId: id, status: 'PAID' },
+            select: { amount: true },
+        })).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+        const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
         return tx.booking.update({
             where: { id },
             data: {
@@ -269,6 +274,7 @@ export const returnBooking = async (id, returnOdometer) => {
                 lateFee,
                 lateHelmetFee,
                 totalAmount: finalTotal,
+                paymentStatus,
                 status: 'COMPLETED',
             },
             include: BOOKING_INCLUDE,

@@ -3,6 +3,7 @@ import { cn } from '../../utils/cn';
 const statusStyles = {
   AVAILABLE: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   ACTIVE: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  IN_USE: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   COMPLETED: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   BOOKED: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   PENDING: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
@@ -12,6 +13,7 @@ const statusStyles = {
   RETIRED: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
   CONFIRMED: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   PAYMENT_PENDING: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  PARTIALLY_PAID: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
 };
 
 export function StatusBadge({ status, className }) {
@@ -26,7 +28,7 @@ export function StatusBadge({ status, className }) {
         className
       )}
     >
-      {status}
+      {key.replaceAll('_', ' ')}
     </span>
   );
 }

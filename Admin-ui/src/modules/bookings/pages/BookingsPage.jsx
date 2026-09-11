@@ -153,6 +153,18 @@ export default function BookingsPage() {
             header: 'Return',
             render: (r) => <span className="text-secondary text-xs">{dateTime(r.returnAt)}</span>,
         },
+        {
+            key: 'paymentStatus',
+            header: 'Payment',
+            render: (r) => (
+                <div className="space-y-1">
+                    <StatusBadge status={r.paymentStatus || 'PENDING'} />
+                    {Number(r.paymentSummary?.outstandingAmount || 0) > 0 && (
+                        <p className="text-xs font-medium text-amber-600">Outstanding {money(r.paymentSummary.outstandingAmount)}</p>
+                    )}
+                </div>
+            ),
+        },
         { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status || 'PENDING'} /> },
         {
             key: 'actions',
@@ -344,6 +356,10 @@ export default function BookingsPage() {
                                         label="Return odometer"
                                         value={booking.returnOdometer != null && `${booking.returnOdometer} km`}
                                     />
+                                      <Detail
+                                        label="Included KM"
+                                        value={booking.includedKm != null && `${booking.includedKm} km`}
+                                    />
                                     <Detail
                                         label="Actual distance"
                                         value={booking.actualKm != null && `${booking.actualKm} km`}
@@ -373,10 +389,10 @@ export default function BookingsPage() {
                             </Section>
                             <Section
                                 title="Payment"
-                                className="order-2 border-emerald-500/40 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.10]"
-                                action={<span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{booking.paymentStatus}</span>}
+                                className={`order-2 ${outstanding > 0 ? 'border-amber-500/40 bg-amber-500/[0.06] dark:bg-amber-500/[0.10]' : 'border-emerald-500/40 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.10]'}`}
+                                action={<StatusBadge status={booking.paymentStatus} />}
                             >
-                                <Detail label="Payment status" value={<span className="font-semibold text-emerald-600 dark:text-emerald-400">{booking.paymentStatus}</span>} />
+                                <Detail label="Payment status" value={<StatusBadge status={booking.paymentStatus} />} />
                                 {payments.map((p, i) => (
                                     <Detail
                                         key={p.id}

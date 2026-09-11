@@ -10,6 +10,7 @@ import {
     fromPaise,
 } from '../../lib/razorpay.js'
 import { PAYMENT_GATEWAY, PAYMENT_STATUS, CURRENCY } from './payment.constants.js'
+import { sendBookingConfirmationEmail } from '../../lib/mailer.js'
 
 const generateBookingNumber = () => {
     const year = new Date().getFullYear()
@@ -21,6 +22,25 @@ const isSerializationError = (error) =>
     error?.code === 'P2034' || error?.message?.toLowerCase?.().includes('serialization')
 
 const isUniqueConstraintError = (error) => error?.code === 'P2002'
+
+const sendBookingConfirmation = async ({ booking, payment }) => {
+    if (!booking || !payment || payment.gatewayResponse?.bookingConfirmationEmailSentAt) return
+    try {
+        await sendBookingConfirmationEmail({ booking, payment })
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+                gatewayResponse: {
+                    ...payment.gatewayResponse,
+                    bookingConfirmationEmailSentAt: new Date().toISOString(),
+                },
+            },
+        })
+    } catch (error) {
+        // A mail outage must not make a successfully paid booking fail.
+        console.error(`Failed to send booking confirmation for ${booking.bookingNumber}:`, error.message)
+    }
+}
 
 /**
  * Shared booking creation used by verify + reconciliation.
@@ -435,6 +455,7 @@ export const verifyPayment = async (
 
             console.log('🔄 [verify] Transaction COMMIT')
             console.log('🔵 [verify] END | alreadyProcessed:', result.alreadyProcessed)
+            if (!result.alreadyProcessed) await sendBookingConfirmation(result)
             return result
         } catch (error) {
             console.error('🔄 [verify] Transaction ROLLBACK:', error.message)
@@ -586,6 +607,7 @@ export const reconcilePaidPaymentsWithoutBooking = async () => {
 
             if (result?.booking) {
                 console.log(`✅ [reconcile] Booking created for payment ${payment.id} → ${result.booking.id}`)
+                if (!result.alreadyProcessed) await sendBookingConfirmation(result)
                 results.push({
                     paymentId: payment.id,
                     status: 'booked',
