@@ -28,17 +28,61 @@ const BOOKING_INCLUDE = {
     },
 }
 
-const withPaymentSummary = (booking) => {
+const withPaymentSummary = (booking, settings) => {
     const payments = booking.payments || []
+
     const paidAmount = payments
         .filter((payment) => payment.status === 'PAID')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+
     const totalAmount = Number(booking.totalAmount || 0)
+
+    // GST from the original booking
+    const originalTaxableAmount =
+        Number(booking.baseAmount || 0) +
+        Number(settings?.platformFeeEnabled ? settings.platformFee : 0) +
+        Number(booking.helmetAmount || 0)
+
+    const originalGstAmount = settings?.gstEnabled
+        ? Number(
+              (
+                  (originalTaxableAmount * Number(settings.gstRate)) /
+                  100
+              ).toFixed(2)
+          )
+        : 0
+
+    // GST added after return
+    const additionalTaxableAmount =
+        Number(booking.extraKmCharge || 0) +
+        Number(booking.lateFee || 0) +
+        Number(booking.lateHelmetFee || 0)
+
+    const additionalGstAmount = settings?.gstEnabled
+        ? Number(
+              (
+                  (additionalTaxableAmount * Number(settings.gstRate)) /
+                  100
+              ).toFixed(2)
+          )
+        : 0
+
+    const gstAmount = Number(
+        (originalGstAmount + additionalGstAmount).toFixed(2)
+    )
+
     return {
         ...booking,
+
+        gstAmount,
+        originalGstAmount,
+        additionalGstAmount,
+        platformAmount: Number(settings?.platformFeeEnabled ? settings.platformFee : 0),
         paymentSummary: {
             paidAmount: Number(paidAmount.toFixed(2)),
-            outstandingAmount: Number(Math.max(0, totalAmount - paidAmount).toFixed(2)),
+            outstandingAmount: Number(
+                Math.max(0, totalAmount - paidAmount).toFixed(2)
+            ),
         },
     }
 }
@@ -75,7 +119,7 @@ export const listBookings = async (query) => {
     }
 
     const skip = (page - 1) * limit
-    const [items, total] = await Promise.all([
+    const [items, total, settings] = await Promise.all([
         prisma.booking.findMany({
             where,
             include: BOOKING_INCLUDE,
@@ -84,10 +128,11 @@ export const listBookings = async (query) => {
             orderBy: { createdAt: 'desc' },
         }),
         prisma.booking.count({ where }),
+        prisma.systemSetting.findFirst(),
     ])
 
     return {
-        items: items.map(withPaymentSummary),
+        items: items.map((booking) => withPaymentSummary(booking, settings)),
         pagination: {
             page,
             limit,
@@ -98,12 +143,17 @@ export const listBookings = async (query) => {
 }
 
 export const getBookingById = async (id) => {
-    const booking = await prisma.booking.findUnique({
-        where: { id },
-        include: BOOKING_INCLUDE,
-    })
+    const [booking, settings] = await Promise.all([
+        prisma.booking.findUnique({
+            where: { id },
+            include: BOOKING_INCLUDE,
+        }),
+        prisma.systemSetting.findFirst(),
+    ])
+
     if (!booking) throw new ApiError(404, 'Booking not found')
-    return withPaymentSummary(booking)
+
+    return withPaymentSummary(booking, settings)
 }
 
 export const createBooking = async (data) => {
@@ -133,9 +183,18 @@ export const createBooking = async (data) => {
         helmetAmount = helmetCount === 1 ? first : first + second
     }
 
-    const baseAmount = pricing.price
-    const depositAmount = pricing.depositAmount
-    const totalAmount = Number((baseAmount + helmetAmount).toFixed(2))
+    const baseAmount = Number(pricing.price)
+    const depositAmount = Number(pricing.depositAmount)
+
+    // const settings = await prisma.systemSetting.findFirst()
+
+    const platformFee = settings?.platformFeeEnabled ? Number(settings.platformFee) || 0 : 0
+
+    const subtotal = Number((baseAmount + platformFee + helmetAmount).toFixed(2))
+
+    const gstAmount = settings?.gstEnabled ? Number(((subtotal * Number(settings.gstRate)) / 100).toFixed(2)) : 0
+
+    const totalAmount = Number((subtotal + gstAmount + depositAmount).toFixed(2))
 
     if (bikeId) {
         const bike = await prisma.bike.findUnique({ where: { id: bikeId } })
@@ -160,6 +219,7 @@ export const createBooking = async (data) => {
             depositAmount,
             discountAmount: 0,
             totalAmount,
+            platformAmount: platformFee,
             includedKm: pricing.includedKm,
             extraKmRate: pricing.extraKmRate,
             helmetCount,
@@ -246,8 +306,15 @@ export const returnBooking = async (id, returnOdometer) => {
     }
 
     const lateFee = 0
-    const finalTotal = Number((booking.totalAmount + extraKmCharge + lateFee + lateHelmetFee).toFixed(2))
+    const additionalSubtotal = Number((extraKmCharge + lateFee + lateHelmetFee).toFixed(2))
 
+    const settings = await prisma.systemSetting.findFirst()
+
+    const additionalGstAmount = settings?.gstEnabled
+        ? Number(((additionalSubtotal * Number(settings.gstRate)) / 100).toFixed(2))
+        : 0
+
+    const finalTotal = Number((booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2))
     return prisma.$transaction(async (tx) => {
         if (booking.bikeId) {
             await tx.bike.update({
@@ -258,10 +325,12 @@ export const returnBooking = async (id, returnOdometer) => {
                 },
             })
         }
-        const paidAmount = (await tx.payment.findMany({
-            where: { bookingId: id, status: 'PAID' },
-            select: { amount: true },
-        })).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+        const paidAmount = (
+            await tx.payment.findMany({
+                where: { bookingId: id, status: 'PAID' },
+                select: { amount: true },
+            })
+        ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
         const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
         return tx.booking.update({
             where: { id },

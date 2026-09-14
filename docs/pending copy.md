@@ -1,7 +1,7 @@
 admin
 
 - in pickup and return - odometer should be updated in bike model also - ensure this only 
-- only allow bike status acitve or availvabel for pickup 
+
 - in collect additional payment - value is editable need i mean addtional rupees
 
 
@@ -12,4 +12,4 @@ admin
 
 client
 
-- 
+- redesign clietn side - i need to showcase this 

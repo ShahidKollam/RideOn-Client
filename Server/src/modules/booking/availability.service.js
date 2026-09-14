@@ -31,22 +31,32 @@ export const getBookingAvailability = async (data, client = prisma) => {
     }
 
     // Find pricing (single package or composed 24h blocks + remainder)
-    const pricing = await findPricingByDuration(durationHours, data.campusId, client)
-    const priceSnapshot = await calculatePrice(pricing)
+const pricing = await findPricingByDuration(durationHours, data.campusId, client)
 
-    // Optional helmet add-on preview (0–2). Payment createOrder is still source of truth for charged amount.
-    const settings = await client.systemSetting.findFirst()
-    const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
-    const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
-    const helmetCount = Math.min(2, Math.max(0, Number(data.helmetCount) || 0))
-    const helmetAmount =
-        helmetCount === 0
-            ? 0
-            : helmetCount === 1
-              ? Number(helmetFirstPrice) || 0
-              : Number(((Number(helmetFirstPrice) || 0) + (Number(helmetSecondPrice) || 0)).toFixed(2))
+// Helmet add-on
+const settings = await client.systemSetting.findFirst()
+const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
+const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
 
-    const totalWithHelmet = Number((priceSnapshot.totalAmount + helmetAmount).toFixed(2))
+const helmetCount = Math.min(2, Math.max(0, Number(data.helmetCount) || 0))
+
+const helmetAmount =
+    helmetCount === 0
+        ? 0
+        : helmetCount === 1
+            ? Number(helmetFirstPrice) || 0
+            : Number(
+                  (
+                      (Number(helmetFirstPrice) || 0) +
+                      (Number(helmetSecondPrice) || 0)
+                  ).toFixed(2)
+              )
+
+// Calculate final price INCLUDING helmet before GST
+const priceSnapshot = await calculatePrice({
+    ...pricing,
+    helmetAmount,
+})
 
     // Check if at least one bike is available (do not expose bike to client)
     let availableBike = null
@@ -61,7 +71,7 @@ export const getBookingAvailability = async (data, client = prisma) => {
         helmetAmount,
         helmetFirstPrice: Number(helmetFirstPrice) || 0,
         helmetSecondPrice: Number(helmetSecondPrice) || 0,
-        totalAmountWithHelmet: totalWithHelmet,
+        // totalAmountWithHelmet: totalWithHelmet,
     }
 
     const pricingInfo = {

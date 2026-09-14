@@ -244,6 +244,7 @@ export default function BookingsPage() {
                         }}
                     >
                         <option value="">All statuses</option>
+                        {/* {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'PARTIALLY_PAID'].map((s) => ( */}
                         {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((s) => (
                             <option key={s} value={s}>
                                 {s.replace('_', ' ')}
@@ -377,6 +378,7 @@ export default function BookingsPage() {
                             >
                                 <Detail label="Base rental" value={money(booking.baseAmount)} />
                                 <Detail label="Helmet amount" value={money(booking.helmetAmount)} />
+                                <Detail label="Platform fee" value={money(booking.platformAmount)} />
                                 <Detail label="Discount" value={money(booking.discountAmount)} />
                                 <Detail label="Deposit" value={money(booking.depositAmount)} />
                                 {booking.extraKmCharge != null && (
@@ -385,6 +387,16 @@ export default function BookingsPage() {
                                 {booking.lateFee != null && <Detail label="Late fee" value={money(booking.lateFee)} />}
                                 {booking.lateHelmetFee != null && (
                                     <Detail label="Late helmet fee" value={money(booking.lateHelmetFee)} />
+                                )}
+                                {/* GST breakdown */}
+                                {booking.originalGstAmount != null && Number(booking.originalGstAmount) > 0 && (
+                                    <Detail label="GST (original)" value={money(booking.originalGstAmount)} />
+                                )}
+                                {booking.additionalGstAmount != null && Number(booking.additionalGstAmount) > 0 && (
+                                    <Detail label="GST (additional)" value={money(booking.additionalGstAmount)} />
+                                )}
+                                {(booking.gstAmount != null || booking.originalGstAmount != null) && (
+                                    <Detail label="GST total" value={money(booking.gstAmount ?? booking.originalGstAmount)} />
                                 )}
                             </Section>
                             <Section

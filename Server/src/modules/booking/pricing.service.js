@@ -265,12 +265,13 @@ export const calculatePrice = async (pricingData) => {
 
     const baseAmount = Number(pricingData.price)
     const depositAmount = Number(pricingData.depositAmount)
+const helmetAmount = Number(pricingData.helmetAmount ?? 0)
 
     // Platform Fee (once per booking)
     const platformFee = settings.platformFeeEnabled ? settings.platformFee : 0
 
     // Subtotal
-    const subtotal = baseAmount + platformFee
+    const subtotal = baseAmount + platformFee + helmetAmount
 
     // GST
     const gstAmount = settings.gstEnabled
@@ -283,6 +284,7 @@ export const calculatePrice = async (pricingData) => {
     return {
         baseAmount,
         platformFee,
+        helmetAmount,
         subtotal,
         gstAmount,
         depositAmount,
