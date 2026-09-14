@@ -7,6 +7,7 @@ import {
     MIN_RENTAL_HOURS,
 } from './pricing.service.js'
 import { findAvailableBike } from '../bike/bike.service.js'
+import { calculateHelmetAmount } from '../settings/settings.service.js'
 
 export const getBookingAvailability = async (data, client = prisma) => {
     const pickupAt = new Date(data.pickupAt)
@@ -38,19 +39,11 @@ const settings = await client.systemSetting.findFirst()
 const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
 const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
 
-const helmetCount = Math.min(2, Math.max(0, Number(data.helmetCount) || 0))
-
-const helmetAmount =
-    helmetCount === 0
-        ? 0
-        : helmetCount === 1
-            ? Number(helmetFirstPrice) || 0
-            : Number(
-                  (
-                      (Number(helmetFirstPrice) || 0) +
-                      (Number(helmetSecondPrice) || 0)
-                  ).toFixed(2)
-              )
+const { helmetCount, helmetAmount } = calculateHelmetAmount(
+    settings || {},
+    data.helmetCount,
+    durationHours
+)
 
 // Calculate final price INCLUDING helmet before GST
 const priceSnapshot = await calculatePrice({

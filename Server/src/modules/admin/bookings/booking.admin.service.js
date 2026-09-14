@@ -5,6 +5,7 @@
 import prisma from '../../../config/prisma.js'
 import ApiError from '../../../utils/ApiError.js'
 import { randomUUID } from 'crypto'
+import { calculateHelmetAmount } from '../../settings/settings.service.js'
 
 const ADMIN_CANCELLABLE = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'NO_SHOW']
 const BOOKING_INCLUDE = {
@@ -174,14 +175,8 @@ export const createBooking = async (data) => {
 
     const durationHours = Math.ceil((ret - pickup) / (1000 * 60 * 60))
 
-    // Helmet amount from system settings
-    let helmetAmount = 0
     const settings = await prisma.systemSetting.findFirst()
-    if (settings && helmetCount > 0) {
-        const first = Number(settings.helmetFirstPrice) || 0
-        const second = Number(settings.helmetSecondPrice) || 0
-        helmetAmount = helmetCount === 1 ? first : first + second
-    }
+    const { helmetAmount } = calculateHelmetAmount(settings || {}, helmetCount, durationHours)
 
     const baseAmount = Number(pricing.price)
     const depositAmount = Number(pricing.depositAmount)
