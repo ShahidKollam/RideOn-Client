@@ -25,14 +25,14 @@ export const updateBikeSchema = z.object({
 })
 
 export const changeBikeStatusSchema = z.object({
-  status: z.enum(['AVAILABLE', 'MAINTENANCE', 'DISABLED', 'RETIRED']),
+  status: z.enum(['AVAILABLE', 'IN_USE', 'MAINTENANCE', 'DISABLED', 'RETIRED']),
 })
 
 export const bikeListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   campusId: z.string().optional(),
-  status: z.enum(['AVAILABLE', 'MAINTENANCE', 'DISABLED', 'RETIRED']).optional(),
+  status: z.enum(['AVAILABLE', 'IN_USE', 'MAINTENANCE', 'DISABLED', 'RETIRED']).optional(),
   isActive: z
     .enum(['true', 'false'])
     .optional()

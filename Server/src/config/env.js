@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+
 dotenv.config()
 
 export const config = {
@@ -16,9 +17,10 @@ export const config = {
     brevoApiKey: process.env.BREVO_API_KEY,
     mailFromName: process.env.MAIL_FROM_NAME,
     mailFromEmail: process.env.MAIL_FROM_EMAIL,
+    clientUrl: process.env.CLIENT_URL_FE || 'http://localhost:5173',
+    adminUrl: process.env.ADMIN_URL_FE || 'http://localhost:5174',
 
-    clientUrl: process.env.CLIENT_URL_FE, 
-    adminUrl: process.env.ADMIN_URL_FE,
+    corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()) : [],
 }
 
 if (!config.jwtSecret || !config.jwtRefreshSecret || !config.databaseUrl) {

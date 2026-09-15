@@ -10,6 +10,7 @@ import {
     fromPaise,
 } from '../../lib/razorpay.js'
 import { PAYMENT_GATEWAY, PAYMENT_STATUS, CURRENCY } from './payment.constants.js'
+import { sendBookingConfirmationEmail } from '../../lib/mailer.js'
 
 const generateBookingNumber = () => {
     const year = new Date().getFullYear()
@@ -17,10 +18,28 @@ const generateBookingNumber = () => {
     return `BK${year}${random.toString().padStart(6, '0')}`
 }
 
-const isSerializationError = (error) =>
-    error?.code === 'P2034' || error?.message?.toLowerCase?.().includes('serialization')
+const isSerializationError = (error) => error?.code === 'P2034' || error?.message?.toLowerCase?.().includes('serialization')
 
 const isUniqueConstraintError = (error) => error?.code === 'P2002'
+
+const sendBookingConfirmation = async ({ booking, payment }) => {
+    if (!booking || !payment || payment.gatewayResponse?.bookingConfirmationEmailSentAt) return
+    try {
+        await sendBookingConfirmationEmail({ booking, payment })
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+                gatewayResponse: {
+                    ...payment.gatewayResponse,
+                    bookingConfirmationEmailSentAt: new Date().toISOString(),
+                },
+            },
+        })
+    } catch (error) {
+        // A mail outage must not make a successfully paid booking fail.
+        console.error(`Failed to send booking confirmation for ${booking.bookingNumber}:`, error.message)
+    }
+}
 
 /**
  * Shared booking creation used by verify + reconciliation.
@@ -58,6 +77,7 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
             campusId: intent.campusId,
             pickupAt: intent.pickupAt,
             returnAt: intent.returnAt,
+            helmetCount: intent.helmetCount ?? 0,
         },
         tx
     )
@@ -67,12 +87,7 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
     }
 
     // Assign bike
-    const bike = await findAvailableBike(
-        new Date(intent.pickupAt),
-        new Date(intent.returnAt),
-        intent.campusId,
-        tx
-    )
+    const bike = await findAvailableBike(new Date(intent.pickupAt), new Date(intent.returnAt), intent.campusId, tx)
     console.log(`🚲 [${source}] Bike assigned: ${bike.id} (${bike.registrationNumber || bike.name})`)
 
     // Create booking
@@ -123,7 +138,9 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
             },
         },
     })
-    console.log(`💳 [${source}] Payment status after update: ${updatedPayment.status} | bookingId: ${updatedPayment.bookingId}`)
+    console.log(
+        `💳 [${source}] Payment status after update: ${updatedPayment.status} | bookingId: ${updatedPayment.bookingId}`
+    )
 
     return { payment: updatedPayment, booking, alreadyProcessed: false }
 }
@@ -156,25 +173,17 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
     if (activeBooking) throw new ApiError(400, 'User has an active booking')
 
     // Availability + pricing (source of truth on backend)
-    const summary = await getBookingAvailability({ campusId, pickupAt, returnAt })
+    const summary = await getBookingAvailability({ campusId, pickupAt, returnAt, helmetCount })
     if (!summary.available) {
         console.warn('⚠️  [createOrder] No availability', summary.reason)
         throw new ApiError(409, summary.reason || 'No available bikes for the selected time')
     }
 
-    // Helmet add-on (admin prices from SystemSetting)
-    const settings = await prisma.systemSetting.findFirst()
-    const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
-    const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
-    const count = Math.min(2, Math.max(0, Number(helmetCount) || 0))
-    const helmetAmount =
-        count === 0
-            ? 0
-            : count === 1
-              ? Number(helmetFirstPrice) || 0
-              : Number(((Number(helmetFirstPrice) || 0) + (Number(helmetSecondPrice) || 0)).toFixed(2))
+    const count = summary.helmetCount ?? 0
+    const helmetAmount = summary.helmetAmount ?? 0
 
-    const amount = Number((summary.totalAmount + helmetAmount).toFixed(2))
+    // totalAmount already includes helmet + GST
+    const amount = Number(summary.totalAmount.toFixed(2))
     const amountInPaise = toPaise(amount)
 
     // Create Razorpay order. Intent is stored in notes (not duplicated as booking fields).
@@ -266,10 +275,7 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
  * re-check availability → create booking → save payment → commit.
  * Fully idempotent.
  */
-export const verifyPayment = async (
-    { razorpay_order_id, razorpay_payment_id, razorpay_signature },
-    userId
-) => {
+export const verifyPayment = async ({ razorpay_order_id, razorpay_payment_id, razorpay_signature }, userId) => {
     console.log('🔵 [verify] START', { razorpay_order_id, razorpay_payment_id, userId })
 
     if (!userId) throw new ApiError(401, 'Authentication required')
@@ -435,6 +441,7 @@ export const verifyPayment = async (
 
             console.log('🔄 [verify] Transaction COMMIT')
             console.log('🔵 [verify] END | alreadyProcessed:', result.alreadyProcessed)
+            if (!result.alreadyProcessed) await sendBookingConfirmation(result)
             return result
         } catch (error) {
             console.error('🔄 [verify] Transaction ROLLBACK:', error.message)
@@ -573,12 +580,7 @@ export const reconcilePaidPaymentsWithoutBooking = async () => {
                         return { alreadyProcessed: true, bookingId: fresh.bookingId }
                     }
 
-                    const created = await createBookingForPaidPayment(
-                        tx,
-                        fresh,
-                        fresh.gatewayPaymentId,
-                        'reconcile'
-                    )
+                    const created = await createBookingForPaidPayment(tx, fresh, fresh.gatewayPaymentId, 'reconcile')
                     return created
                 },
                 { isolationLevel: 'Serializable' }
@@ -586,6 +588,7 @@ export const reconcilePaidPaymentsWithoutBooking = async () => {
 
             if (result?.booking) {
                 console.log(`✅ [reconcile] Booking created for payment ${payment.id} → ${result.booking.id}`)
+                if (!result.alreadyProcessed) await sendBookingConfirmation(result)
                 results.push({
                     paymentId: payment.id,
                     status: 'booked',

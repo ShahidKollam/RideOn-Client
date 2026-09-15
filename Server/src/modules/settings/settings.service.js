@@ -28,17 +28,21 @@ const getOrCreateSettings = async () => {
 }
 
 /**
- * Compute helmet add-on amount from admin prices and selected count (0–2).
+ * Compute helmet add-on amount from admin prices and selected count (0–2)
+ * for every started 24-hour booking period.
  */
-export const calculateHelmetAmount = (settings, helmetCount = 0) => {
+export const calculateHelmetAmount = (settings, helmetCount = 0, durationHours = 0) => {
     const count = Math.min(2, Math.max(0, Number(helmetCount) || 0))
     if (count <= 0) return { helmetCount: 0, helmetAmount: 0 }
 
     const first = Number(settings.helmetFirstPrice) || 0
     const second = Number(settings.helmetSecondPrice) || 0
+    const periods = Math.ceil((Number(durationHours) || 0) / 24)
 
     const helmetAmount =
-        count === 1 ? first : Number((first + second).toFixed(2))
+        count === 1
+            ? Number((first * periods).toFixed(2))
+            : Number(((first + second) * periods).toFixed(2))
 
     return { helmetCount: count, helmetAmount }
 }

@@ -131,6 +131,7 @@ model Bike {
 
 enum BikeStatus {
   AVAILABLE
+  IN_USE
   MAINTENANCE
   DISABLED
   RETIRED
@@ -194,11 +195,11 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id])
-  bike    Bike?    @relation(fields: [bikeId], references: [id])
-  campus  Campus   @relation(fields: [campusId], references: [id])
-  pricing Pricing  @relation(fields: [pricingId], references: [id])
-  payment Payment?
+  user     User      @relation(fields: [userId], references: [id])
+  bike     Bike?     @relation(fields: [bikeId], references: [id])
+  campus   Campus    @relation(fields: [campusId], references: [id])
+  pricing  Pricing   @relation(fields: [pricingId], references: [id])
+  payments Payment[]
 
   @@index([bookingNumber])
   @@index([userId])
@@ -224,6 +225,7 @@ enum BookingStatus {
 enum PaymentStatus {
   PENDING
   PAID
+  PARTIALLY_PAID
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED
@@ -252,7 +254,7 @@ model SystemSetting {
 model Payment {
   id               String        @id @default(cuid())
   userId           String
-  bookingId        String?       @unique
+  bookingId        String?
   gateway          String        @default("RAZORPAY")
   gatewayOrderId   String        @unique
   gatewayPaymentId String?
@@ -269,6 +271,7 @@ model Payment {
   booking Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([userId])
+  @@index([bookingId])
   @@index([gatewayOrderId])
   @@index([gatewayPaymentId])
   @@index([status])

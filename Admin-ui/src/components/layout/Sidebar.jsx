@@ -25,17 +25,17 @@ const NAV_GROUPS = [
         label: 'MANAGEMENT',
         items: [
             { to: '/users', label: 'Users', icon: Users, permission: 'users.read' },
-            // { to: '/bikes', label: 'Bikes', icon: Bike, permission: 'bikes.read' },
-            // { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings.read' },
-            // { to: '/payments', label: 'Payments', icon: CreditCard, permission: 'payments.read' },
+            { to: '/bikes', label: 'Bikes', icon: Bike, permission: 'bikes.read' },
+            { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings.read' },
+            { to: '/payments', label: 'Payments', icon: CreditCard, permission: 'payments.read' },
 
-            
-            { to: '/bike', label: 'Bikes', icon: Bike, permission: 'bikes.read' },
-            { to: '/booking', label: 'Bookings', icon: CalendarCheck, permission: 'bookings.read' },
-            { to: '/payment', label: 'Payments', icon: CreditCard, permission: 'payments.read' },
+             
+            // { to: '/bike', label: 'Bikes', icon: Bike, permission: 'bikes.read' },
+            // { to: '/booking', label: 'Bookings', icon: CalendarCheck, permission: 'bookings.read' },
+            // { to: '/payment', label: 'Payments', icon: CreditCard, permission: 'payments.read' },
             
             { to: '/tickets', label: 'Tickets', icon: Ticket, permission: 'tickets.read', badge: 3 },
-        ],
+        ], 
     },
     {
         label: 'BUSINESS',

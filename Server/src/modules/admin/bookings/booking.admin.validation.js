@@ -7,7 +7,7 @@ export const bookingListQuerySchema = z.object({
     .enum(['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'FAILED', 'NO_SHOW'])
     .optional(),
   paymentStatus: z
-    .enum(['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED'])
+    .enum(['PENDING', 'PAID', 'PARTIALLY_PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED'])
     .optional(),
   campusId: z.string().optional(),
   userId: z.string().optional(),
@@ -34,4 +34,9 @@ export const pickupSchema = z.object({
 
 export const returnSchema = z.object({
   returnOdometer: z.number().int().min(0),
+})
+
+export const collectPaymentSchema = z.object({
+  paymentMethod: z.enum(['UPI', 'CASH']),
+  reference: z.string().trim().max(120).optional(),
 })

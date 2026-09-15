@@ -220,7 +220,7 @@ async function main() {
   )
 
   // Credentials: env preferred, dummy defaults for local UI testing
-  const superEmail = process.env.ADMIN_EMAIL || 'admin@rideon.com'
+  const superEmail = process.env.ADMIN_EMAIL || 'rideoadmin@n.com'
   const superPassword = process.env.ADMIN_PASSWORD || 'Admin@12345'
   const superName = process.env.ADMIN_NAME || 'Super Admin'
 
