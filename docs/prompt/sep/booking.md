@@ -1,3 +1,4 @@
+- ThIS is the refactor number - BOOKING-1 // like this we need to give a id for each refactor
 - Check available time slots
 
 SERVER
@@ -15,7 +16,7 @@ Rules:
 - Rank alternatives by duration preference (same duration first) and closeness to the original requested range.
 - Do not change the existing booking, pricing, package-rounding, payment, or bike allocation logic.
 - The alternatives are only suggestions; booking must still use the existing availability check when the user selects one.
-
+* At last give me the simple api doc and a simple doc that say what the changes needed to do in ui frontend
 
 <<< --------------- >>>
 
@@ -32,12 +33,80 @@ Rules:
 - Do not create a separate booking flow.
 - Do not change pricing, package selection, payment, booking, or any other existing UI/logic.
 
-- Keep the UI clean, modern, professional and consistent with the existing RideOn design.
-- give better mobile responsive design
-- and in mobile when press check avilability slightly scroll down or half the page to see the result 
-- give a smooth animation everywhere that need when open or close 
-- see in mobile screen the return and pickup date format is different y ? we need consistent like dd-mm-yyy
-- give in booking page more better ui ux - like skeltion on loading / placeholders and when api call is loading show loading correctly and all other like that 
-    means suppose if paymetn success then the same page is remaining there so many time and it is interacive with no loaidng or somehting but after some seconds it return to bookign confirm page . like this we need to fix in all place this have .
+----------------------
+
+Improve the existing RideOn client UI/UX without changing any business logic, API contracts, pricing, booking, or payment logic.
+
+### General UI/UX
+
+* Keep the UI clean, modern, professional, and consistent with the existing RideOn design system.
+* Improve mobile responsiveness across all affected screens, especially for smaller mobile screens.
+* Use smooth, subtle animations wherever appropriate, including opening/closing dynamic sections, result sections, drawers, and state changes. Avoid excessive animations.
+
+### Availability Search
+
+* After clicking **Check Availability** on mobile, smoothly scroll down a small/appropriate amount so the availability result is immediately visible.
+* If a dynamic result/section opens after an action, automatically scroll smoothly to the relevant section.
+* On desktop, use a small smooth scroll; on mobile, use a slightly larger scroll so the result is clearly visible without moving the user too far.
+
+### Date & Time Consistency
+
+* Make pickup and return date formatting consistent everywhere.
+* Use `DD-MM-YYYY` consistently for dates on mobile and desktop.
+* Do not allow browser/device-specific date formatting to create different formats between pickup and return fields.
+* Keep the existing time handling and business logic unchanged.
+
+### Booking Page UX
+
+Improve the booking page loading and transition experience throughout the entire flow.
+
+* Add proper skeleton loaders for sections that are waiting for API data.
+* Use appropriate placeholders instead of showing empty content while data is loading.
+* Show clear loading states whenever an API request is in progress.
+* Prevent confusing states where the UI looks fully interactive while an API operation is still processing.
+* After payment success, immediately show an appropriate processing/loading state instead of leaving the previous payment screen appearing interactive for several seconds.
+* Handle transitions between payment success → booking confirmation smoothly and clearly.
+* Apply the same principle to all other API-driven actions where the current UI remains visible and interactive while waiting for the next response.
+* Disable relevant buttons/actions while their operation is processing to prevent duplicate actions.
+* Make success, error, loading, and transition states visually clear and consistent.
+
+### Dynamic Sections & Navigation
+
+* Whenever a section dynamically appears, expands, or updates with new results, smoothly scroll the user toward the relevant content when appropriate.
+* On desktop, use a subtle scroll adjustment.
+* On mobile, scroll enough to clearly bring the newly displayed content into view.
+* Do not force scrolling when the relevant content is already clearly visible.
+
+### Important
+
+* Do not change existing business logic.
+* Do not change API contracts.
+* Do not change pricing calculations.
+* Do not change booking availability rules.
+* Do not change payment logic.
+* Do not introduce unnecessary refactoring.
+* Reuse the existing components, styles, and patterns wherever possible.
+* Make only the necessary frontend UI/UX changes.
+* Ensure all changes work correctly on both mobile and desktop.
+
+### Smooth Animations & Transitions
+
+Add **smooth, subtle, professional animations throughout the affected RideOn client UI** wherever they improve the user experience.
+
+* Add smooth enter/exit animations when dynamic sections appear or disappear.
+* Add smooth expand/collapse animations for expandable content.
+* Add smooth transitions when availability results appear or change.
+* Add smooth transitions between loading, success, error, and completed states.
+* Add smooth animations for drawers, modals, dropdowns, alerts, and other overlays where applicable.
+* Add subtle button and interactive-element transitions for hover, focus, press, and disabled states.
+* When payment succeeds and the UI transitions to the booking confirmation state, use a smooth transition instead of abruptly replacing the screen.
+* When a dynamic section opens and the page needs to scroll to it, combine the scroll with a smooth transition so it feels natural.
+* Keep animations fast and responsive; they should never make the user wait for an action.
+* Avoid excessive, flashy, or decorative animations. The overall feel should be **premium, natural, and professional**, not like an AI-generated UI.
+* Respect `prefers-reduced-motion` and reduce/disable non-essential animations for users who have requested reduced motion.
+* Use consistent animation timing and easing throughout the application rather than implementing unrelated animations for each component.
+
+**Important:** Animations must support the UX and must not interfere with API requests, form interactions, booking flow, payment flow, or navigation.
+
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------

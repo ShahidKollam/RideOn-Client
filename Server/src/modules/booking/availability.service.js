@@ -1,11 +1,6 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
-import {
-    calculatePrice,
-    findPricingByDuration,
-    MAX_RENTAL_HOURS,
-    MIN_RENTAL_HOURS,
-} from './pricing.service.js'
+import { calculatePrice, findPricingByDuration, MAX_RENTAL_HOURS, MIN_RENTAL_HOURS } from './pricing.service.js'
 import { findAvailableBike } from '../bike/bike.service.js'
 import { calculateHelmetAmount } from '../settings/settings.service.js'
 
@@ -32,24 +27,20 @@ export const getBookingAvailability = async (data, client = prisma) => {
     }
 
     // Find pricing (single package or composed 24h blocks + remainder)
-const pricing = await findPricingByDuration(durationHours, data.campusId, client)
+    const pricing = await findPricingByDuration(durationHours, data.campusId, client)
 
-// Helmet add-on
-const settings = await client.systemSetting.findFirst()
-const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
-const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
+    // Helmet add-on
+    const settings = await client.systemSetting.findFirst()
+    const helmetFirstPrice = settings?.helmetFirstPrice ?? 0
+    const helmetSecondPrice = settings?.helmetSecondPrice ?? 0
 
-const { helmetCount, helmetAmount } = calculateHelmetAmount(
-    settings || {},
-    data.helmetCount,
-    durationHours
-)
+    const { helmetCount, helmetAmount } = calculateHelmetAmount(settings || {}, data.helmetCount, durationHours)
 
-// Calculate final price INCLUDING helmet before GST
-const priceSnapshot = await calculatePrice({
-    ...pricing,
-    helmetAmount,
-})
+    // Calculate final price INCLUDING helmet before GST
+    const priceSnapshot = await calculatePrice({
+        ...pricing,
+        helmetAmount,
+    })
 
     // Check if at least one bike is available (do not expose bike to client)
     let availableBike = null

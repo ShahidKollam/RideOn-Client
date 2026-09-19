@@ -14,6 +14,7 @@ client
 
 
 ---
-- DATE format diff in mobile and pc in bookign page client side
+- DATE format diff in mobile and pc in bookign page client side💹
 - bike number
+
 - latefee , slot display available , show late bikes or bookings , cancellation charges less than 3 hours fifty only , 

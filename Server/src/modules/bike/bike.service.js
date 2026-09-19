@@ -20,9 +20,7 @@ export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client =
         },
         orderBy: { pickupAt: 'asc' },
     })
-    return conflict
-        ? { available: false, reason: '15-minute buffer required between bookings' }
-        : { available: true }
+    return conflict ? { available: false, reason: '15-minute buffer required between bookings' } : { available: true }
 }
 
 /**
