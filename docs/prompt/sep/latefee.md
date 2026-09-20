@@ -1,80 +1,352 @@
-# RideOn — Late Fee Implementation Prompt
+Yes. Since much of the system is **already implemented**, the prompt should explicitly tell the coding AI to make **incremental changes only**, not rebuild the feature.
 
-## 1. Backend
+Also, the new **Bike Number** should be treated as a proper bike identifier and covered everywhere the bike is displayed/selected/referenced.
 
-Implement the late-fee feature without changing existing booking, pricing, package, payment, or bike-allocation logic.
-
-* Add configurable **Booking Buffer** in General Settings. Default: **15 minutes**.
-* Add configurable **Late Fee** settings:
-
-  * Enabled/disabled
-  * Fee interval: **5 minutes**
-  * Fee amount: **₹10 per 5 minutes**
-  * GST
-* Keep **scheduled pickup/return time** and **actual pickup/return time** separate.
-* Customer's booking time remains the scheduled time.
-* Admin/staff can confirm/update the actual pickup and return time when the action happens.
-* Calculate the late fee **when the return is recorded**, using the confirmed actual return time.
-* Late fee increases in 5-minute blocks.
-* No separate customer grace period.
-* If the customer doesn't pay the late fee at return, keep it as **outstanding**.
-* Include outstanding late fee in the customer's next booking payment while showing it separately from the new booking amount.
-* Prevent duplicate late-fee/outstanding payments.
-* If payment fails, keep the amount outstanding.
-* Admin can adjust/waive an outstanding late fee with a reason.
-* Apply GST separately.
-* Keep bike unavailable until actual return.
-* If a late return affects the next booking, do not automatically cancel it; allow the existing/admin process to handle reassignment or timing changes.
-* Preserve backward compatibility and existing API contracts wherever possible.
-* You can make changes if it is essential and needed and if breaks any other side you mention to me that also you fix it but dont make core logic changes 
-* Follow industry best pracitces 
-* At last give me the simple api doc and a simple doc that say what the changes needed to do in ui frontend.
+I would split the next work into **3 backend tasks**: Backend Core, Admin Backend, Client Backend. Then we can do the frontend separately.
 
 ---
 
-## 2. Admin Frontend
+# 🚲 RideOn — Incremental Late Fee + Bike Number Backend Update
 
-Update the admin booking/pickup/return flow.
+## 🔴 IMPORTANT — READ FIRST
 
-* Show **Scheduled Pickup/Return** and **Actual Pickup/Return** separately.
-* During pickup/return, allow admin/staff to confirm or update the actual date/time.
-* On return, automatically show the calculated late fee.
-* Show:
+This is an **existing RideOn application with many features and calculations already implemented**.
 
-  * Late duration
-  * Late fee
-  * GST
-  * Total late-fee amount
-* If there is an outstanding amount, show **Collect Outstanding Amount**.
-* Allow admin to adjust/waive the amount with a reason.
-* Show outstanding late fees clearly in booking/customer details.
-* Show the configurable booking buffer and late-fee settings in **General Settings**.
-* Keep the existing admin UI/business flow unchanged apart from the required additions.
+**DO NOT refactor or rebuild the existing system.**
 
----
-
-## 3. Client Frontend
-
-Update the customer booking and booking details UI.
-
-* Keep the customer's original scheduled pickup/return time unchanged.
-* Clearly show any **outstanding late fee** before/while making a new booking.
-* Show the outstanding amount separately from the new rental charges.
-* Include the outstanding amount in the final payable amount.
-* If payment fails, clearly show that the outstanding amount is still pending.
-* Do not create a separate booking flow for late fees.
-* Do not change existing pricing/package/payment UI logic unnecessarily.
-* Keep the UI mobile-first, clean and consistent with the existing RideOn design.
+* Do not remove existing logic.
+* Do not replace existing calculations unnecessarily.
+* Do not change existing pricing, package, extra-kilometer, booking, payment, availability, or bike-allocation logic unless the new requirements explicitly require an integration/change.
+* Do not create duplicate implementations of logic that already exists.
+* Reuse existing services, utilities, models, APIs, and calculations wherever possible.
+* Make only the **minimum required changes** for the new requirements.
+* If an existing implementation must be changed to support a new requirement, update it carefully and ensure all related parts of the application continue working.
+* Check all usages/dependencies of any changed field or logic before modifying it.
+* Maintain backward compatibility wherever possible.
+* Follow the existing project architecture and coding style.
 
 ---
 
-## 4. Important Rules
+# 1. BACKEND — Core Late Fee + Bike Changes
 
-* **Scheduled time = customer's original booking time.**
-* **Actual time = time confirmed/updated by admin/staff.**
-* **Late fee = calculated from actual return time.**
-* **15-minute buffer = booking-to-booking availability buffer, not customer grace period.**
-* **Late fee = every 5 minutes.**
-* **Unpaid late fee = outstanding + payable with the next booking.**
-* **Admin handles exceptional operational cases.**
-* **Do not disturb existing booking, pricing, payment, or allocation logic.**
+### Task ID: `BE-LF-01`
+
+### A. General Settings
+
+Update the existing General Settings implementation.
+
+All business-configurable values must come from Settings.
+
+Include/configure:
+
+* Booking buffer time in minutes.
+* Late-fee calculation interval/package rule as required by the agreed late-fee logic.
+* Late-fee related amount/configuration.
+* Disruption penalty amount — currently ₹150.
+* GST configuration according to the existing system.
+
+### Important
+
+* **Do not add a separate `lateFeeEnabled` setting.**
+* Do not hardcode the booking buffer.
+* Do not hardcode the ₹150 penalty.
+* Do not hardcode late-fee configuration.
+* Existing settings architecture must be reused.
+
+---
+
+### B. Booking Buffer Integration
+
+The configured booking buffer must actually be used wherever the application currently calculates booking availability.
+
+Example:
+
+```text
+Booking A ends: 6:00 PM
+Configured buffer: 15 minutes
+
+Next availability: 6:15 PM
+```
+
+The value must come from General Settings.
+
+Make sure the same setting is correctly respected by:
+
+* Booking availability calculation.
+* Bike availability checks.
+* Booking creation/validation where applicable.
+* Alternative availability logic if already implemented.
+* Any existing server-side overlap/conflict validation.
+
+**Do not create a second buffer calculation.**
+
+Use the existing availability logic and replace only the hardcoded/configured value where required.
+
+---
+
+### C. Late Return
+
+Reuse the existing pickup/return implementation.
+
+Keep:
+
+```text
+Scheduled Pickup
+Actual Pickup
+
+Scheduled Return
+Actual Return
+```
+
+separate.
+
+When return is recorded:
+
+* Calculate the applicable late duration.
+* Calculate the applicable late charge using the existing pricing/package system.
+* Do not automatically apply the optional ₹150 disruption penalty.
+* Admin will explicitly decide whether it applies.
+* Finalize the applicable charges during return processing.
+
+---
+
+### D. Outstanding Late Amount
+
+If the applicable late charge is not collected:
+
+* Store it as outstanding.
+* Keep it associated with the customer/booking correctly.
+* Make it available for collection in the customer's next booking/payment.
+* Keep the outstanding amount separately identifiable from the new rental amount.
+* Prevent duplicate collection/payment.
+* Preserve existing payment/idempotency logic.
+
+---
+
+# 2. BACKEND — Admin
+
+### Task ID: `BE-ADMIN-LF-01`
+
+Update existing admin APIs/services only where required.
+
+### Return Processing
+
+During return confirmation, admin must be able to:
+
+* See calculated late duration.
+* See calculated late charge.
+* Choose **Apply Late Fee**.
+* Choose whether to apply the **Disruption Penalty**.
+* Use the configured penalty amount from Settings.
+* Adjust/waive applicable charges where the existing admin flow supports this.
+* Store adjustment/reason where required.
+* Finalize the return with the correct payable/outstanding amount.
+
+The ₹150 disruption penalty must **never be automatically forced** just because another booking exists.
+
+---
+
+### Late Return Identification
+
+Expose enough information for admin to identify:
+
+* Late booking.
+* Late duration.
+* Late bike.
+* Whether another confirmed booking is affected.
+* Current outstanding late amount.
+
+Do not automatically cancel/reschedule future bookings.
+
+Admin handles operational decisions.
+
+---
+
+# 3. BACKEND — Bike Number
+
+### Task ID: `BE-BIKE-ID-01`
+
+Add a new **Bike Number** field to the existing Bike model.
+
+Purpose:
+
+> Make it easy for staff/admin/customers to identify the physical bike.
+
+Example:
+
+```text
+Bike ID:       clxyz123...
+Bike Number:   RO-001
+```
+
+### Requirements
+
+* Add `bikeNumber` to the Bike model using the existing database conventions.
+* It should be required if appropriate for the existing bike creation flow.
+* It should be **unique**.
+* Prevent duplicate bike numbers.
+* Validate empty/invalid values according to existing validation conventions.
+* Allow admin to create/update the bike number.
+* Do not replace the existing internal Bike ID.
+* `id` remains the technical database identifier.
+* `bikeNumber` becomes the human-friendly identifier.
+
+### Bike Number must be available wherever relevant
+
+Ensure the backend includes `bikeNumber` in relevant existing responses such as:
+
+* Bike list.
+* Bike details.
+* Booking details.
+* Booking responses containing bike information.
+* Availability responses where bike information is returned.
+* Admin booking/return responses.
+* Any existing API that already exposes bike identity and needs the human-readable identifier.
+
+**Do not create unnecessary new APIs just for this.**
+
+Add the field to existing responses where appropriate.
+
+---
+
+# 4. BACKEND — Late Return + Bike Number Relationship
+
+### Task ID: `BE-LATE-BIKE-01`
+
+Ensure late-return information can clearly identify the physical bike.
+
+Example response concept:
+
+```json
+{
+  "bookingId": "...",
+  "bike": {
+    "id": "...",
+    "bikeNumber": "RO-001"
+  },
+  "status": "LATE_RETURN",
+  "lateDuration": 30
+}
+```
+
+The internal `bike.id` must continue to be used for database relationships and allocation.
+
+`bikeNumber` is the **human-readable identifier**.
+
+Do not change existing Bike → Booking relationships just to add this field.
+
+---
+
+# 5. BACKEND — Client
+
+### Task ID: `BE-CLIENT-LF-01`
+
+Update customer-facing APIs only where necessary.
+
+### Outstanding Late Fee
+
+Customer APIs should provide:
+
+* Outstanding late amount.
+* Related booking/reference where appropriate.
+* Amount included in the final payment calculation.
+* Clear separation between:
+
+  * New booking charges.
+  * Outstanding late amount.
+  * GST.
+  * Final payable amount.
+
+If payment fails:
+
+* Keep the outstanding amount.
+* Do not mark it as paid.
+* Prevent duplicate payment processing.
+
+---
+
+### Booking Availability
+
+The client availability API must use the **same configured booking buffer from General Settings**.
+
+Do not hardcode the buffer on the client or server.
+
+The client should rely on the backend availability result rather than implementing its own conflicting buffer calculation.
+
+Existing availability and alternative-slot logic must continue working.
+
+---
+
+# 6. BACKEND — Final Safety Rules
+
+### Task ID: `BE-SAFE-01`
+
+Before completing the implementation:
+
+* Check every existing usage of modified Settings fields.
+* Check every existing usage of Bike model.
+* Check booking availability calculations.
+* Check booking creation validation.
+* Check return processing.
+* Check payment/outstanding handling.
+* Check extra-kilometer calculations.
+* Check existing pricing/package calculations.
+* Check admin booking APIs.
+* Check client booking/availability APIs.
+
+### Do NOT:
+
+* ❌ Rewrite the booking system.
+* ❌ Rewrite the pricing system.
+* ❌ Rewrite extra-kilometer calculations.
+* ❌ Replace the existing payment system.
+* ❌ Replace the existing bike-allocation system.
+* ❌ Remove existing fields because a new field is introduced.
+* ❌ Create duplicate pricing calculations.
+* ❌ Hardcode configurable values.
+* ❌ Automatically apply the ₹150 penalty.
+* ❌ Automatically cancel affected bookings.
+
+### Expected approach
+
+```text
+Existing System
+      │
+      ├── Keep existing logic
+      │
+      ├── Add Settings integration
+      │
+      ├── Add late-fee integration
+      │
+      ├── Add Bike Number
+      │
+      └── Extend existing APIs where required
+```
+
+**This is an incremental enhancement, not a refactor.**
+
+---
+
+## 📌 Task ID structure
+
+To make the coding work easy to track, use IDs by **feature + layer**, not random IDs:
+
+```text
+BE-LF-01          Backend late-fee/settings
+BE-ADMIN-LF-01    Admin late-fee backend
+BE-BIKE-ID-01     Bike Number backend
+BE-LATE-BIKE-01   Late return + bike identification
+BE-CLIENT-LF-01   Client late-fee backend
+BE-SAFE-01        Final compatibility/safety check
+```
+
+Then later, when we generate the frontend prompts, we can use:
+
+```text
+FE-ADMIN-LF-01
+FE-ADMIN-BIKE-01
+FE-CLIENT-LF-01
+FE-CLIENT-BIKE-01
+```
+
+This makes it very easy for the coding AI to say **which task is completed** without putting a Task ID on every individual requirement.
