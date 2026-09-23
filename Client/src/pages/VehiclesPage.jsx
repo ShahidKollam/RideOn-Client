@@ -2,6 +2,7 @@ import { BadgeCheck, Bike, CalendarDays, FileText, Fuel, Headphones, HardHat, Ma
 import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const highlights = [
     [Bike, 'Automatic', 'Easy to ride'],
@@ -18,6 +19,7 @@ const policies = [
 ]
 
 export default function VehiclesPage() {
+    useDocumentTitle('Vehicles')
     return (
         <div className="min-h-screen bg-[#fcfdff] pb-8 pt-24 sm:pt-10">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

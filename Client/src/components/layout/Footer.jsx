@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 const navigation = [
     { label: 'Home', to: '/' },
     { label: 'Vehicles', to: '/vehicles' },
-    { label: 'About Us', to: '/about' },
+    { label: 'Team', to: '/about' },
     { label: 'Contact', to: '/contact' },
 ]
 

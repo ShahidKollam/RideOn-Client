@@ -12,7 +12,7 @@ const navLinks = [
     // { label: "How It Works", section: "how-it-works" },
     { label: "Vehicles", path: "/vehicles" },
     { label: "Pricing", path: "/pricing" },
-    { label: "About Us", path: "/about" },
+    { label: "Team", path: "/about" },
     { label: "Contact Us", path: "/contact" },
 ]
 
@@ -128,7 +128,7 @@ export default function Navbar() {
                 </>
             )}
 
-            <div className="relative z-50 mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3 lg:px-8">
+            <div className="relative z-50 mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-3 sm:py-3 lg:px-4">
                 <Link
                     to="/"
                     className="shrink-0"
@@ -137,7 +137,7 @@ export default function Navbar() {
                     <img
                         src="/logo.png"
                         alt="RIDEON"
-                        className="h-24 w-auto transition-all duration-300 hover:scale-[1.04] sm:h-10 lg:h-20"
+                        className="h-14 w-auto transition-all duration-300 hover:scale-[1.04] sm:h-8 lg:h-14"
                     />
                 </Link>
 

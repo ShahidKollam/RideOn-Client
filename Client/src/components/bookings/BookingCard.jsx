@@ -1,13 +1,56 @@
-import { CalendarDays, ChevronRight, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { CalendarDays, ChevronRight, MapPin } from 'lucide-react'
+import { formatDisplayDateTime } from '@/lib/dateFormat'
 
-const statusStyles = { PAYMENT_PENDING: 'bg-amber-100 text-amber-800', CONFIRMED: 'bg-blue-100 text-blue-700', ACTIVE: 'bg-rideon-green/15 text-rideon-green', COMPLETED: 'bg-slate-100 text-slate-600', CANCELLED: 'bg-red-100 text-red-600' }
-export function StatusBadge({ status }) { return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>{status?.replaceAll('_', ' ')}</span> }
+const money = (value) =>
+    `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+function statusBadgeClass(status) {
+    const s = String(status || '').toUpperCase()
+    if (s === 'CANCELLED') return 'bg-red-50 text-red-700'
+    if (s === 'CONFIRMED') return 'bg-emerald-50 text-emerald-700'
+    if (s === 'ACTIVE') return 'bg-blue-50 text-blue-700'
+    if (s === 'COMPLETED') return 'bg-slate-100 text-slate-600'
+    if (s === 'PAYMENT_PENDING') return 'bg-amber-50 text-amber-800'
+    return 'bg-slate-100 text-slate-600'
+}
 
 export default function BookingCard({ booking }) {
-    return <Link to={`/bookings/${booking.id}`} className="block rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_6px_20px_rgba(15,23,42,0.05)] transition-all hover:border-rideon-blue/20 hover:shadow-md sm:p-5">
-        <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold text-slate-400">{booking.bookingNumber}</p><h2 className="mt-1 text-base font-bold text-rideon-dark">{booking.bike?.name || 'Campus vehicle'}</h2></div><StatusBadge status={booking.status} /></div>
-        <div className="mt-4 grid gap-2 text-xs text-slate-500 sm:grid-cols-2"><span className="flex items-center gap-2"><CalendarDays className="size-4 text-rideon-blue" />{new Date(booking.pickupAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span><span className="flex items-center gap-2"><MapPin className="size-4 text-rideon-blue" />{booking.campus?.name || 'Campus'}</span></div>
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-sm font-bold text-rideon-dark">₹{Number(booking.totalAmount || 0).toLocaleString()}</span><ChevronRight className="size-5 text-rideon-blue" /></div>
-    </Link>
+    const bikeLabel =
+        booking?.bike?.bikeNumber ||
+        booking?.bike?.name ||
+        booking?.bike?.registrationNumber ||
+        'Campus bike'
+
+    return (
+        <Link
+            to={`/bookings/${booking.id}`}
+            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition hover:border-rideon-blue/40 hover:bg-blue-50/30"
+        >
+            <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-[#0b1742]">{booking.bookingNumber || 'Booking'}</span>
+                    {booking.status && (
+                        <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(
+                                booking.status
+                            )}`}
+                        >
+                            {String(booking.status).replaceAll('_', ' ')}
+                        </span>
+                    )}
+                </div>
+                <p className="flex items-center gap-1.5 text-sm text-slate-600">
+                    <MapPin className="size-3.5 shrink-0 text-rideon-blue" />
+                    <span className="truncate">{bikeLabel}</span>
+                </p>
+                <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <CalendarDays className="size-3.5 shrink-0" />
+                    {formatDisplayDateTime(booking.pickupAt)}
+                </p>
+                <p className="text-sm font-semibold text-rideon-blue">{money(booking.totalAmount)}</p>
+            </div>
+            <ChevronRight className="size-5 shrink-0 text-slate-300" />
+        </Link>
+    )
 }

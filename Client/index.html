@@ -2,9 +2,78 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/png" href="/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Rideon Client</title>
+        <title>RideOn — Campus bike rentals</title>
+        <meta
+            name="description"
+            content="RideOn makes campus mobility easy. Book verified bikes by the hour, pay securely, and ride without the cost of owning a vehicle."
+        />
+        <meta
+            name="keywords"
+            content="campus bike rental, scooter rental, student mobility, RideOn, book bike online, hourly bike hire"
+        />
+        <meta name="author" content="RideOn" />
+        <meta name="theme-color" content="#1d8cf8" />
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow" />
+        <link rel="canonical" href="https://rideon.app/" />
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="RideOn" />
+        <meta property="og:url" content="https://rideon.app/" />
+        <meta property="og:title" content="RideOn — Campus bike rentals" />
+        <meta
+            property="og:description"
+            content="Book campus bikes in minutes. Transparent pricing, secure payments, and flexible cancellations."
+        />
+        <meta property="og:image" content="https://rideon.app/logo.png" />
+        <meta property="og:image:alt" content="RideOn logo" />
+        <meta property="og:locale" content="en_IN" />
+
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RideOn — Campus bike rentals" />
+        <meta
+            name="twitter:description"
+            content="Book campus bikes in minutes. Transparent pricing, secure payments, and flexible cancellations."
+        />
+        <meta name="twitter:image" content="https://rideon.app/logo.png" />
+
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="manifest" href="/site.webmanifest" />
+
+        <!-- Organization + WebSite structured data -->
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@graph": [
+                    {
+                        "@type": "Organization",
+                        "name": "RideOn",
+                        "url": "https://rideon.app/",
+                        "logo": "https://rideon.app/logo.png",
+                        "description": "Campus bike and scooter rentals for students — simple booking, transparent pricing, secure payments."
+                    },
+                    {
+                        "@type": "WebSite",
+                        "name": "RideOn",
+                        "url": "https://rideon.app/",
+                        "description": "Book verified campus bikes by the hour.",
+                        "publisher": {
+                            "@type": "Organization",
+                            "name": "RideOn"
+                        },
+                        "potentialAction": {
+                            "@type": "SearchAction",
+                            "target": "https://rideon.app/vehicles",
+                            "query-input": "required name=search_term_string"
+                        }
+                    }
+                ]
+            }
+        </script>
     </head>
     <body>
         <div id="root"></div>

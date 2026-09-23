@@ -10,6 +10,9 @@ import {
   Info,
   History,
   Tag,
+  Clock,
+  AlertTriangle,
+  Ban,
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
@@ -23,6 +26,8 @@ import { cn } from '../../../utils/cn';
 const TABS = [
   { id: 'pricing', label: 'Pricing Policies', icon: Tag },
   { id: 'helmet', label: 'Helmet Pricing', icon: HardHat },
+  { id: 'operations', label: 'Operations', icon: Clock },
+  { id: 'cancellation', label: 'Cancellation', icon: Ban },
   { id: 'history', label: 'Activity History', icon: History },
 ];
 
@@ -115,6 +120,15 @@ export default function PoliciesPage() {
     helmetFirstPrice: 0,
     helmetSecondPrice: 0,
     lateHelmetFee: 0,
+    bookingBufferMinutes: 15,
+    disruptionPenalty: 150,
+    cancellationEnabled: true,
+    cancellationRules: [
+      { hours: 72, percent: 25 },
+      { hours: 48, percent: 50 },
+      { hours: 24, percent: 75 },
+      { hours: 0, percent: 100 },
+    ],
   });
 
   useEffect(() => {
@@ -127,6 +141,20 @@ export default function PoliciesPage() {
         helmetFirstPrice: policy.helmetFirstPrice ?? 0,
         helmetSecondPrice: policy.helmetSecondPrice ?? 0,
         lateHelmetFee: policy.lateHelmetFee ?? 0,
+        bookingBufferMinutes: policy.bookingBufferMinutes ?? 15,
+        disruptionPenalty: policy.disruptionPenalty ?? 150,
+        cancellationEnabled: policy.cancellationPolicy?.enabled !== false,
+        cancellationRules: Array.isArray(policy.cancellationPolicy?.rules) && policy.cancellationPolicy.rules.length
+          ? policy.cancellationPolicy.rules.map((r) => ({
+              hours: Number(r.hours) || 0,
+              percent: Number(r.percent) || 0,
+            }))
+          : [
+              { hours: 72, percent: 25 },
+              { hours: 48, percent: 50 },
+              { hours: 24, percent: 75 },
+              { hours: 0, percent: 100 },
+            ],
       });
     }
   }, [policy]);
@@ -155,7 +183,43 @@ export default function PoliciesPage() {
   function handleSubmit(e) {
     e?.preventDefault();
     if (!canUpdate) return;
-    mutation.mutate(form);
+    const buffer = Number(form.bookingBufferMinutes);
+    if (!Number.isInteger(buffer) || buffer < 0 || buffer > 180) {
+      toast.error('Booking buffer must be an integer between 0 and 180 minutes');
+      return;
+    }
+    if (Number(form.disruptionPenalty) < 0) {
+      toast.error('Disruption penalty must be ≥ 0');
+      return;
+    }
+    const rules = (form.cancellationRules || []).map((r) => ({
+      hours: Number(r.hours),
+      percent: Number(r.percent),
+    }));
+    for (const r of rules) {
+      if (!Number.isFinite(r.hours) || r.hours < 0) {
+        toast.error('Cancellation rule hours must be ≥ 0');
+        return;
+      }
+      if (!Number.isFinite(r.percent) || r.percent < 0 || r.percent > 100) {
+        toast.error('Cancellation percent must be between 0 and 100');
+        return;
+      }
+    }
+    const {
+      cancellationEnabled,
+      cancellationRules,
+      ...rest
+    } = form;
+    mutation.mutate({
+      ...rest,
+      bookingBufferMinutes: buffer,
+      disruptionPenalty: Number(form.disruptionPenalty) || 0,
+      cancellationPolicy: {
+        enabled: !!cancellationEnabled,
+        rules,
+      },
+    });
   }
 
   if (isLoading) {
@@ -170,7 +234,7 @@ export default function PoliciesPage() {
     <div>
       <PageHeader
         title="Policies"
-        description="Platform fees, GST and helmet pricing"
+        description="GST, platform fee, helmet pricing, booking buffer, and disruption penalty"
         actions={
           canUpdate ? (
             <Button
@@ -382,6 +446,183 @@ export default function PoliciesPage() {
         )}
 
         {/* Activity History tab */}
+        {activeTab === 'operations' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 shrink-0">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-primary-token">Booking buffer</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Minutes required between bookings for availability and conflict checks
+                    </p>
+                  </div>
+                </div>
+                <FieldWithSuffix
+                  label="Buffer (minutes)"
+                  value={form.bookingBufferMinutes}
+                  onChange={(v) => handleChange('bookingBufferMinutes', Math.round(Number(v) || 0))}
+                  disabled={!canUpdate}
+                  suffix="min"
+                  step="1"
+                  min="0"
+                  helper="Integer 0–180. Used by backend availability — do not hardcode on clients."
+                />
+              </Card>
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 text-red-500 shrink-0">
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-primary-token">Disruption penalty</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Optional amount admin may apply on late return. Never auto-applied.
+                    </p>
+                  </div>
+                </div>
+                <FieldWithSuffix
+                  label="Penalty amount"
+                  value={form.disruptionPenalty}
+                  onChange={(v) => handleChange('disruptionPenalty', v)}
+                  disabled={!canUpdate}
+                  suffix="₹"
+                  step="1"
+                  min="0"
+                  helper="Shown on return flow; admin chooses whether to apply."
+                />
+              </Card>
+            </div>
+            <div className="flex items-start gap-2 rounded-xl border border-token bg-surface/50 px-4 py-3 text-xs text-muted">
+              <Info size={14} className="shrink-0 mt-0.5 text-[var(--color-primary)]" />
+              <p>
+                There is no separate late-fee enabled toggle. Late rental is calculated at return;
+                admins decide whether to apply it and/or the disruption penalty.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'cancellation' && (
+          <div className="space-y-5">
+            <Card className="p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3 mb-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/15 text-rose-500 shrink-0">
+                    <Ban size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-primary-token">Cancellation policy</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Fee percent based on hours remaining until scheduled pickup
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-secondary">Enabled</span>
+                  <Toggle
+                    checked={form.cancellationEnabled}
+                    disabled={!canUpdate}
+                    onChange={(v) => handleChange('cancellationEnabled', v)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">Cancellation rules</p>
+              <div className="space-y-3">
+                {(form.cancellationRules || []).map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end rounded-lg border border-token p-3"
+                  >
+                    <div>
+                      <label className="block text-xs text-muted mb-1">More than (hours before pickup)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        disabled={!canUpdate || !form.cancellationEnabled}
+                        value={rule.hours}
+                        onChange={(e) => {
+                          const hours = Number(e.target.value);
+                          setForm((f) => {
+                            const rules = [...(f.cancellationRules || [])];
+                            rules[idx] = { ...rules[idx], hours };
+                            return { ...f, cancellationRules: rules };
+                          });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Fee percent</label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          disabled={!canUpdate || !form.cancellationEnabled}
+                          value={rule.percent}
+                          onChange={(e) => {
+                            const percent = Number(e.target.value);
+                            setForm((f) => {
+                              const rules = [...(f.cancellationRules || [])];
+                              rules[idx] = { ...rules[idx], percent };
+                              return { ...f, cancellationRules: rules };
+                            });
+                          }}
+                          className="pr-8"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">%</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={!canUpdate || (form.cancellationRules || []).length <= 1}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          cancellationRules: (f.cancellationRules || []).filter((_, i) => i !== idx),
+                        }))
+                      }
+                      className="text-danger"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {canUpdate && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-4"
+                  disabled={!form.cancellationEnabled}
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      cancellationRules: [...(f.cancellationRules || []), { hours: 0, percent: 100 }],
+                    }))
+                  }
+                >
+                  Add rule
+                </Button>
+              )}
+
+              <div className="mt-5 rounded-lg border border-token bg-[var(--color-bg)]/40 px-4 py-3 text-xs text-muted space-y-1">
+                <p className="font-medium text-secondary">How rules work</p>
+                <p>Backend picks the highest <em>hours</em> threshold that is still ≤ hours remaining until pickup.</p>
+                <p>Example defaults: &gt;72h → 25%, 48–72h → 50%, 24–48h → 75%, &lt;24h → 100%.</p>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'history' && (
           <Card className="p-8">
             <div className="flex flex-col items-center justify-center text-center py-8">

@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { sendLoginLink } from '@/services/authService'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const nitcEmailPattern = /^[^\s@]+@nitc\.ac\.in$/i
 
 export default function LoginPage() {
+    useDocumentTitle('Log in')
     const [loginEmail, setLoginEmail] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)

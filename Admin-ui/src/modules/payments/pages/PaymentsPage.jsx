@@ -1,3 +1,4 @@
+import { MobileList, MobileCard } from '../../../components/ui/MobileList';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, CreditCard, Eye } from 'lucide-react';
@@ -99,11 +100,28 @@ export default function PaymentsPage() {
             <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
           </Select>
         </div>
-        <DataTable columns={columns} rows={rows} loading={isLoading} error={error?.message} onRetry={refetch}
+        <MobileList>
+        {(rows || data?.items || []).map((r) => (
+          <MobileCard key={r.id} chevron={false}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm text-primary-token truncate">{r.gatewayOrderId || r.id}</span>
+              <StatusBadge status={r.status || 'PENDING'} />
+            </div>
+            <p className="text-xs text-muted">{r.booking?.bookingNumber || r.user?.name || '—'}</p>
+            <div className="flex justify-between text-xs pt-1">
+              <span className="text-muted">{r.paidAt ? new Date(r.paidAt).toLocaleString() : (r.createdAt ? new Date(r.createdAt).toLocaleString() : '—')}</span>
+              <span className="font-medium text-primary-token">₹{Number(r.amount||0).toLocaleString('en-IN')}</span>
+            </div>
+          </MobileCard>
+        ))}
+      </MobileList>
+      <div className="hidden md:block">
+      <DataTable columns={columns} rows={rows} loading={isLoading} error={error?.message} onRetry={refetch}
           emptyTitle="No payments found" emptyIcon={CreditCard}
           page={page} limit={limit} totalPages={totalPages} total={total}
           onPageChange={setPage} onLimitChange={(l) => { setLimit(l); setPage(1); }}
           onRowClick={(row) => setSelected(row)} />
+      </div>
       </Card>
       <Drawer open={!!selected} onClose={() => setSelected(null)} title="Payment details">
         {selected && (

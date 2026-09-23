@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, CalendarCheck, Eye, KeyRound, Undo2, CircleX, CreditCard } from 'lucide-react'
 import { api } from '../../../lib/api'
@@ -14,6 +15,8 @@ import { Modal } from '../../../components/ui/Modal'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
+import { MobileList, MobileCard } from '../../../components/ui/MobileList'
+import { AlertTriangle } from 'lucide-react'
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateTime = (v) => (v ? new Date(v).toLocaleString() : '—')
@@ -48,11 +51,15 @@ export default function BookingsPage() {
     const { hasPermission } = useAuth()
     const toast = useToast()
     const qc = useQueryClient()
+    const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    // deep-link from dashboard late returns
     const [page, setPage] = useState(1),
         [limit, setLimit] = useState(10),
         [search, setSearch] = useState(''),
         [searchInput, setSearchInput] = useState(''),
-        [statusFilter, setStatusFilter] = useState('')
+        [statusFilter, setStatusFilter] = useState(''),
+        [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1')
     const [selected, setSelected] = useState(null),
         [pickupTarget, setPickupTarget] = useState(null),
         [returnTarget, setReturnTarget] = useState(null),
@@ -62,11 +69,12 @@ export default function BookingsPage() {
         [paymentMethod, setPaymentMethod] = useState('UPI'),
         [reference, setReference] = useState('')
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['bookings', { page, limit, search, status: statusFilter }],
+        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly }],
         queryFn: () => {
             const qs = new URLSearchParams({ page, limit })
             if (search) qs.set('search', search)
             if (statusFilter) qs.set('status', statusFilter)
+            if (lateOnly) qs.set('lateOnly', 'true')
             return api.get(`/bookings?${qs}`)
         },
     })
@@ -142,7 +150,25 @@ export default function BookingsPage() {
                 </div>
             ),
         },
-        { key: 'bike', header: 'Bike', render: (r) => <span className="text-secondary">{r.bike?.name || '—'}</span> },
+        { key: 'bike', header: 'Bike', render: (r) => (
+            <div>
+                <p className="text-secondary text-sm">{r.bike?.bikeNumber || r.bike?.name || '—'}</p>
+                <p className="text-xs text-muted">{r.bike?.registrationNumber || ''}</p>
+            </div>
+        ) },
+        {
+            key: 'late',
+            header: 'Late',
+            render: (r) => {
+                const late = r.isLate || (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt))
+                if (!late && !(r.lateDurationMinutes > 0)) return <span className="text-muted">—</span>
+                return (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
+                        🔴 {r.lateDurationMinutes != null ? `${r.lateDurationMinutes}m` : 'Late'}
+                    </span>
+                )
+            },
+        },
         {
             key: 'pickupAt',
             header: 'Pickup',
@@ -173,7 +199,7 @@ export default function BookingsPage() {
             render: (r) => (
                 <ActionMenu
                     items={[
-                        { label: 'View', icon: Eye, onClick: () => setSelected(r) },
+                        { label: 'View', icon: Eye, onClick: () => navigate(`/bookings/${r.id}`) },
                         hasPermission('bookings.update') &&
                             r.status === 'CONFIRMED' && {
                                 label: 'Record Pickup',
@@ -251,7 +277,47 @@ export default function BookingsPage() {
                             </option>
                         ))}
                     </Select>
+                    <label className="inline-flex items-center gap-2 text-sm text-secondary whitespace-nowrap cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={lateOnly}
+                            onChange={(e) => {
+                                setLateOnly(e.target.checked)
+                                setPage(1)
+                            }}
+                        />
+                        Late returns only
+                    </label>
                 </div>
+                {/* Mobile cards */}
+                <MobileList>
+                    {rows.map((r) => {
+                        const late = r.isLate || (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt))
+                        return (
+                            <MobileCard key={r.id} onClick={() => navigate(`/bookings/${r.id}`)}>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="font-semibold text-primary-token text-sm">{r.bookingNumber || '—'}</span>
+                                    <StatusBadge status={late ? 'LATE_RETURN' : r.status} />
+                                </div>
+                                <p className="text-sm text-secondary truncate">{r.user?.name || '—'}</p>
+                                <p className="text-xs text-muted">
+                                    {[r.bike?.bikeNumber, r.bike?.registrationNumber].filter(Boolean).join(' · ') || 'No bike'}
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-muted pt-1">
+                                    <span>{r.pickupAt ? new Date(r.pickupAt).toLocaleString() : '—'}</span>
+                                    <span className="font-medium text-primary-token">{money(r.totalAmount)}</span>
+                                </div>
+                                {late && (
+                                    <p className="text-xs font-medium text-red-600">🔴 Late{r.lateDurationMinutes != null ? ` · ${r.lateDurationMinutes}m` : ''}</p>
+                                )}
+                            </MobileCard>
+                        )
+                    })}
+                    {!isLoading && rows.length === 0 && (
+                        <p className="text-sm text-muted text-center py-8">No bookings found</p>
+                    )}
+                </MobileList>
+                <div className="hidden md:block">
                 <DataTable
                     columns={columns}
                     rows={rows}
@@ -269,11 +335,13 @@ export default function BookingsPage() {
                         setLimit(l)
                         setPage(1)
                     }}
-                    onRowClick={setSelected}
+                    onRowClick={(r) => navigate(`/bookings/${r.id}`)}
                 />
+                </div>
             </Card>
+            {/* Booking details moved to /bookings/:id page — drawer removed */}
             <Drawer
-                open={!!selected}
+                open={false}
                 onClose={() => setSelected(null)}
                 header={
                     booking && (

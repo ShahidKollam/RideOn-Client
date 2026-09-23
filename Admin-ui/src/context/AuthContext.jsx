@@ -103,10 +103,13 @@ export function AuthProvider({ children }) {
           nextAdmin.permissions ||
           stored.permissions ||
           [];
+        const token = localStorage.getItem(STORAGE_TOKEN) || stored.token;
         setAdmin(nextAdmin);
+        setAccessToken(token);
         setPermissions(Array.isArray(nextPerms) ? nextPerms : []);
-        persist(stored.token, nextAdmin, nextPerms);
+        persist(token, nextAdmin, nextPerms);
       } catch (err) {
+        // api layer already attempts refresh on 401; if still 401, clear session
         if (!cancelled && err?.status === 401) {
           clearSession();
         }

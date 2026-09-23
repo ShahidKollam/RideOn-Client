@@ -5,8 +5,10 @@ import BookingCard from '@/components/bookings/BookingCard'
 import { EmptyState, ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { getBookings } from '@/services/bookingService'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 export default function BookingsPage() {
+    useDocumentTitle('My bookings')
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
