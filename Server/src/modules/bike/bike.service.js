@@ -1,7 +1,10 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
+import { getBookingBufferMinutes } from '../settings/settings.service.js'
 
+/** @deprecated Prefer getBookingBufferMinutes() — kept only for any external import compatibility */
 export const BOOKING_BUFFER_MINUTES = 15
+
 const blockingBookingStatuses = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
 
 export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client = prisma) => {
@@ -9,8 +12,16 @@ export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client =
     if (!bike || !bike.isActive || bike.status !== 'AVAILABLE') {
         return { available: false, reason: 'Bike is not available' }
     }
-    const bufferStart = new Date(pickupAt.getTime() - BOOKING_BUFFER_MINUTES * 60 * 1000)
-    const bufferedReturnAt = new Date(returnAt.getTime() + BOOKING_BUFFER_MINUTES * 60 * 1000)
+
+    // Bike still on an active rental (not yet returned) is unavailable
+    if (bike.status === 'IN_USE') {
+        return { available: false, reason: 'Bike is currently rented' }
+    }
+
+    const bufferMinutes = await getBookingBufferMinutes(client)
+    const bufferStart = new Date(pickupAt.getTime() - bufferMinutes * 60 * 1000)
+    const bufferedReturnAt = new Date(returnAt.getTime() + bufferMinutes * 60 * 1000)
+
     const conflict = await client.booking.findFirst({
         where: {
             bikeId,
@@ -20,7 +31,16 @@ export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client =
         },
         orderBy: { pickupAt: 'asc' },
     })
-    return conflict ? { available: false, reason: '15-minute buffer required between bookings' } : { available: true }
+
+    if (conflict) {
+        return {
+            available: false,
+            reason: `${bufferMinutes}-minute buffer required between bookings`,
+            conflictingBookingId: conflict.id,
+        }
+    }
+
+    return { available: true }
 }
 
 /**
@@ -37,37 +57,59 @@ export const findAvailableBike = async (pickupAt, returnAt, campusId, client = p
     })
 
     for (const bike of bikes) {
-        const availability = await checkBikeAvailability(bike.id, new Date(pickupAt), new Date(returnAt), client)
+        const availability = await checkBikeAvailability(
+            bike.id,
+            new Date(pickupAt),
+            new Date(returnAt),
+            client
+        )
         if (availability.available) return bike
     }
 
     throw new ApiError(400, 'No available bikes for the selected time')
 }
 
+/**
+ * Returns true if any bike at the campus is free for the range (with buffer).
+ */
+export const hasAvailableBike = async (pickupAt, returnAt, campusId, client = prisma) => {
+    try {
+        await findAvailableBike(pickupAt, returnAt, campusId, client)
+        return true
+    } catch {
+        return false
+    }
+}
+
 export const createBike = async (data) => {
-    // Verify campus exists and is active
     const campus = await prisma.campus.findUnique({
-        where: {
-            id: data.campusId,
-        },
+        where: { id: data.campusId },
     })
     if (!campus || !campus.isActive) {
         throw new ApiError(400, 'Invalid or inactive campus')
     }
-    // Check if registration number already exists
+
     const existingBike = await prisma.bike.findUnique({
-        where: {
-            registrationNumber: data.registrationNumber,
-        },
+        where: { registrationNumber: data.registrationNumber },
     })
     if (existingBike) {
         throw new ApiError(409, 'Bike with this registration number already exists')
     }
-    // Create bike
+
+    if (data.bikeNumber) {
+        const existingNumber = await prisma.bike.findUnique({
+            where: { bikeNumber: data.bikeNumber },
+        })
+        if (existingNumber) {
+            throw new ApiError(409, 'Bike number already exists')
+        }
+    }
+
     const bike = await prisma.bike.create({
         data: {
             campusId: data.campusId,
             registrationNumber: data.registrationNumber,
+            bikeNumber: data.bikeNumber || null,
             name: data.name,
             brand: data.brand,
             model: data.model,
@@ -76,26 +118,41 @@ export const createBike = async (data) => {
             imageUrls: data.imageUrls ?? [],
             currentOdometer: data.currentOdometer ?? 0,
         },
-        include: {
-            campus: true,
-        },
+        include: { campus: true },
     })
     return bike
 }
 
 export const updateBike = async (id, data) => {
-    const bike = await prisma.bike.findUnique({
-        where: { id },
-    })
+    const bike = await prisma.bike.findUnique({ where: { id } })
     if (!bike || !bike.isActive) {
         throw new ApiError(404, 'Bike not found or inactive')
     }
+
+    if (data.registrationNumber && data.registrationNumber !== bike.registrationNumber) {
+        const existing = await prisma.bike.findUnique({
+            where: { registrationNumber: data.registrationNumber },
+        })
+        if (existing) {
+            throw new ApiError(409, 'Bike with this registration number already exists')
+        }
+    }
+
+    if (data.bikeNumber !== undefined && data.bikeNumber !== bike.bikeNumber) {
+        if (data.bikeNumber) {
+            const existingNumber = await prisma.bike.findUnique({
+                where: { bikeNumber: data.bikeNumber },
+            })
+            if (existingNumber) {
+                throw new ApiError(409, 'Bike number already exists')
+            }
+        }
+    }
+
     const updatedBike = await prisma.bike.update({
         where: { id },
         data,
-        include: {
-            campus: true,
-        },
+        include: { campus: true },
     })
     return updatedBike
 }
@@ -103,9 +160,7 @@ export const updateBike = async (id, data) => {
 export const getBikeById = async (id) => {
     const bike = await prisma.bike.findUnique({
         where: { id, isActive: true },
-        include: {
-            campus: true,
-        },
+        include: { campus: true },
     })
     if (!bike) {
         throw new ApiError(404, 'Bike not found')
@@ -123,6 +178,7 @@ export const getBikeList = async (query = {}) => {
     if (search) {
         where.OR = [
             { registrationNumber: { contains: search, mode: 'insensitive' } },
+            { bikeNumber: { contains: search, mode: 'insensitive' } },
             { name: { contains: search, mode: 'insensitive' } },
             { brand: { contains: search, mode: 'insensitive' } },
             { model: { contains: search, mode: 'insensitive' } },
@@ -134,9 +190,7 @@ export const getBikeList = async (query = {}) => {
             skip: (page - 1) * limit,
             take: limit,
             orderBy: { createdAt: 'desc' },
-            include: {
-                campus: true,
-            },
+            include: { campus: true },
         }),
         prisma.bike.count({ where }),
     ])
@@ -152,30 +206,23 @@ export const getBikeList = async (query = {}) => {
 }
 
 export const changeBikeStatus = async (id, status) => {
-    const bike = await prisma.bike.findUnique({
-        where: { id },
-    })
+    const bike = await prisma.bike.findUnique({ where: { id } })
     if (!bike || !bike.isActive) {
         throw new ApiError(404, 'Bike not found or inactive')
     }
     const updatedBike = await prisma.bike.update({
         where: { id },
         data: { status },
-        include: {
-            campus: true,
-        },
+        include: { campus: true },
     })
     return updatedBike
 }
 
 export const deleteBike = async (id) => {
-    const bike = await prisma.bike.findUnique({
-        where: { id },
-    })
+    const bike = await prisma.bike.findUnique({ where: { id } })
     if (!bike) {
         throw new ApiError(404, 'Bike not found')
     }
-    // Soft delete
     await prisma.bike.update({
         where: { id },
         data: { isActive: false },

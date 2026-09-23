@@ -1,0 +1,23 @@
+{
+  "name": "RideOn — Campus bike rentals",
+  "short_name": "RideOn",
+  "description": "Book verified campus bikes by the hour. Secure payments, transparent pricing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d8cf8",
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

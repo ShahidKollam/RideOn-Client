@@ -1,0 +1,12 @@
+# RideOn — https://rideon.app
+User-agent: *
+Allow: /
+
+# Private / app areas — no index
+Disallow: /auth/
+Disallow: /bookings
+Disallow: /booking-success/
+Disallow: /payment-failed
+Disallow: /profile
+
+Sitemap: https://rideon.app/sitemap.xml

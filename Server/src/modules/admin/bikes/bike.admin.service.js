@@ -14,10 +14,20 @@ export const createBike = async (data) => {
         throw new ApiError(409, 'Bike with this registration number already exists')
     }
 
+    if (data.bikeNumber) {
+        const existingNumber = await prisma.bike.findUnique({
+            where: { bikeNumber: data.bikeNumber },
+        })
+        if (existingNumber) {
+            throw new ApiError(409, 'Bike number already exists')
+        }
+    }
+
     return prisma.bike.create({
         data: {
             campusId: data.campusId,
             registrationNumber: data.registrationNumber,
+            bikeNumber: data.bikeNumber || null,
             name: data.name,
             brand: data.brand,
             model: data.model,
@@ -40,6 +50,7 @@ export const listBikes = async (query) => {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
             { registrationNumber: { contains: search, mode: 'insensitive' } },
+            { bikeNumber: { contains: search, mode: 'insensitive' } },
             { brand: { contains: search, mode: 'insensitive' } },
             { model: { contains: search, mode: 'insensitive' } },
         ]
@@ -88,6 +99,15 @@ export const updateBike = async (id, data) => {
         if (clash) throw new ApiError(409, 'Registration number already exists')
     }
 
+    if (data.bikeNumber !== undefined && data.bikeNumber !== bike.bikeNumber) {
+        if (data.bikeNumber) {
+            const clash = await prisma.bike.findUnique({
+                where: { bikeNumber: data.bikeNumber },
+            })
+            if (clash) throw new ApiError(409, 'Bike number already exists')
+        }
+    }
+
     if (data.campusId) {
         const campus = await prisma.campus.findUnique({ where: { id: data.campusId } })
         if (!campus || !campus.isActive) throw new ApiError(400, 'Invalid or inactive campus')
@@ -115,7 +135,6 @@ export const deleteBike = async (id) => {
     const bike = await prisma.bike.findUnique({ where: { id } })
     if (!bike) throw new ApiError(404, 'Bike not found')
 
-    // Soft delete — keep history
     await prisma.bike.update({
         where: { id },
         data: { isActive: false, status: 'RETIRED' },

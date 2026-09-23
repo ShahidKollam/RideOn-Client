@@ -1,0 +1,826 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+    ArrowLeft,
+    ArrowRight,
+    CalendarDays,
+    CheckCircle2,
+    ChevronDown,
+    Clock3,
+    FileText,
+    HardHat,
+    Info,
+    MapPin,
+    Search,
+    Settings2,
+    ShieldCheck,
+    X,
+} from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+
+import BookingSummary from '@/components/bookings/BookingSummary'
+import { Button } from '@/components/ui/button'
+import FullPageLoader from '@/components/ui/FullPageLoader'
+import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
+import { getApiErrorMessage } from '@/lib/apiClient'
+import { checkAvailability } from '@/services/bookingService'
+import { createPaymentOrder, markPaymentFailed, verifyPayment } from '@/services/paymentService'
+import { getVehicles } from '@/services/vehicleService'
+import {
+    formatDisplayDate,
+    formatDisplayDateTime,
+    formatDisplayTime,
+    toDateInputValue,
+    toTimeInputValue,
+} from '@/lib/dateFormat'
+
+const toDateInput = (date) => {
+    const offset = date.getTimezoneOffset() * 60000
+    return new Date(date - offset).toISOString().slice(0, 10)
+}
+
+const toTimeInput = (date) => date.toTimeString().slice(0, 5)
+const combineDateAndTime = (date, time) => (date && time ? new Date(`${date}T${time}`) : null)
+const money = (value) =>
+    value === undefined || value === null
+        ? '\u2014'
+        : `\u20B9${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+const formatTime = (value) => {
+    if (!value) return 'Select time'
+    const [hour, minute] = value.split(':').map(Number)
+    return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function TimePicker({ label, time, minTime, error, onChange }) {
+    const [open, setOpen] = useState(false)
+    const [draft, setDraft] = useState({ hour: 12, minute: 0, period: 'AM' })
+    const pickerRef = useRef(null)
+    useEffect(() => {
+        const close = (event) => !pickerRef.current?.contains(event.target) && setOpen(false)
+        const escape = (event) => event.key === 'Escape' && setOpen(false)
+        document.addEventListener('mousedown', close)
+        document.addEventListener('keydown', escape)
+        return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape) }
+    }, [])
+    const begin = () => {
+        const [rawHour = 0, minute = 0] = (time || minTime || '00:00').split(':').map(Number)
+        setDraft({ hour: rawHour % 12 || 12, minute, period: rawHour >= 12 ? 'PM' : 'AM' })
+        setOpen(true)
+    }
+    const apply = () => {
+        const hour = Math.min(12, Math.max(1, Number(draft.hour) || 12))
+        const minute = Math.min(59, Math.max(0, Number(draft.minute) || 0))
+        const hour24 = (hour % 12) + (draft.period === 'PM' ? 12 : 0)
+        const next = `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+        onChange(minTime && next < minTime ? minTime : next)
+        setOpen(false)
+    }
+    return <div ref={pickerRef} className="relative"><button type="button" aria-label={`${label} time`} aria-expanded={open} onClick={begin} className={`relative flex h-[53px] w-full items-center rounded-lg border bg-white px-11 text-left text-sm font-medium text-rideon-dark outline-none transition hover:border-rideon-blue/40 focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15 ${error ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200'}`}><Clock3 className="pointer-events-none absolute left-4 size-[18px] text-rideon-blue" /><span>{formatTime(time)}</span><ChevronDown className={`pointer-events-none absolute right-4 size-4 text-rideon-dark transition-transform ${open ? 'rotate-180' : ''}`} /></button>{open && <div className="absolute z-30 mt-2 w-[260px] rounded-xl border border-slate-200 bg-white p-3 shadow-[0_16px_36px_rgba(28,55,113,0.18)]"><p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Select time</p><div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2"><label className="text-xs font-semibold text-slate-500">Hour<input aria-label="Hour" type="number" min="1" max="12" value={draft.hour} onChange={(e) => setDraft((v) => ({ ...v, hour: e.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-center text-sm font-bold outline-none focus:border-rideon-blue" /></label><span className="mb-2 text-lg font-bold text-slate-400">:</span><label className="text-xs font-semibold text-slate-500">Minute<input aria-label="Minute" type="number" min="0" max="59" value={draft.minute} onChange={(e) => setDraft((v) => ({ ...v, minute: e.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 px-3 text-center text-sm font-bold outline-none focus:border-rideon-blue" /></label></div><div className="mt-3 grid grid-cols-2 rounded-lg bg-slate-100 p-1 text-sm font-semibold"><button type="button" onClick={() => setDraft((v) => ({ ...v, period: 'AM' }))} className={`rounded-md py-2 transition ${draft.period === 'AM' ? 'bg-white text-rideon-blue shadow-sm' : 'text-slate-500'}`}>AM</button><button type="button" onClick={() => setDraft((v) => ({ ...v, period: 'PM' }))} className={`rounded-md py-2 transition ${draft.period === 'PM' ? 'bg-white text-rideon-blue shadow-sm' : 'text-slate-500'}`}>PM</button></div><button type="button" onClick={apply} className="mt-3 h-9 w-full rounded-lg bg-rideon-blue text-sm font-semibold text-white transition hover:bg-rideon-blue/90">Apply</button></div>}</div>
+}
+
+const loadRazorpayCheckout = () =>
+    new Promise((resolve) => {
+        if (window.Razorpay) return resolve(true)
+        const existingScript = document.querySelector('script[data-rideon-razorpay]')
+        if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(Boolean(window.Razorpay)), { once: true })
+            existingScript.addEventListener('error', () => resolve(false), { once: true })
+            return
+        }
+        const script = document.createElement('script')
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        script.async = true
+        script.dataset.rideonRazorpay = 'true'
+        script.onload = () => resolve(Boolean(window.Razorpay))
+        script.onerror = () => resolve(false)
+        document.body.appendChild(script)
+    })
+
+function TimeField({ label, date, time, minDate, minTime, error, onDateChange, onTimeChange }) {
+    return (
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <label
+                className={`flex h-[53px] overflow-hidden rounded-lg border bg-white text-sm text-rideon-dark ${error ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200'}`}
+            >
+                <span className="flex w-[84px] shrink-0 items-center border-r border-slate-200 px-4 font-semibold">
+                    {label}
+                </span>
+                <span className="relative flex min-w-0 flex-1 items-center">
+                    <CalendarDays className="pointer-events-none absolute left-4 size-[18px] text-rideon-blue" />
+                    <input
+                        aria-label={`${label} date`}
+                        aria-invalid={error}
+                        required
+                        type="date"
+                        min={minDate}
+                        value={date}
+                        onChange={(event) => onDateChange(event.target.value)}
+                        className="h-full w-full appearance-none bg-transparent pr-3 pl-11 text-sm font-medium outline-none"
+                    />
+                </span>
+            </label>
+            <TimePicker label={label} time={time} minTime={minTime} error={error} onChange={onTimeChange} />
+        </div>
+    )
+}
+
+export default function BookingPage() {
+    const navigate = useNavigate()
+    const { isAuthenticated, user } = useAuth()
+    const { showToast } = useToast()
+    const [vehicle, setVehicle] = useState(null)
+    const [error, setError] = useState('')
+    const [dateError, setDateError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
+    /** 'order' | 'verify' | null — distinguishes payment preparation vs post-pay verification */
+    const [paymentPhase, setPaymentPhase] = useState(null)
+    const [availability, setAvailability] = useState(null)
+    const [orderPricing, setOrderPricing] = useState(null)
+    const [checkingAvailability, setCheckingAvailability] = useState(false)
+    useDocumentTitle('Book a ride')
+    const resultRef = useRef(null)
+    const [helmetCount, setHelmetCount] = useState(0)
+    const initialPickup = useMemo(() => {
+        const value = new Date()
+        value.setMinutes(0, 0, 0)
+        value.setHours(value.getHours() + 1)
+        return { date: toDateInput(value), time: toTimeInput(value) }
+    }, [])
+    const [values, setValues] = useState({
+        pickupDate: initialPickup.date,
+        pickupTime: initialPickup.time,
+        returnDate: toDateInput(new Date()),
+        returnTime: '',
+    })
+    const [summaryOpen, setSummaryOpen] = useState(false)
+
+    useEffect(() => {
+        getVehicles({ isActive: true, limit: 1 })
+            .then((data) => {
+                const representativeVehicle = data?.bikes?.[0]
+                if (!representativeVehicle) throw new Error('No active vehicle available')
+                setVehicle(representativeVehicle)
+            })
+            .catch((requestError) =>
+                setError(getApiErrorMessage(requestError, 'We could not load the vehicle for booking.'))
+            )
+    }, [])
+
+    const pickupAt = combineDateAndTime(values.pickupDate, values.pickupTime)
+    const returnAt = combineDateAndTime(values.returnDate, values.returnTime)
+    const updateValue = (field, value) => {
+        setAvailability(null)
+        setOrderPricing(null)
+        setDateError('')
+        setValues((current) => ({ ...current, [field]: value }))
+    }
+    const updateHelmetCount = (value) => {
+        setAvailability(null)
+        setOrderPricing(null)
+        setHelmetCount(value)
+    }
+
+    const runAvailabilityCheck = async (pickupDateObj, returnDateObj, helmet) => {
+        if (!vehicle?.campusId) return
+        setCheckingAvailability(true)
+        setOrderPricing(null)
+        try {
+            const summary = await checkAvailability({
+                campusId: vehicle.campusId,
+                pickupAt: pickupDateObj.toISOString(),
+                returnAt: returnDateObj.toISOString(),
+                helmetCount: helmet,
+            })
+            setAvailability(summary)
+            // Smooth scroll result into view (mobile-friendly, not aggressive)
+            requestAnimationFrame(() => {
+                const el = resultRef.current
+                if (!el) return
+                const rect = el.getBoundingClientRect()
+                const alreadyVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.55
+                if (!alreadyVisible) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                }
+            })
+            return summary
+        } catch (requestError) {
+            showToast({
+                type: 'error',
+                title: 'Could not check availability',
+                description: getApiErrorMessage(requestError),
+            })
+            throw requestError
+        } finally {
+            setCheckingAvailability(false)
+        }
+    }
+
+    const checkBookingAvailability = async (event) => {
+        event?.preventDefault?.()
+        if (!pickupAt || !returnAt || returnAt <= pickupAt) {
+            setDateError('Return date and time must be after the pickup date and time.')
+            return
+        }
+        if (!isAuthenticated) {
+            navigate('/auth/login', { state: { from: '/booking' } })
+            return
+        }
+        if (checkingAvailability || submitting) return
+
+        try {
+            const summary = await runAvailabilityCheck(pickupAt, returnAt, helmetCount)
+            if (summary && !summary.available) {
+                showToast({
+                    type: 'error',
+                    title: 'No bike available',
+                    description: summary.reason || 'No bike available for your selected time',
+                })
+            }
+        } catch {
+            /* toast already shown */
+        }
+    }
+
+    /** Select backend alternative → update form fields → re-check availability */
+    const selectAlternative = async (alt) => {
+        if (!alt?.pickupAt || !alt?.returnAt || checkingAvailability || submitting) return
+        const nextPickup = new Date(alt.pickupAt)
+        const nextReturn = new Date(alt.returnAt)
+        if (Number.isNaN(nextPickup.getTime()) || Number.isNaN(nextReturn.getTime())) return
+
+        setDateError('')
+        setValues({
+            pickupDate: toDateInputValue(nextPickup),
+            pickupTime: toTimeInputValue(nextPickup),
+            returnDate: toDateInputValue(nextReturn),
+            returnTime: toTimeInputValue(nextReturn),
+        })
+        setAvailability(null)
+
+        if (!isAuthenticated) {
+            navigate('/auth/login', { state: { from: '/booking' } })
+            return
+        }
+
+        try {
+            const summary = await runAvailabilityCheck(nextPickup, nextReturn, helmetCount)
+            if (summary?.available) {
+                showToast({
+                    type: 'success',
+                    title: 'Time available',
+                    description: 'The selected alternative is available. You can continue to payment.',
+                })
+            } else if (summary) {
+                showToast({
+                    type: 'error',
+                    title: 'No bike available',
+                    description: summary.reason || 'Try another alternative.',
+                })
+            }
+        } catch {
+            /* toast already shown */
+        }
+    }
+
+    const submitBooking = async () => {
+        if (!availability?.available) return
+        setSubmitting(true)
+        setPaymentPhase('order')
+        try {
+            const order = await createPaymentOrder({
+                campusId: vehicle.campusId,
+                pickupAt: pickupAt.toISOString(),
+                returnAt: returnAt.toISOString(),
+                helmetCount,
+            })
+            if (order?.pricing) setOrderPricing(order.pricing)
+            const checkoutLoaded = await loadRazorpayCheckout()
+            if (!checkoutLoaded) throw new Error('Razorpay Checkout could not be loaded. Please try again.')
+
+            let paymentFlowEnded = false
+            const failPayment = (message) => {
+                if (paymentFlowEnded) return
+                paymentFlowEnded = true
+                setSubmitting(false)
+                setPaymentPhase(null)
+                markPaymentFailed(order.orderId).catch(() => {})
+                navigate('/payment-failed', { state: { message } })
+            }
+
+            const checkout = new window.Razorpay({
+                key: order.keyId,
+                amount: order.amountInPaise,
+                currency: order.currency,
+                name: 'RideOn',
+                description: 'Bike rental booking',
+                order_id: order.orderId,
+                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
+                theme: { color: '#0764f5' },
+                handler: async (response) => {
+                    setSubmitting(true)
+                    setPaymentPhase('verify')
+                    try {
+                        const result = await verifyPayment({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        })
+                        paymentFlowEnded = true
+                        // Keep loader visible until navigation completes
+                        navigate(`/booking-success/${result.booking.id}`, {
+                            state: { booking: result.booking, payment: result.payment },
+                        })
+                    } catch (requestError) {
+                        failPayment(
+                            getApiErrorMessage(
+                                requestError,
+                                'Payment verification failed. Please contact support if money was deducted.'
+                            )
+                        )
+                    }
+                },
+                modal: {
+                    ondismiss: () => failPayment('Payment was cancelled before completion. No booking has been created.'),
+                },
+            })
+
+            checkout.on('payment.failed', (response) =>
+                failPayment(response.error?.description || 'Your payment could not be completed.')
+            )
+            checkout.open()
+            // Hide overlay while Razorpay checkout is open
+            setSubmitting(false)
+            setPaymentPhase(null)
+        } catch (requestError) {
+            showToast({ type: 'error', title: 'Could not start payment', description: getApiErrorMessage(requestError) })
+            setSubmitting(false)
+            setPaymentPhase(null)
+        }
+    }
+
+    if (error)
+        return (
+            <div className="px-4 pt-28">
+                <ErrorState message={error} />
+            </div>
+        )
+    if (!vehicle)
+        return (
+            <div className="mx-auto max-w-7xl px-4 pt-28">
+                <SkeletonCard className="h-[43rem]" />
+            </div>
+        )
+
+    const image = vehicle.imageUrls?.[0]
+    const vehicleName = vehicle.name || `${vehicle.brand || ''} ${vehicle.model || ''}`.trim()
+
+    return (
+        <div className="min-h-screen bg-[#fcfdff] pb-28 pt-24 text-[#081440] md:pb-12 sm:pt-28">
+            <FullPageLoader
+                open={checkingAvailability}
+                message="Checking availability…"
+                subMessage="Finding an available bike for your selected time."
+            />
+            <FullPageLoader
+                open={submitting && paymentPhase === 'order'}
+                message="Preparing payment…"
+                subMessage="Creating your order. Razorpay will open next."
+            />
+            <FullPageLoader
+                open={submitting && paymentPhase === 'verify'}
+                message="Confirming your payment…"
+                subMessage="Verifying with the payment gateway. You’ll be redirected shortly."
+            />
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_495px] xl:items-start">
+                    <main>
+                        <Link
+                            to="/vehicles"
+                            className="inline-flex items-center gap-2 text-[15px] font-semibold text-rideon-blue"
+                        >
+                            <ArrowLeft className="size-[18px]" />
+                            Back to vehicles
+                        </Link>
+                        <h1 className="mt-4 text-[31px] font-extrabold leading-none tracking-[-0.04em] sm:text-[34px]">
+                            Book your ride
+                        </h1>
+                        <p className="mt-2 text-[15px] text-[#344879]">
+                            Select your ride time and we&apos;ll check availability for you.
+                        </p>
+
+                        <form
+                            onSubmit={checkBookingAvailability}
+                            className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] sm:p-6"
+                        >
+                            <div className="flex items-center gap-4">
+                                <span className="flex size-[29px] items-center justify-center rounded-full bg-rideon-blue text-sm font-bold text-white">
+                                    1
+                                </span>
+                                <h2 className="text-[16px] font-bold">Select ride time</h2>
+                            </div>
+                            <div className="mt-6 space-y-4">
+                                <TimeField
+                                    label="Pickup"
+                                    date={values.pickupDate}
+                                    time={values.pickupTime}
+                                    minDate={initialPickup.date}
+                                    error={Boolean(dateError)}
+                                    onDateChange={(value) => updateValue('pickupDate', value)}
+                                    onTimeChange={(value) => updateValue('pickupTime', value)}
+                                />
+                                <TimeField
+                                    label="Return"
+                                    date={values.returnDate}
+                                    time={values.returnTime}
+                                    minDate={values.pickupDate}
+                                    minTime={values.returnDate === values.pickupDate ? values.pickupTime : undefined}
+                                    error={Boolean(dateError)}
+                                    onDateChange={(value) => updateValue('returnDate', value)}
+                                    onTimeChange={(value) => updateValue('returnTime', value)}
+                                />
+                            </div>
+                            {dateError && (
+                                <p role="alert" className="mt-3 text-sm font-medium text-red-600">
+                                    {dateError}
+                                </p>
+                            )}
+                            <fieldset className="mt-5 rounded-lg border border-[#bde8c9] bg-[#fcfffd] p-4">
+                                <legend className="sr-only">Helmet selection</legend>
+                                <div className="flex items-center gap-3">
+                                    <span className="flex size-9 items-center justify-center rounded-full bg-green-50 text-rideon-green">
+                                        <HardHat className="size-5" />
+                                    </span>
+                                    <h3 className="text-[16px] font-bold text-[#0b1742]">Helmet</h3>
+                                </div>
+                                <div className="mt-3 space-y-2">
+                                    {[0, 1, 2].map((count) => (
+                                        <label
+                                            key={count}
+                                            className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors ${helmetCount === count ? 'bg-blue-50 text-[#0b1742]' : 'text-[#344879] hover:bg-slate-50'}`}
+                                        >
+                                            <span className="flex items-center gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="helmetCount"
+                                                    value={count}
+                                                    checked={helmetCount === count}
+                                                    onChange={() => updateHelmetCount(count)}
+                                                    className="size-4 accent-rideon-blue"
+                                                />
+                                                {count === 0 ? 'No helmet' : count === 1 ? '1 helmet' : '2 helmets'}
+                                            </span>
+                                            {count === 0 ? (
+                                                <span className="text-xs font-semibold text-slate-500">No charge</span>
+                                            ) : availability ? (
+                                                <span className="font-semibold text-rideon-green">
+                                                    {count === helmetCount
+                                                        ? money(availability.helmetAmount)
+                                                        : count === 1
+                                                          ? money(availability.helmetFirstPrice)
+                                                          : money(availability.helmetSecondPrice)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-500">Price after availability</span>
+                                            )}
+                                        </label>
+                                    ))}
+                                </div>
+                            </fieldset>
+                            <div className="mt-5 flex min-h-11 items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 text-[13px] text-[#344879]">
+                                <Info className="size-5 shrink-0 text-rideon-blue" />
+                                Minimum rental duration is 1 hour. Maximum rental duration is 72 hours.
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={submitting || checkingAvailability}
+                                className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]"
+                            >
+                                {checkingAvailability ? (
+                                    'Checking availability…'
+                                ) : (
+                                    <>
+                                        <Search className="size-[18px]" />
+                                        Check availability
+                                    </>
+                                )}
+                            </Button>
+                        </form>
+
+                        {availability && (
+                            <section
+                                ref={resultRef}
+                                className="mt-4 hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] rideon-fade-in md:block sm:p-6"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <span className="flex size-[29px] items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">
+                                        2
+                                    </span>
+                                    <h2 className="text-[16px] font-bold">Availability result</h2>
+                                </div>
+                                {availability.available ? (
+                                    <>
+                                        <div className="mt-5 overflow-hidden rounded-lg border border-[#a9dfb9]">
+                                            <div className="flex items-center gap-4 border-b border-[#a9dfb9] bg-[#f2fff5] px-6 py-4 text-[15px] font-semibold text-[#138a34]">
+                                                <CheckCircle2 className="size-6 fill-[#20a64b] text-white" />
+                                                Great! A bike is available for the chosen time.
+                                            </div>
+                                            <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+                                                <div className="flex min-w-0 flex-1 items-center gap-5">
+                                                    <div className="flex size-32 shrink-0 items-center justify-center overflow-hidden">
+                                                        {image ? (
+                                                            <img
+                                                                src={image}
+                                                                alt={vehicleName}
+                                                                className="h-full w-full object-contain"
+                                                            />
+                                                        ) : (
+                                                            <Settings2 className="size-9 text-rideon-blue/40" />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="inline-flex rounded-md bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">
+                                                            Available
+                                                        </span>
+                                                        <h3 className="mt-2 truncate text-[18px] font-bold">
+                                                            {vehicleName}
+                                                        </h3>
+                                                        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-[#344879]">
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <MapPin className="size-4 text-rideon-blue" />
+                                                                {vehicle.campus?.name || 'Campus pickup'}
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <Settings2 className="size-4 text-[#344879]" />
+                                                                {vehicle.model || 'Automatic'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className="inline-flex shrink-0 items-center gap-3 rounded-md bg-[#f2fff5] px-4 py-3 text-[13px] font-medium text-[#138a34]">
+                                                    <CheckCircle2 className="size-5" />
+                                                    Confirmed for selected time
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex justify-end">
+                                            <Button
+                                                type="button"
+                                                onClick={submitBooking}
+                                                disabled={submitting}
+                                                variant="outline"
+                                                className="h-10 rounded-lg border-[#a9c9ff] px-5 text-[14px] font-semibold text-rideon-blue hover:bg-blue-50"
+                                            >
+                                                Continue to payment <ArrowRight className="size-[18px]" />
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="mt-5 rideon-slide-up space-y-4">
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                                            <p className="font-semibold">No bike available for your selected time</p>
+                                            <p className="mt-1 text-amber-800/90">
+                                                {availability.reason || 'Try one of the alternative times below.'}
+                                            </p>
+                                            {availability.bookingBufferMinutes != null && (
+                                                <p className="mt-2 text-xs text-amber-700/80">
+                                                    Booking buffer: {availability.bookingBufferMinutes} minutes between rides
+                                                </p>
+                                            )}
+                                        </div>
+                                        {Array.isArray(availability.alternatives) && availability.alternatives.length > 0 ? (
+                                            <div>
+                                                <h3 className="mb-3 text-sm font-bold text-[#0b1742]">Alternative times</h3>
+                                                <ul className="grid gap-2 sm:grid-cols-2">
+                                                    {availability.alternatives.map((alt, index) => (
+                                                        <li key={`${alt.pickupAt}-${alt.returnAt}-${index}`}>
+                                                            <button
+                                                                type="button"
+                                                                disabled={checkingAvailability || submitting}
+                                                                onClick={() => selectAlternative(alt)}
+                                                                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-rideon-blue hover:bg-blue-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rideon-blue/40 disabled:opacity-60"
+                                                            >
+                                                                <span className="min-w-0">
+                                                                    <span className="block text-xs font-semibold text-slate-400">
+                                                                        {formatDisplayDate(alt.pickupAt)}
+                                                                        {alt.sameDuration ? ' · Same duration' : alt.durationHours != null ? ` · ${alt.durationHours}h` : ''}
+                                                                    </span>
+                                                                    <span className="mt-0.5 block text-sm font-semibold text-[#0b1742]">
+                                                                        {formatDisplayTime(alt.pickupAt)} – {formatDisplayTime(alt.returnAt)}
+                                                                    </span>
+                                                                </span>
+                                                                <span className="shrink-0 text-sm font-semibold text-rideon-blue group-hover:underline">
+                                                                    Select →
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500">No alternative times available right now. Try a different day or duration.</p>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="mt-4 flex items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 py-3 text-[13px] text-[#344879]">
+                                    <Info className="size-5 shrink-0 text-rideon-blue" />
+                                    Price is calculated automatically based on the nearest eligible rental package.
+                                </div>
+                            </section>
+                        )}
+
+                        {availability && (
+                            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(28,55,113,0.035)] rideon-fade-in md:hidden">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex size-7 items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">
+                                        2
+                                    </span>
+                                    <h2 className="text-[15px] font-bold">Availability result</h2>
+                                </div>
+                                {availability.available ? (
+                                    <>
+                                        <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]">
+                                            <span className="flex items-center gap-2">
+                                                <CheckCircle2 className="size-5" />
+                                                Great! A bike is available for the chosen time.
+                                            </span>
+                                        </div>
+                                        <div className="mt-4 flex items-center gap-4">
+                                            <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100">
+                                                {image ? (
+                                                    <img
+                                                        src={image}
+                                                        alt={vehicleName}
+                                                        className="size-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <Settings2 className="size-7 text-rideon-blue/40" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <span className="rounded bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">
+                                                    Available
+                                                </span>
+                                                <h3 className="mt-2 truncate text-[16px] font-bold">{vehicleName}</h3>
+                                                <p className="mt-1 flex items-center gap-1.5 text-xs text-[#40537e]">
+                                                    <MapPin className="size-3.5 text-rideon-blue" />
+                                                    {vehicle.campus?.name || 'Campus pickup'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 rounded-lg border border-[#dbe6fa] bg-[#f7faff] px-4 py-3">
+                                            <div className="flex items-center justify-between text-xs text-[#40537e]">
+                                                <span>Subtotal + GST</span>
+                                                <span>
+                                                    {money(availability.subtotal)} + {money(availability.gstAmount)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 flex items-center justify-between">
+                                                <span className="text-sm font-semibold">Total amount</span>
+                                                <strong className="text-xl text-rideon-blue">
+                                                    {money(availability.totalAmountWithHelmet ?? availability.totalAmount)}
+                                                </strong>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSummaryOpen(true)}
+                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#a9c9ff] py-3 text-sm font-semibold text-rideon-blue"
+                                        >
+                                            View booking details <ChevronDown className="size-4" />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="mt-4 rideon-slide-up space-y-3">
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                            <p className="font-semibold">No bike available for your selected time</p>
+                                            <p className="mt-1 text-xs text-amber-800/90">
+                                                {availability.reason || 'Choose an alternative below.'}
+                                            </p>
+                                        </div>
+                                        {Array.isArray(availability.alternatives) && availability.alternatives.length > 0 ? (
+                                            <div className="space-y-2">
+                                                <h3 className="text-sm font-bold text-[#0b1742]">Alternative times</h3>
+                                                {availability.alternatives.map((alt, index) => (
+                                                    <button
+                                                        key={`m-${alt.pickupAt}-${index}`}
+                                                        type="button"
+                                                        disabled={checkingAvailability || submitting}
+                                                        onClick={() => selectAlternative(alt)}
+                                                        className="flex w-full flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-rideon-blue/40 disabled:opacity-60"
+                                                    >
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            Alternative
+                                                        </span>
+                                                        <span className="text-sm font-bold text-[#0b1742]">
+                                                            {formatDisplayDate(alt.pickupAt)}
+                                                        </span>
+                                                        <span className="text-sm font-semibold text-[#0b1742]">
+                                                            {formatDisplayTime(alt.pickupAt)} – {formatDisplayTime(alt.returnAt)}
+                                                        </span>
+                                                        {alt.durationHours != null && (
+                                                            <span className="text-xs text-slate-500">{alt.durationHours} hour{alt.durationHours === 1 ? '' : 's'}</span>
+                                                        )}
+                                                        <span className="mt-1 text-sm font-semibold text-rideon-blue">Select →</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500">No alternatives available. Try another time.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        <section className="mt-4 flex flex-col gap-4 rounded-lg border border-[#f3cf85] bg-[#fffaf0] p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex gap-4">
+                                <ShieldCheck className="mt-0.5 size-8 shrink-0 text-[#cf8200]" />
+                                <div>
+                                    <h2 className="text-[15px] font-bold">Cancellation policy</h2>
+                                    <p className="mt-1 text-[13px] text-[#46577f]">
+                                        You can cancel your booking anytime before payment. Once confirmed, cancellations
+                                        are subject to policy.
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 shrink-0 rounded-lg border-[#f3d9a8] bg-white px-5 text-[14px] text-[#1d294b]"
+                            >
+                                <FileText className="size-[18px]" />
+                                View policy
+                            </Button>
+                        </section>
+                    </main>
+                    <BookingSummary
+                        className="hidden md:block"
+                        vehicle={vehicle}
+                        pickupAt={pickupAt?.toISOString()}
+                        returnAt={returnAt?.toISOString()}
+                        availability={availability}
+                        orderPricing={orderPricing}
+                        status={availability?.available ? 'AVAILABLE' : undefined}
+                    />
+                </div>
+            </div>
+            {availability?.available && (
+                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                    <Button
+                        type="button"
+                        onClick={submitBooking}
+                        disabled={submitting || checkingAvailability}
+                        className="h-12 w-full rounded-lg bg-[#0764f5] text-[15px] font-semibold text-white hover:bg-[#075be0]"
+                    >
+                        {submitting ? (
+                            'Processing payment…'
+                        ) : (
+                            <>
+                                Continue to payment <ArrowRight className="size-[18px]" />
+                            </>
+                        )}
+                    </Button>
+                </div>
+            )}
+            {summaryOpen && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-end bg-slate-950/30 p-0 md:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Booking details"
+                    onMouseDown={() => setSummaryOpen(false)}
+                >
+                    <div
+                        className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-6 shadow-2xl"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
+                        <div className="mb-3 flex items-center justify-between">
+                            <h2 className="text-lg font-bold">Booking details</h2>
+                            <button
+                                type="button"
+                                aria-label="Close booking details"
+                                onClick={() => setSummaryOpen(false)}
+                                className="rounded-md p-1 text-[#081440]"
+                            >
+                                <X className="size-5" />
+                            </button>
+                        </div>
+                        <BookingSummary
+                            className="border-0 p-0 shadow-none"
+                            vehicle={vehicle}
+                            pickupAt={pickupAt?.toISOString()}
+                            returnAt={returnAt?.toISOString()}
+                            availability={availability}
+                            orderPricing={orderPricing}
+                            status={availability?.available ? 'AVAILABLE' : undefined}
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}

@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const createBikeSchema = z.object({
   campusId: z.string().min(1),
   registrationNumber: z.string().min(1),
+  bikeNumber: z.string().min(1).max(32).optional(),
   name: z.string().min(1),
   brand: z.string().min(1),
   model: z.string().min(1),
@@ -15,6 +16,7 @@ export const createBikeSchema = z.object({
 export const updateBikeSchema = z.object({
   campusId: z.string().min(1).optional(),
   registrationNumber: z.string().min(1).optional(),
+  bikeNumber: z.string().min(1).max(32).nullable().optional(),
   name: z.string().min(1).optional(),
   brand: z.string().min(1).optional(),
   model: z.string().min(1).optional(),

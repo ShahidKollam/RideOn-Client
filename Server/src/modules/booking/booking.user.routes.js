@@ -5,6 +5,7 @@ import {
   checkAvailabilityController,
   getBookingsController,
   getBookingController,
+  previewCancelBookingController,
   cancelBookingController,
 } from './booking.controller.js';
 import { validate } from '../../middlewares/validation.middleware.js';
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post('/check-availability', protect, validate(checkAvailabilitySchema), checkAvailabilityController);
 router.post('/', protect, validate(createBookingSchema), createBookingController);
 router.get('/', protect, getBookingsController);
+router.get('/:id/cancellation-preview', protect, previewCancelBookingController);
 router.get('/:id', protect, getBookingController);
 router.patch('/:id/cancel', protect, cancelBookingController);
 

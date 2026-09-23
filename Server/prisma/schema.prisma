@@ -108,6 +108,7 @@ model Bike {
   id                 String     @id @default(cuid())
   campusId           String
   registrationNumber String     @unique
+  bikeNumber         String?    @unique
   name               String
   brand              String
   model              String
@@ -126,6 +127,7 @@ model Bike {
   @@index([campusId])
   @@index([status])
   @@index([isActive])
+  @@index([bikeNumber])
   @@map("bikes")
 }
 
@@ -187,10 +189,28 @@ model Booking {
   actualKm       Int?
   extraKm        Int?
   extraKmCharge  Float?
-  lateFee        Float?
+  lateFee              Float?
+  lateDurationMinutes  Int?
+  disruptionPenalty    Float?
+  lateFeeApplied       Boolean       @default(false)
+  disruptionPenaltyApplied Boolean   @default(false)
   pickedUpAt     DateTime?
   returnedAt     DateTime?
   notes          String?
+
+  // Cancellation / refund (backend source of truth)
+  cancelledAt                DateTime?
+  cancelledBy                String? // CUSTOMER | ADMIN
+  cancelledByAdminId         String?
+  cancellationPercentage     Float?
+  cancellationAmount         Float?
+  originalCancellationAmount Float?
+  refundAmount               Float?
+  refundStatus               String? // NONE | PENDING | SUCCESS | FAILED | NOT_APPLICABLE
+  refundedAt                 DateTime?
+  refundGatewayId            String? // Razorpay refund id when applicable
+  adminAdjustedRefundAmount  Float?
+  adminAdjustmentReason      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -245,6 +265,16 @@ model SystemSetting {
   helmetSecondPrice Float @default(0)
   lateHelmetFee     Float @default(0)
 
+  // Configurable booking buffer (minutes) between bookings
+  bookingBufferMinutes Int @default(15)
+
+  // Admin-configurable disruption penalty (separate from late rental charge)
+  disruptionPenalty Float @default(150)
+
+  // Cancellation policy (JSON). See DEFAULT_CANCELLATION_POLICY in cancellation.service.
+  // Shape: { enabled: boolean, rules: [{ hours: number, percent: number }, ...] }
+  cancellationPolicy Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -294,11 +324,28 @@ model Admin {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   auditLogs    AuditLog[]
+  refreshTokens AdminRefreshToken[]
 
   @@index([email])
   @@index([roleId])
   @@index([isActive])
   @@map("admins")
+}
+
+/// Admin-only refresh sessions (isolated from customer RefreshToken)
+model AdminRefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ipAddress String?
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_refresh_tokens")
 }
 
 model Role {

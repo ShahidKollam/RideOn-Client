@@ -6,12 +6,21 @@ import prisma from '../../../config/prisma.js'
 import ApiError from '../../../utils/ApiError.js'
 import { randomUUID } from 'crypto'
 import { calculateHelmetAmount } from '../../settings/settings.service.js'
+import { findPricingByDuration } from '../../booking/pricing.service.js'
+import { getBookingBufferMinutes } from '../../settings/settings.service.js'
 
 const ADMIN_CANCELLABLE = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'NO_SHOW']
 const BOOKING_INCLUDE = {
     user: { select: { id: true, name: true, email: true, phone: true } },
     bike: {
-        select: { id: true, name: true, registrationNumber: true, status: true, currentOdometer: true },
+        select: {
+            id: true,
+            name: true,
+            registrationNumber: true,
+            bikeNumber: true,
+            status: true,
+            currentOdometer: true,
+        },
     },
     campus: { select: { id: true, name: true } },
     pricing: { select: { id: true, packageName: true, durationHours: true } },
@@ -21,10 +30,13 @@ const BOOKING_INCLUDE = {
             id: true,
             status: true,
             amount: true,
+            gateway: true,
             gatewayOrderId: true,
+            gatewayPaymentId: true,
             paymentMethod: true,
             paidAt: true,
             createdAt: true,
+            gatewayResponse: true,
         },
     },
 }
@@ -38,52 +50,51 @@ const withPaymentSummary = (booking, settings) => {
 
     const totalAmount = Number(booking.totalAmount || 0)
 
-    // GST from the original booking
     const originalTaxableAmount =
         Number(booking.baseAmount || 0) +
         Number(settings?.platformFeeEnabled ? settings.platformFee : 0) +
         Number(booking.helmetAmount || 0)
 
     const originalGstAmount = settings?.gstEnabled
-        ? Number(
-              (
-                  (originalTaxableAmount * Number(settings.gstRate)) /
-                  100
-              ).toFixed(2)
-          )
+        ? Number(((originalTaxableAmount * Number(settings.gstRate)) / 100).toFixed(2))
         : 0
 
-    // GST added after return
     const additionalTaxableAmount =
         Number(booking.extraKmCharge || 0) +
         Number(booking.lateFee || 0) +
-        Number(booking.lateHelmetFee || 0)
+        Number(booking.lateHelmetFee || 0) +
+        Number(booking.disruptionPenalty || 0)
 
     const additionalGstAmount = settings?.gstEnabled
-        ? Number(
-              (
-                  (additionalTaxableAmount * Number(settings.gstRate)) /
-                  100
-              ).toFixed(2)
-          )
+        ? Number(((additionalTaxableAmount * Number(settings.gstRate)) / 100).toFixed(2))
         : 0
 
-    const gstAmount = Number(
-        (originalGstAmount + additionalGstAmount).toFixed(2)
-    )
+    const gstAmount = Number((originalGstAmount + additionalGstAmount).toFixed(2))
+
+    const isLate =
+        booking.status === 'ACTIVE' &&
+        booking.returnAt &&
+        new Date() > new Date(booking.returnAt)
+
+    let lateDurationMinutes = booking.lateDurationMinutes ?? null
+    if (isLate && lateDurationMinutes == null) {
+        lateDurationMinutes = Math.max(
+            0,
+            Math.ceil((Date.now() - new Date(booking.returnAt).getTime()) / (60 * 1000))
+        )
+    }
 
     return {
         ...booking,
-
         gstAmount,
         originalGstAmount,
         additionalGstAmount,
         platformAmount: Number(settings?.platformFeeEnabled ? settings.platformFee : 0),
+        isLate: Boolean(isLate || (booking.lateDurationMinutes && booking.lateDurationMinutes > 0)),
+        lateDurationMinutes,
         paymentSummary: {
             paidAmount: Number(paidAmount.toFixed(2)),
-            outstandingAmount: Number(
-                Math.max(0, totalAmount - paidAmount).toFixed(2)
-            ),
+            outstandingAmount: Number(Math.max(0, totalAmount - paidAmount).toFixed(2)),
         },
     }
 }
@@ -97,8 +108,90 @@ function bookingNumber() {
     return `BK${y}${m}${day}${r}`
 }
 
+/**
+ * Compute late charges using existing pricing package logic (same duration rules).
+ * Does NOT apply them — admin chooses via applyLateFee / applyDisruptionPenalty.
+ */
+export const computeLateCharges = async (booking, settings, asOf = new Date()) => {
+    const scheduledReturn = new Date(booking.returnAt)
+    const lateMs = asOf.getTime() - scheduledReturn.getTime()
+    const lateDurationMinutes = lateMs > 0 ? Math.ceil(lateMs / (60 * 1000)) : 0
+
+    let calculatedLateRental = 0
+    let latePricingInfo = null
+
+    if (lateDurationMinutes > 0) {
+        // Convert late minutes to billable hours (ceil), min 1h when any lateness
+        const lateHours = Math.max(1, Math.ceil(lateDurationMinutes / 60))
+        try {
+            const latePricing = await findPricingByDuration(lateHours, booking.campusId)
+            calculatedLateRental = Number(latePricing.price) || 0
+            latePricingInfo = {
+                durationHours: lateHours,
+                packageName: latePricing.packageName || latePricing._packageName,
+                price: calculatedLateRental,
+                composed: Boolean(latePricing._composed),
+            }
+        } catch {
+            // No matching package — leave calculatedLateRental at 0
+            calculatedLateRental = 0
+        }
+    }
+
+    const disruptionPenaltyAmount = Number(settings?.disruptionPenalty ?? 150)
+
+    // Detect whether another confirmed/active booking is affected by this late return
+    let affectedBooking = null
+    if (booking.bikeId && lateDurationMinutes > 0) {
+        const bufferMinutes = await getBookingBufferMinutes()
+        const bufferStart = new Date(scheduledReturn.getTime() - bufferMinutes * 60 * 1000)
+        const conflict = await prisma.booking.findFirst({
+            where: {
+                bikeId: booking.bikeId,
+                id: { not: booking.id },
+                status: { in: ['CONFIRMED', 'ACTIVE', 'PAYMENT_PENDING'] },
+                pickupAt: { lt: asOf },
+                returnAt: { gt: bufferStart },
+            },
+            select: {
+                id: true,
+                bookingNumber: true,
+                pickupAt: true,
+                returnAt: true,
+                status: true,
+                user: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { pickupAt: 'asc' },
+        })
+        if (conflict) {
+            affectedBooking = conflict
+        }
+    }
+
+    return {
+        lateDurationMinutes,
+        calculatedLateRental: Number(calculatedLateRental.toFixed(2)),
+        latePricingInfo,
+        disruptionPenaltyAmount: Number(disruptionPenaltyAmount.toFixed(2)),
+        affectedBooking,
+        isLate: lateDurationMinutes > 0,
+    }
+}
+
 export const listBookings = async (query) => {
-    const { page = 1, limit = 20, status, paymentStatus, campusId, userId, bikeId, search, from, to } = query
+    const {
+        page = 1,
+        limit = 20,
+        status,
+        paymentStatus,
+        campusId,
+        userId,
+        bikeId,
+        search,
+        from,
+        to,
+        lateOnly,
+    } = query
 
     const where = {}
     if (status) where.status = status
@@ -116,6 +209,21 @@ export const listBookings = async (query) => {
             { bookingNumber: { contains: search, mode: 'insensitive' } },
             { user: { email: { contains: search, mode: 'insensitive' } } },
             { user: { name: { contains: search, mode: 'insensitive' } } },
+            { bike: { bikeNumber: { contains: search, mode: 'insensitive' } } },
+        ]
+    }
+
+    // Late returns: ACTIVE past returnAt, or COMPLETED with lateDurationMinutes > 0
+    if (lateOnly) {
+        where.OR = [
+            ...(where.OR || []),
+            {
+                status: 'ACTIVE',
+                returnAt: { lt: new Date() },
+            },
+            {
+                lateDurationMinutes: { gt: 0 },
+            },
         ]
     }
 
@@ -154,7 +262,26 @@ export const getBookingById = async (id) => {
 
     if (!booking) throw new ApiError(404, 'Booking not found')
 
-    return withPaymentSummary(booking, settings)
+    const summary = withPaymentSummary(booking, settings)
+
+    // Attach live late-charge preview for ACTIVE overdue bookings
+    if (booking.status === 'ACTIVE' && new Date() > new Date(booking.returnAt)) {
+        const lateInfo = await computeLateCharges(booking, settings)
+        summary.lateChargePreview = lateInfo
+    }
+
+    // Cancellation eligibility + amounts (backend-calculated)
+    try {
+        const { getCancellationPolicy, buildCancellationInfo } = await import(
+            '../../booking/cancellation.service.js'
+        )
+        const policy = await getCancellationPolicy()
+        summary.cancellation = buildCancellationInfo(booking, policy, 'ADMIN')
+    } catch (e) {
+        summary.cancellation = null
+    }
+
+    return summary
 }
 
 export const createBooking = async (data) => {
@@ -180,15 +307,11 @@ export const createBooking = async (data) => {
 
     const baseAmount = Number(pricing.price)
     const depositAmount = Number(pricing.depositAmount)
-
-    // const settings = await prisma.systemSetting.findFirst()
-
     const platformFee = settings?.platformFeeEnabled ? Number(settings.platformFee) || 0 : 0
-
     const subtotal = Number((baseAmount + platformFee + helmetAmount).toFixed(2))
-
-    const gstAmount = settings?.gstEnabled ? Number(((subtotal * Number(settings.gstRate)) / 100).toFixed(2)) : 0
-
+    const gstAmount = settings?.gstEnabled
+        ? Number(((subtotal * Number(settings.gstRate)) / 100).toFixed(2))
+        : 0
     const totalAmount = Number((subtotal + gstAmount + depositAmount).toFixed(2))
 
     if (bikeId) {
@@ -214,7 +337,6 @@ export const createBooking = async (data) => {
             depositAmount,
             discountAmount: 0,
             totalAmount,
-            platformAmount: platformFee,
             includedKm: pricing.includedKm,
             extraKmRate: pricing.extraKmRate,
             helmetCount,
@@ -272,7 +394,9 @@ export const pickupBooking = async (id, pickupOdometer) => {
     })
 }
 
-export const returnBooking = async (id, returnOdometer) => {
+export const returnBooking = async (id, returnOdometer, options = {}) => {
+    const { applyLateFee = false, applyDisruptionPenalty = false } = options
+
     const booking = await prisma.booking.findUnique({
         where: { id },
         include: { bike: true },
@@ -293,23 +417,31 @@ export const returnBooking = async (id, returnOdometer) => {
     const extraKmCharge = Number((extraKm * booking.extraKmRate).toFixed(2))
 
     const now = new Date()
-    const isLate = now > new Date(booking.returnAt)
+    const settings = await prisma.systemSetting.findFirst()
+
+    const lateInfo = await computeLateCharges(booking, settings, now)
+
     let lateHelmetFee = 0
-    if (isLate && (booking.helmetCount || 0) > 0) {
-        const settings = await prisma.systemSetting.findFirst()
+    if (lateInfo.isLate && (booking.helmetCount || 0) > 0) {
         lateHelmetFee = Number(settings?.lateHelmetFee) || 0
     }
 
-    const lateFee = 0
-    const additionalSubtotal = Number((extraKmCharge + lateFee + lateHelmetFee).toFixed(2))
+    // Admin-controlled application of charges
+    const lateFee = applyLateFee ? lateInfo.calculatedLateRental : 0
+    const disruptionPenalty = applyDisruptionPenalty ? lateInfo.disruptionPenaltyAmount : 0
 
-    const settings = await prisma.systemSetting.findFirst()
+    const additionalSubtotal = Number(
+        (extraKmCharge + lateFee + lateHelmetFee + disruptionPenalty).toFixed(2)
+    )
 
     const additionalGstAmount = settings?.gstEnabled
         ? Number(((additionalSubtotal * Number(settings.gstRate)) / 100).toFixed(2))
         : 0
 
-    const finalTotal = Number((booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2))
+    const finalTotal = Number(
+        (booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2)
+    )
+
     return prisma.$transaction(async (tx) => {
         if (booking.bikeId) {
             await tx.bike.update({
@@ -320,14 +452,17 @@ export const returnBooking = async (id, returnOdometer) => {
                 },
             })
         }
+
         const paidAmount = (
             await tx.payment.findMany({
                 where: { bookingId: id, status: 'PAID' },
                 select: { amount: true },
             })
         ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+
         const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
-        return tx.booking.update({
+
+        const updated = await tx.booking.update({
             where: { id },
             data: {
                 returnOdometer,
@@ -337,12 +472,26 @@ export const returnBooking = async (id, returnOdometer) => {
                 extraKmCharge,
                 lateFee,
                 lateHelmetFee,
+                lateDurationMinutes: lateInfo.lateDurationMinutes,
+                disruptionPenalty: disruptionPenalty || null,
+                lateFeeApplied: Boolean(applyLateFee && lateFee > 0),
+                disruptionPenaltyApplied: Boolean(applyDisruptionPenalty && disruptionPenalty > 0),
                 totalAmount: finalTotal,
                 paymentStatus,
                 status: 'COMPLETED',
             },
             include: BOOKING_INCLUDE,
         })
+
+        return {
+            ...withPaymentSummary(updated, settings),
+            lateChargeDetails: {
+                ...lateInfo,
+                appliedLateFee: lateFee,
+                appliedDisruptionPenalty: disruptionPenalty,
+                lateHelmetFee,
+            },
+        }
     })
 }
 
@@ -381,27 +530,111 @@ export const collectAdditionalPayment = async (id, { paymentMethod, reference })
     })
 }
 
-export const cancelBooking = async (id) => {
-    const booking = await prisma.booking.findUnique({
-        where: { id },
-        include: { bike: true },
-    })
-    if (!booking) throw new ApiError(404, 'Booking not found')
-    if (!ADMIN_CANCELLABLE.includes(booking.status)) {
-        throw new ApiError(400, `Cannot cancel booking in status ${booking.status}`)
-    }
+/**
+ * Admin cancellation.
+ * @param {string} id - booking id
+ * @param {object} opts
+ * @param {boolean} [opts.applyCancellationFee=true]
+ * @param {number|null} [opts.adjustedRefundAmount]
+ * @param {string|null} [opts.adjustmentReason]
+ * @param {string|null} [opts.adminId]
+ */
+export const cancelBooking = async (id, opts = {}) => {
+    const {
+        applyCancellationFee = true,
+        adjustedRefundAmount = null,
+        adjustmentReason = null,
+        adminId = null,
+    } = opts
 
-    return prisma.$transaction(async (tx) => {
-        if (booking.bikeId && booking.status === 'ACTIVE') {
-            await tx.bike.update({
-                where: { id: booking.bikeId },
-                data: { status: 'AVAILABLE' },
-            })
-        }
-        return tx.booking.update({
-            where: { id },
-            data: { status: 'CANCELLED' },
-            include: BOOKING_INCLUDE,
-        })
+    const { executeCancellation, buildCancellationInfo, getCancellationPolicy } = await import(
+        '../../booking/cancellation.service.js'
+    )
+
+    const result = await executeCancellation({
+        bookingId: id,
+        adminId,
+        actor: 'ADMIN',
+        applyCancellationFee: applyCancellationFee !== false,
+        adjustedRefundAmount,
+        adjustmentReason,
     })
+
+    const policy = await getCancellationPolicy()
+    const summary = result.booking
+    return {
+        ...summary,
+        cancellation: {
+            ...result.calculation,
+            ...buildCancellationInfo(result.booking, policy, 'ADMIN'),
+        },
+        alreadyCancelled: result.alreadyCancelled,
+    }
+}
+
+/**
+ * Admin records physical cash refund after cancellation.
+ */
+export const recordCashRefund = async (id, adminId, body = {}) => {
+    const { recordCashRefund: record } = await import('../../booking/cancellation.service.js')
+    return record(id, adminId, body)
+}
+
+/**
+ * Dashboard / monitoring: count of currently late returns and recent late list.
+ */
+export const getLateReturnStats = async () => {
+    const now = new Date()
+    const [currentlyLate, recentLate] = await Promise.all([
+        prisma.booking.count({
+            where: {
+                status: 'ACTIVE',
+                returnAt: { lt: now },
+            },
+        }),
+        prisma.booking.findMany({
+            where: {
+                OR: [
+                    { status: 'ACTIVE', returnAt: { lt: now } },
+                    { lateDurationMinutes: { gt: 0 } },
+                ],
+            },
+            include: {
+                bike: {
+                    select: { id: true, bikeNumber: true, registrationNumber: true, name: true },
+                },
+                user: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { returnAt: 'asc' },
+            take: 20,
+        }),
+    ])
+
+    return {
+        currentlyLateCount: currentlyLate,
+        items: recentLate.map((b) => {
+            const lateMins =
+                b.lateDurationMinutes ??
+                (b.status === 'ACTIVE' && b.returnAt
+                    ? Math.max(0, Math.ceil((now - new Date(b.returnAt)) / 60000))
+                    : 0)
+            return {
+                bookingId: b.id,
+                bookingNumber: b.bookingNumber,
+                status: b.status === 'ACTIVE' && lateMins > 0 ? 'LATE_RETURN' : b.status,
+                lateDurationMinutes: lateMins,
+                bike: b.bike
+                    ? {
+                          id: b.bike.id,
+                          bikeNumber: b.bike.bikeNumber,
+                          registrationNumber: b.bike.registrationNumber,
+                          name: b.bike.name,
+                      }
+                    : null,
+                user: b.user,
+                scheduledReturnAt: b.returnAt,
+                returnedAt: b.returnedAt,
+            }
+        }),
+    }
 }

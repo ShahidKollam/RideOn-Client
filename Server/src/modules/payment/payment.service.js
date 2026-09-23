@@ -1,6 +1,7 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 import { getBookingAvailability } from '../booking/availability.service.js'
+import { getUserOutstandingLateAmount } from '../booking/booking.service.js'
 import { findAvailableBike } from '../bike/bike.service.js'
 import {
     createRazorpayOrder,
@@ -90,7 +91,13 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
     const bike = await findAvailableBike(new Date(intent.pickupAt), new Date(intent.returnAt), intent.campusId, tx)
     console.log(`🚲 [${source}] Bike assigned: ${bike.id} (${bike.registrationNumber || bike.name})`)
 
-    // Create booking
+    // Create booking — totalAmount is rental only (not including outstanding late)
+    const rentalAmount = Number(intent.rentalAmount ?? intent.baseAmount) // fallback safe
+    // Prefer explicit rentalAmount stored at order time; fall back to payment amount if no outstanding
+    const bookingTotal = intent.rentalAmount != null
+        ? Number(intent.rentalAmount)
+        : Number(payment.amount)
+
     const bookingNumber = generateBookingNumber()
     const booking = await tx.booking.create({
         data: {
@@ -106,7 +113,7 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
             paymentStatus: 'PAID',
             baseAmount: intent.baseAmount,
             depositAmount: intent.depositAmount,
-            totalAmount: payment.amount,
+            totalAmount: bookingTotal,
             includedKm: intent.includedKm,
             extraKmRate: intent.extraKmRate,
             helmetCount: intent.helmetCount ?? 0,
@@ -121,6 +128,35 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
         },
     })
     console.log(`✅ [${source}] Booking created: ${booking.id} (${booking.bookingNumber})`)
+
+    // Settle any outstanding late amounts from previous bookings that were included in this payment
+    const outstandingIds = intent.outstandingBookingIds || []
+    if (outstandingIds.length > 0) {
+        for (const oldId of outstandingIds) {
+            await tx.booking.update({
+                where: { id: oldId },
+                data: { paymentStatus: 'PAID' },
+            })
+            // Record an offline allocation payment against the old booking for audit trail
+            await tx.payment.create({
+                data: {
+                    userId,
+                    bookingId: oldId,
+                    gateway: 'OUTSTANDING_SETTLEMENT',
+                    gatewayOrderId: `SETTLE-${payment.id}-${oldId.slice(-6)}`,
+                    amount: 0, // actual split is in gatewayResponse of main payment
+                    status: 'PAID',
+                    paymentMethod: 'INCLUDED_IN_NEXT_BOOKING',
+                    paidAt: new Date(),
+                    gatewayResponse: {
+                        settledViaPaymentId: payment.id,
+                        settledViaOrderId: payment.gatewayOrderId,
+                    },
+                },
+            })
+        }
+        console.log(`💰 [${source}] Settled outstanding late on ${outstandingIds.length} booking(s)`)
+    }
 
     // Update payment → PAID and link booking
     console.log(`💳 [${source}] Payment status before update: ${payment.status}`)
@@ -182,8 +218,13 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
     const count = summary.helmetCount ?? 0
     const helmetAmount = summary.helmetAmount ?? 0
 
-    // totalAmount already includes helmet + GST
-    const amount = Number(summary.totalAmount.toFixed(2))
+    // Outstanding late amount from previous completed bookings (kept separate from rental)
+    const outstandingInfo = await getUserOutstandingLateAmount(userId)
+    const outstandingLateAmount = outstandingInfo.outstandingLateAmount || 0
+
+    // totalAmount already includes helmet + GST; add outstanding late if any
+    const rentalAmount = Number(summary.totalAmount.toFixed(2))
+    const amount = Number((rentalAmount + outstandingLateAmount).toFixed(2))
     const amountInPaise = toPaise(amount)
 
     // Create Razorpay order. Intent is stored in notes (not duplicated as booking fields).
@@ -239,6 +280,9 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
                     extraKmRate: summary.extraKmRate,
                     helmetCount: count,
                     helmetAmount,
+                    rentalAmount,
+                    outstandingLateAmount,
+                    outstandingBookingIds: outstandingInfo.outstandingBookings.map((b) => b.bookingId),
                 },
             },
         },
@@ -264,6 +308,9 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
             helmetCount: count,
             helmetAmount,
             totalAmount: amount,
+            rentalAmount,
+            outstandingLateAmount,
+            outstandingBookings: outstandingInfo.outstandingBookings,
             includedKm: summary.includedKm,
             extraKmRate: summary.extraKmRate,
         },
@@ -491,7 +538,7 @@ export const getPaymentById = async (paymentId, userId = null) => {
         include: {
             booking: {
                 include: {
-                    bike: { select: { id: true, registrationNumber: true, name: true } },
+                    bike: { select: { id: true, registrationNumber: true, bikeNumber: true, name: true } },
                     campus: true,
                 },
             },
