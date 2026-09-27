@@ -3,7 +3,17 @@ import { Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import SignupProgress from '@/components/signup/SignupProgress'
-import departments from '@/data/departments.json'
+
+const departments = [
+    'Architecture and Planning',
+    'Chemical Engineering',
+    'Civil Engineering',
+    'Computer Science and Engineering',
+    'Electrical Engineering',
+    'Electronics and Communication Engineering',
+    'Mechanical Engineering',
+    'Production Engineering',
+]
 
 const hostels = [
     'A Hostel',

@@ -10,26 +10,32 @@ function LinkedInIcon({ className }) {
 }
 
 function MemberCard({ member, index }) {
+    const hasLinkedIn = typeof member.linkedin === 'string' && member.linkedin.trim().length > 0
+
     return (
         <article
-            className="team-card-in flex w-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-rideon-blue/25 hover:shadow-[0_14px_32px_rgba(29,140,248,0.12)]"
+            className="team-card-in flex h-full w-full max-w-[280px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-rideon-blue/25 hover:shadow-[0_14px_32px_rgba(29,140,248,0.12)] sm:max-w-none"
             style={{ animationDelay: `${80 + index * 70}ms` }}
         >
-            <div className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
+            {/* Identical image frame for every card — face framed with object-position top/center */}
+            <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl bg-slate-100">
                 <img
                     src={member.image}
                     alt={member.name}
-                    className="size-full object-cover transition duration-500 hover:scale-[1.04]"
+                    className="absolute inset-0 size-full object-cover object-[center_18%] transition duration-500 hover:scale-[1.03]"
                     loading="lazy"
                 />
             </div>
-            <div className="mt-4 flex flex-1 flex-col">
+
+            <div className="mt-4 flex min-h-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h3 className="truncate text-base font-bold text-rideon-dark">{member.name}</h3>
-                        <p className="mt-0.5 text-sm font-semibold text-rideon-blue">{member.role}</p>
+                        <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-rideon-blue">
+                            {member.role}
+                        </p>
                     </div>
-                    {typeof member.linkedin === 'string' && member.linkedin.trim() && (
+                    {hasLinkedIn && (
                         <a
                             href={member.linkedin}
                             target="_blank"
@@ -41,7 +47,9 @@ function MemberCard({ member, index }) {
                         </a>
                     )}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{member.bio}</p>
+                <p className="mt-2 line-clamp-3 whitespace-pre-line text-sm leading-6 text-slate-500">
+                    {member.bio}
+                </p>
             </div>
         </article>
     )
@@ -62,7 +70,6 @@ export default function AboutPage() {
                 aria-hidden
             />
 
-            {/* Same horizontal rhythm as Home / Pricing / Vehicles: max-w-7xl + px-4 sm:px-6 lg:px-8 */}
             <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="max-w-3xl rideon-fade-in">
                     <p className="text-sm font-bold uppercase tracking-[.16em] text-rideon-green">
@@ -80,10 +87,18 @@ export default function AboutPage() {
                     )}
                 </div>
 
-                {/* Left-aligned grid — same content edge as logo / hero on Home */}
-                <div className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {/*
+                  Flex + justify-center so an incomplete last row (3 of 4) stays centered.
+                  Equal card widths at each breakpoint; cards stretch to equal height in a row via items-stretch.
+                */}
+                <div className="mt-8 flex flex-wrap items-stretch justify-center gap-5 sm:mt-10">
                     {members.map((member, i) => (
-                        <MemberCard key={member.id} member={member} index={i} />
+                        <div
+                            key={member.id}
+                            className="flex w-full justify-center sm:w-[calc(50%-0.625rem)] lg:w-[calc(25%-0.9375rem)]"
+                        >
+                            <MemberCard member={member} index={i} />
+                        </div>
                     ))}
                 </div>
             </section>

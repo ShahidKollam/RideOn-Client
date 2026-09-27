@@ -591,7 +591,11 @@ export default function BookingPage() {
                                         <div className="mt-5 overflow-hidden rounded-lg border border-[#a9dfb9]">
                                             <div className="flex items-center gap-4 border-b border-[#a9dfb9] bg-[#f2fff5] px-6 py-4 text-[15px] font-semibold text-[#138a34]">
                                                 <CheckCircle2 className="size-6 fill-[#20a64b] text-white" />
-                                                Great! A bike is available for the chosen time.
+                                                {typeof availability.availableCount === 'number' && availability.availableCount > 0
+                                                    ? availability.availableCount === 1
+                                                        ? 'Great! 1 bike is available for the chosen time.'
+                                                        : `Great! ${availability.availableCount} bikes are available for the chosen time.`
+                                                    : 'Great! A bike is available for the chosen time.'}
                                             </div>
                                             <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
                                                 <div className="flex min-w-0 flex-1 items-center gap-5">
@@ -608,7 +612,11 @@ export default function BookingPage() {
                                                     </div>
                                                     <div className="min-w-0">
                                                         <span className="inline-flex rounded-md bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">
-                                                            Available
+                                                            {typeof availability.availableCount === 'number' && availability.availableCount > 0
+                                                                ? availability.availableCount === 1
+                                                                    ? '1 bike available'
+                                                                    : `${availability.availableCount} bikes available`
+                                                                : 'Available'}
                                                         </span>
                                                         <h3 className="mt-2 truncate text-[18px] font-bold">
                                                             {vehicleName}
@@ -696,8 +704,15 @@ export default function BookingPage() {
                                                                         {formatDisplayTime(alt.pickupAt)} – {formatDisplayTime(alt.returnAt)}
                                                                     </span>
                                                                 </span>
-                                                                <span className="shrink-0 text-sm font-semibold text-rideon-blue group-hover:underline">
-                                                                    Select →
+                                                                <span className="flex shrink-0 flex-col items-end gap-0.5">
+                                                                    {typeof alt.availableCount === 'number' && alt.availableCount > 0 && (
+                                                                        <span className="text-[11px] font-medium text-[#138a34]">
+                                                                            {alt.availableCount === 1 ? '1 bike' : `${alt.availableCount} bikes`}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-sm font-semibold text-rideon-blue group-hover:underline">
+                                                                        Select →
+                                                                    </span>
                                                                 </span>
                                                             </button>
                                                         </li>
@@ -729,7 +744,11 @@ export default function BookingPage() {
                                         <div className="mt-4 rounded-lg border border-[#a9dfb9] bg-[#f2fff5] p-3 text-sm font-semibold text-[#138a34]">
                                             <span className="flex items-center gap-2">
                                                 <CheckCircle2 className="size-5" />
-                                                Great! A bike is available for the chosen time.
+                                                {typeof availability.availableCount === 'number' && availability.availableCount > 0
+                                                    ? availability.availableCount === 1
+                                                        ? 'Great! 1 bike is available for the chosen time.'
+                                                        : `Great! ${availability.availableCount} bikes are available for the chosen time.`
+                                                    : 'Great! A bike is available for the chosen time.'}
                                             </span>
                                         </div>
                                         <div className="mt-4 flex items-center gap-4">
@@ -746,7 +765,11 @@ export default function BookingPage() {
                                             </div>
                                             <div className="min-w-0">
                                                 <span className="rounded bg-[#e7f9e9] px-2 py-1 text-xs font-medium text-[#138a34]">
-                                                    Available
+                                                    {typeof availability.availableCount === 'number' && availability.availableCount > 0
+                                                        ? availability.availableCount === 1
+                                                            ? '1 bike available'
+                                                            : `${availability.availableCount} bikes available`
+                                                        : 'Available'}
                                                 </span>
                                                 <h3 className="mt-2 truncate text-[16px] font-bold">{vehicleName}</h3>
                                                 <p className="mt-1 flex items-center gap-1.5 text-xs text-[#40537e]">
@@ -808,7 +831,12 @@ export default function BookingPage() {
                                                         {alt.durationHours != null && (
                                                             <span className="text-xs text-slate-500">{alt.durationHours} hour{alt.durationHours === 1 ? '' : 's'}</span>
                                                         )}
-                                                        <span className="mt-1 text-sm font-semibold text-rideon-blue">Select →</span>
+                                                        {typeof alt.availableCount === 'number' && alt.availableCount > 0 && (
+                                                            <span className="mt-1 text-[11px] font-medium text-[#138a34]">
+                                                                {alt.availableCount === 1 ? '1 bike available' : `${alt.availableCount} bikes available`}
+                                                            </span>
+                                                        )}
+                                                        <span className="mt-0.5 text-sm font-semibold text-rideon-blue">Select →</span>
                                                     </button>
                                                 ))}
                                             </div>
@@ -824,10 +852,14 @@ export default function BookingPage() {
                             <div className="flex gap-4">
                                 <ShieldCheck className="mt-0.5 size-8 shrink-0 text-[#cf8200]" />
                                 <div>
-                                    <h2 className="text-[15px] font-bold">Cancellation policy</h2>
-                                    <p className="mt-1 text-[13px] text-[#46577f]">
-                                        You can cancel your booking anytime before payment. Once confirmed, cancellations
-                                        are subject to policy.
+                                    <h2 className="text-[15px] font-bold">Booking notes</h2>
+                                    <p className="mt-1 text-[13px] leading-5 text-[#46577f]">
+                                        One active booking per account at a time. Cancellation fees may apply after payment
+                                        — see our{' '}
+                                        <Link to="/cancellation-policy" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                            Cancellation Policy
+                                        </Link>
+                                        .
                                     </p>
                                 </div>
                             </div>

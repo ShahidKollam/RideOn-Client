@@ -64,11 +64,12 @@ export default function PickupPointSection() {
                             <p className="text-sm font-bold uppercase tracking-[0.16em] text-rideon-green">
                                 {eyebrow}
                             </p>
-                            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-rideon-dark sm:text-4xl">
+                            <h2 className="mt-2 text-[2rem] font-extrabold tracking-tight text-rideon-dark sm:text-[2.5rem] lg:text-[2.75rem] lg:leading-tight">
                                 {titleBefore}{' '}
-                                <span className="text-rideon-blue">{titleHighlight}</span>
+                                <span className="text-rideon-blue">Pickup</span>{' '}
+                                <span className="text-rideon-green">Point</span>
                             </h2>
-                            <p className="mt-3 max-w-lg text-sm leading-6 text-slate-500 sm:text-[15px]">
+                            <p className="mt-3 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">
                                 {subtitle}
                             </p>
 

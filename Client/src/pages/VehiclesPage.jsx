@@ -64,7 +64,7 @@ export default function VehiclesPage() {
                 <section>
                     <p className="text-sm font-bold uppercase tracking-[0.16em] text-rideon-green">Our vehicle</p>
                     <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-rideon-dark sm:text-5xl">
-                        Honda <span className="text-rideon-blue">Activa</span>
+                        HONDA <span className="text-rideon-blue">ACTIVA</span>
                     </h1>
                     <p className="mt-4 max-w-xl text-base leading-7 text-[#40537e] sm:text-lg">
                         Reliable, fuel-efficient and built for everyday campus rides. Comfort you can count on.
@@ -93,7 +93,7 @@ export default function VehiclesPage() {
                 {/* Why Choose */}
                 <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:p-7">
                     <h2 className="text-xl font-extrabold text-rideon-dark sm:text-2xl">
-                        Why Choose <span className="text-rideon-blue">Honda Activa?</span>
+                        Why Choose <span className="text-rideon-blue">HONDA ACTIVA?</span>
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-[#40537e]">
                         Designed for student life, the perfect balance of comfort, performance, and convenience.

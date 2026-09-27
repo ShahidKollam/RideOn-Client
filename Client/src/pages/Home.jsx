@@ -1,26 +1,32 @@
-import HeroSection from "@/components/home/HeroSection"
-import HowItWorks from "@/components/home/HowItWorks"
-import PromoBanner from "@/components/home/PromoBanner"
-import { Link } from 'react-router-dom'
-import { ArrowRight, Bike } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import HeroSection from '@/components/home/HeroSection'
+import HomeTrustBar from '@/components/home/HomeTrustBar'
+import HowItWorks from '@/components/home/HowItWorks'
+import HomeVehicle from '@/components/home/HomeVehicle'
+import HomePricing from '@/components/home/HomePricing'
+import HomeWhy from '@/components/home/HomeWhy'
+import HomeFaq from '@/components/home/HomeFaq'
+import HomeCta from '@/components/home/HomeCta'
+import PickupPointSection from '@/components/layout/PickupPointSection'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 export default function Home() {
     useDocumentTitle('Campus bike rentals')
-  return (
-    <div className="min-h-screen bg-white">
-      <main className="pt-[88px] ">
-        <HeroSection />
-        <HowItWorks />
-        <PromoBanner />
-        <section id="vehicles" className="bg-slate-50/60 px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-5 rounded-2xl bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:p-8">
-            <div><p className="text-sm font-bold uppercase tracking-[.16em] text-rideon-green">Ready when you are</p><h2 className="mt-2 text-2xl font-extrabold text-rideon-dark">Ready for your campus ride?</h2><p className="mt-2 text-sm text-slate-500">Choose your time and we’ll assign an available bike.</p></div>
-            <Button className="bg-rideon-blue text-white hover:bg-rideon-blue/90" asChild><Link to="/booking"><Bike className="size-4" />Book your ride <ArrowRight className="size-4" /></Link></Button>
-          </div>
-        </section>
-      </main>
-    </div>
-  )
+
+    return (
+        <div className="min-h-screen bg-white">
+            {/* Navbar spacing — hero keeps its own layout; DO NOT change Hero */}
+            <div className="pt-[88px]">
+                <HeroSection />
+            </div>
+
+            <HomeTrustBar />
+            <HowItWorks />
+            <HomeVehicle />
+            <HomePricing />
+            <HomeWhy />
+            <HomeFaq />
+            <PickupPointSection />
+            <HomeCta />
+        </div>
+    )
 }

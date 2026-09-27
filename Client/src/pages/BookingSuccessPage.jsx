@@ -23,7 +23,7 @@ export default function BookingSuccessPage() {
         booking?.bike?.bikeNumber ||
         booking?.bike?.name ||
         booking?.bike?.registrationNumber ||
-        'Assigned campus bike'
+        'HONDA ACTIVA'
 
     return (
         <div className="flex min-h-[75vh] items-center bg-slate-50/60 px-4 pt-20">

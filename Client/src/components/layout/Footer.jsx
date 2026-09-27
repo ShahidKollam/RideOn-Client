@@ -37,7 +37,7 @@ export default function Footer() {
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rideon-blue to-transparent" />
             <div className="absolute -top-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-rideon-blue/10 blur-3xl" />
 
-            <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-[4.25rem] lg:px-8">
                 <div className="grid gap-12 lg:grid-cols-[1.4fr_.8fr_.8fr_1fr]">
                     <div>
                         <img src="/logo.png" alt="RideOn" className="h-10 w-auto max-w-[160px] object-contain object-left sm:h-11 sm:max-w-[180px]" />

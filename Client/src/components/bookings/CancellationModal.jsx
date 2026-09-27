@@ -20,20 +20,15 @@ export default function CancellationModal({
     onConfirm,
     onRetryPreview,
 }) {
+    // Keyboard only. Body scroll is owned by BookingDetailsModal so nested
+    // open/close cannot leave overflow:hidden stuck on the document.
     useEffect(() => {
-        if (!open) return
+        if (!open) return undefined
         const onKey = (e) => {
             if (e.key === 'Escape' && !confirming) onClose()
         }
         document.addEventListener('keydown', onKey)
-        const prev = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-        return () => {
-            document.removeEventListener('keydown', onKey)
-            // Always clear to empty string if previous was empty/unset so a
-            // route change mid-modal cannot leave the document unscrollable.
-            document.body.style.overflow = prev || ''
-        }
+        return () => document.removeEventListener('keydown', onKey)
     }, [open, confirming, onClose])
 
     if (!open) return null

@@ -1,115 +1,97 @@
-import { Bike, CalendarDays, HardHat } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { UserPlus, CalendarDays, CreditCard, Bike } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const steps = [
-  {
-    number: 1,
-    icon: Bike,
-    color: "blue",
-    title: "Choose Bike",
-    description: "Select your scooter from our wide range.",
-  },
-  {
-    number: 2,
-    icon: CalendarDays,
-    color: "green",
-    title: "Book & Pay",
-    description: "Pick your date, time and complete the payment.",
-  },
-  {
-    number: 3,
-    icon: HardHat,
-    color: "blue",
-    title: "Ride & Enjoy",
-    description: "Start your journey and enjoy the freedom!",
-  },
+    {
+        number: 1,
+        icon: UserPlus,
+        title: 'Sign Up',
+        description: 'Use your NITC email to create an account.',
+        badge: 'bg-rideon-blue',
+    },
+    {
+        number: 2,
+        icon: CalendarDays,
+        title: 'Choose Time',
+        description: 'Select your preferred date and time.',
+        badge: 'bg-rideon-green',
+    },
+    {
+        number: 3,
+        icon: CreditCard,
+        title: 'Pay',
+        description: 'Complete payment securely online.',
+        badge: 'bg-amber-500',
+    },
+    {
+        number: 4,
+        icon: Bike,
+        title: 'Collect Bike',
+        description: 'Pick up your bike from the designated location.',
+        badge: 'bg-violet-500',
+    },
 ]
 
-function StepIcon({ step }) {
-  const isBlue = step.color === "blue"
-
-  return (
-    <div className="relative flex size-14 shrink-0 items-center justify-center transition-all duration-300 hover:scale-105">
-      <div
-        className={cn(
-          "absolute inset-0 rounded-full",
-          isBlue ? "bg-rideon-blue/15" : "bg-rideon-green/22"
-        )}
-      />
-
-      <div
-        className={cn(
-          "relative flex size-10 items-center justify-center rounded-full shadow-sm transition-all duration-300",
-          isBlue
-            ? "bg-rideon-blue text-white hover:shadow-lg"
-            : "bg-rideon-green text-white hover:shadow-lg"
-        )}
-      >
-        <step.icon className="size-4.5" strokeWidth={2} />
-      </div>
-
-      <span
-        className={cn(
-          "absolute top-0 right-0 flex size-4.5 items-center justify-center rounded-full text-[9px] font-bold text-white shadow",
-          isBlue ? "bg-rideon-blue" : "bg-rideon-green"
-        )}
-      >
-        {step.number}
-      </span>
-    </div>
-  )
-}
-
 export default function HowItWorks() {
-  return (
-    <section id="how-it-works" className="bg-white py-1 lg:py-2">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-rideon-green">
-            How It Works
-          </p>
-
-          <h2 className="mt-1 text-lg font-extrabold text-rideon-dark sm:text-2xl">
-            Rent in 3 Simple Steps
-          </h2>
-        </div>
-
-        <div className="relative mt-6 sm:mt-8">
-          {/* Desktop connector */}
-          <div className="pointer-events-none absolute top-7 left-[14%] right-[14%] hidden border-t border-dashed border-slate-300 md:block" />
-
-          <div className="grid grid-cols-3 gap-2 md:flex md:justify-center md:gap-20">
-            {steps.map((step) => (
-              <div
-                key={step.number}
-                className="
-                  relative
-                  flex
-                  flex-col
-                  items-center
-                  text-center
-                  gap-4
-                  md:flex-row
-                  md:items-center
-                  md:text-left
-                "
-              >
-                <StepIcon step={step} />
-
-                <div className="max-w-[105px] md:max-w-[160px]">
-                  <h3 className="text-xs font-bold text-rideon-dark sm:text-sm">
-                    {step.title}
-                  </h3>
-
-                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500 sm:text-xs">
-                    {step.description}
-                  </p>
+    return (
+        <section id="how-it-works" className="bg-white py-16 sm:py-20 lg:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="max-w-2xl">
+                    <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-rideon-green sm:text-sm">
+                        How it works
+                    </p>
+                    <h2 className="mt-2 text-[2rem] font-extrabold tracking-tight text-rideon-dark sm:text-[2.5rem] lg:text-[2.75rem] lg:leading-tight">
+                        Rent in <span className="text-rideon-blue">4 Simple</span> <span className="text-rideon-green">Steps</span>
+                    </h2>
+                    <p className="mt-3 text-base leading-7 text-slate-600 sm:text-lg">
+                        Get on the road in minutes. It&apos;s that easy.
+                    </p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
+
+                <div className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:mt-14 lg:grid-cols-4 lg:gap-5">
+                    {steps.map((step, i) => (
+                        <div key={step.number} className="relative flex">
+                            <article className="flex w-full flex-col items-center rounded-2xl border border-slate-100 bg-white px-5 py-7 text-center shadow-[0_8px_28px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+                                <span
+                                    className={cn(
+                                        'mb-4 flex size-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm',
+                                        step.badge,
+                                    )}
+                                >
+                                    {step.number}
+                                </span>
+                                <step.icon
+                                    className="size-8 text-rideon-dark"
+                                    strokeWidth={1.75}
+                                />
+                                <h3 className="mt-4 text-base font-bold text-rideon-dark sm:text-lg">
+                                    {step.title}
+                                </h3>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">
+                                    {step.description}
+                                </p>
+                            </article>
+                            {/* Arrow between cards — desktop only */}
+                            {i < steps.length - 1 && (
+                                <div
+                                    className="pointer-events-none absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 text-rideon-blue/50 lg:block"
+                                    aria-hidden
+                                >
+                                    <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
+                                        <path
+                                            d="M1 7h16M12 1l6 6-6 6"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    )
 }
