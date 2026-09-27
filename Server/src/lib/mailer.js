@@ -168,7 +168,7 @@ ${emailFooter({ includeMapLink: true })}
 
 export const sendMagicLink = async (email, token) => {
     try {
-        const magicLink = `${config.clientUrl}/verify?token=${token}`
+        const magicLink = `${config.clientUrl}/auth/verify?token=${token}`
 
         const html = `<!DOCTYPE html>
 <html lang="en">
