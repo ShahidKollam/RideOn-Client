@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { CalendarDays, ChevronDown, LogOut, Menu, UserCircle, X } from "lucide-react"
+import { Bike, CalendarDays, ChevronDown, LogOut, Menu, UserCircle, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/AuthContext"
@@ -13,7 +13,7 @@ const navLinks = [
     { label: "Vehicles", path: "/vehicles" },
     { label: "Pricing", path: "/pricing" },
     { label: "Team", path: "/about" },
-    { label: "Contact Us", path: "/contact" },
+    { label: "Contact", path: "/contact" },
 ]
 
 export default function Navbar() {
@@ -128,7 +128,7 @@ export default function Navbar() {
                 </>
             )}
 
-            <div className="relative z-50 mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-3 sm:py-3 lg:px-4">
+            <div className="relative z-50 mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3 lg:px-8">
                 <Link
                     to="/"
                     className="shrink-0"
@@ -136,8 +136,8 @@ export default function Navbar() {
                 >
                     <img
                         src="/logo.png"
-                        alt="RIDEON"
-                        className="h-14 w-auto transition-all duration-300 hover:scale-[1.04] sm:h-8 lg:h-14"
+                        alt="RideOn"
+                        className="h-9 w-auto max-w-[132px] object-contain object-left transition-all duration-300 hover:scale-[1.03] sm:h-10 sm:max-w-[150px] lg:h-11 lg:max-w-[168px]"
                     />
                 </Link>
 
@@ -169,12 +169,24 @@ export default function Navbar() {
 
                 <div className="flex items-center gap-2 sm:gap-2.5">
                     {isAuthenticated ? (
+                        <>
+                        {/* Book — before profile, desktop/tablet */}
+                        <Button
+                            className="hidden h-9 items-center gap-2 rounded-lg bg-rideon-blue px-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(29,140,248,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-blue/90 hover:shadow-[0_10px_24px_rgba(29,140,248,0.32)] sm:inline-flex lg:h-8 lg:px-4"
+                            asChild
+                        >
+                            <Link to="/booking" onClick={() => setProfileOpen(false)}>
+                                <Bike className="size-4 shrink-0" strokeWidth={2.25} />
+                                Book
+                            </Link>
+                        </Button>
                         <div ref={profileMenuRef} className="relative hidden sm:block">
                             <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="inline-flex h-9 items-center gap-2 rounded-lg border border-rideon-blue/25 bg-white px-3 text-sm font-semibold text-rideon-dark transition hover:border-rideon-blue hover:text-rideon-blue lg:h-8">
                                 <UserCircle className="size-4 text-rideon-blue" />{user?.name || 'Profile'}<ChevronDown className={cn('size-3.5 transition-transform', profileOpen && 'rotate-180')} />
                             </button>
-                            {profileOpen && <div className="absolute right-0 top-full z-[60] mt-2 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.16)]"><Link onClick={() => setProfileOpen(false)} to="/bookings" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-rideon-blue/5 hover:text-rideon-blue"><CalendarDays className="size-4" />My bookings</Link><Link onClick={() => setProfileOpen(false)} to="/auth/complete-profile" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-rideon-blue/5 hover:text-rideon-blue"><UserCircle className="size-4" />Profile</Link><button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"><LogOut className="size-4" />Logout</button></div>}
+                            {profileOpen && <div className="absolute right-0 top-full z-[60] mt-2 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.16)]"><Link onClick={() => setProfileOpen(false)} to="/bookings" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-rideon-blue/5 hover:text-rideon-blue"><CalendarDays className="size-4" />My bookings</Link><Link onClick={() => setProfileOpen(false)} to="/profile" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-rideon-blue/5 hover:text-rideon-blue"><UserCircle className="size-4" />Profile</Link><button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"><LogOut className="size-4" />Logout</button></div>}
                         </div>
+                        </>
                     ) : (
                         <>
                             <Button
@@ -260,6 +272,12 @@ export default function Navbar() {
                     <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-4 sm:flex-row">
                         {isAuthenticated ? (
                             <>
+                                <Button className="h-10 w-full rounded-lg bg-rideon-blue text-white sm:flex-1" asChild>
+                                    <Link to="/booking" onClick={() => setMobileOpen(false)}>
+                                        <Bike className="size-4" strokeWidth={2.25} />
+                                        Book
+                                    </Link>
+                                </Button>
                                 <Button variant="outline" className="h-10 w-full rounded-lg border-rideon-blue text-rideon-blue sm:flex-1" asChild><Link to="/bookings" onClick={() => setMobileOpen(false)}><CalendarDays className="size-4" />My Bookings</Link></Button>
                                 <Button
                                     variant="outline"
@@ -267,7 +285,7 @@ export default function Navbar() {
                                     asChild
                                 >
                                     <Link
-                                        to="/auth/complete-profile"
+                                        to="/profile"
                                         onClick={() => setMobileOpen(false)}
                                     >
                                         <UserCircle className="size-4" strokeWidth={2.25} />

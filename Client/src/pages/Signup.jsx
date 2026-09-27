@@ -29,7 +29,7 @@ export default function Signup() {
                     <img
                         src="/logo.png"
                         alt="RideOn"
-                        className="h-12 w-auto sm:h-10"
+                        className="h-10 w-auto max-w-[160px] object-contain sm:h-11 sm:max-w-[180px]"
                     />
 
                     <p>© 2025 RideOn. All rights reserved.</p>

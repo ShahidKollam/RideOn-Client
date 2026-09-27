@@ -5,97 +5,73 @@ import { findAvailableBike, hasAvailableBike } from '../bike/bike.service.js'
 import { calculateHelmetAmount, getBookingBufferMinutes } from '../settings/settings.service.js'
 
 const MAX_ALTERNATIVES = 5
-/** Search window: look ± this many hours around the requested range for alternatives */
-const ALT_SEARCH_HOURS = 12
-/** Step size when sliding candidate windows (minutes) */
+/** Step size when walking outward from the requested pickup (minutes) */
 const ALT_STEP_MINUTES = 30
+/**
+ * Safety cap so we never scan indefinitely (DB load).
+ * Search is still availability-driven: we expand nearest-first and stop once we have 5 free slots.
+ */
+const ALT_MAX_SEARCH_HOURS = 48
+/** Allow pickup slightly in the past (clock skew / network latency); same as past-pickup guard */
+const PAST_PICKUP_GRACE_MS = 5 * 60 * 1000
 
 /**
  * Build ranked alternative time ranges when the exact request has no bike.
- * - Prefer same duration
- * - Never longer than requested
- * - Rank: same duration first, then closest to requested start
- * - Max 5
- * Uses the same buffer-aware availability as the main check.
+ *
+ * Rules:
+ * 1. Keep the requested rental duration (never longer, never shorter).
+ * 2. Search nearest available slots first (expand outward from requested pickup).
+ * 3. Look both before and after the requested pickup time.
+ * 4. Return only slots where a bike is actually available (buffer-aware).
+ * 5. Max 5 alternatives.
+ * 6. Never return a slot in the past.
  */
 const findAlternativeSlots = async (pickupAt, returnAt, campusId, client) => {
     const requestedMs = returnAt.getTime() - pickupAt.getTime()
-    const requestedMinutes = Math.round(requestedMs / (60 * 1000))
-    if (requestedMinutes < MIN_RENTAL_HOURS * 60) return []
+    const durationMin = Math.round(requestedMs / (60 * 1000))
+    if (durationMin < MIN_RENTAL_HOURS * 60) return []
 
-    const candidates = []
-    const searchStart = new Date(pickupAt.getTime() - ALT_SEARCH_HOURS * 60 * 60 * 1000)
-    const searchEnd = new Date(returnAt.getTime() + ALT_SEARCH_HOURS * 60 * 60 * 1000)
     const now = Date.now()
+    const earliestStartMs = now - PAST_PICKUP_GRACE_MS
+    const maxOffsetMs = ALT_MAX_SEARCH_HOURS * 60 * 60 * 1000
+    const stepMs = ALT_STEP_MINUTES * 60 * 1000
+    const durationMs = durationMin * 60 * 1000
+    const requestedStartMs = pickupAt.getTime()
 
-    // Same-duration first: slide windows of exact requested duration
-    const durationsToTry = [requestedMinutes]
-    // Then shorter durations (down to 1h, in 30-min steps) if needed
-    for (let m = requestedMinutes - ALT_STEP_MINUTES; m >= MIN_RENTAL_HOURS * 60; m -= ALT_STEP_MINUTES) {
-        durationsToTry.push(m)
-    }
+    const results = []
+    const seen = new Set()
 
-    for (const durationMin of durationsToTry) {
-        if (candidates.length >= MAX_ALTERNATIVES) break
+    // Expand outward: ±1 step, ±2 steps, ... nearest first
+    for (let step = 1; step * stepMs <= maxOffsetMs; step++) {
+        if (results.length >= MAX_ALTERNATIVES) break
 
-        for (
-            let startMs = searchStart.getTime();
-            startMs + durationMin * 60 * 1000 <= searchEnd.getTime();
-            startMs += ALT_STEP_MINUTES * 60 * 1000
-        ) {
-            if (candidates.length >= MAX_ALTERNATIVES) break
-            // Skip past times
-            if (startMs < now - 5 * 60 * 1000) continue
+        const offsets = [step * stepMs, -step * stepMs]
+        for (const offsetMs of offsets) {
+            if (results.length >= MAX_ALTERNATIVES) break
+
+            const startMs = requestedStartMs + offsetMs
+            if (startMs < earliestStartMs) continue
 
             const altPickup = new Date(startMs)
-            const altReturn = new Date(startMs + durationMin * 60 * 1000)
+            const altReturn = new Date(startMs + durationMs)
 
-            // Skip the exact requested window (already known unavailable)
-            if (
-                altPickup.getTime() === pickupAt.getTime() &&
-                altReturn.getTime() === returnAt.getTime()
-            ) {
-                continue
-            }
+            const key = `${altPickup.toISOString()}|${altReturn.toISOString()}`
+            if (seen.has(key)) continue
+            seen.add(key)
 
             const free = await hasAvailableBike(altPickup, altReturn, campusId, client)
             if (!free) continue
 
-            const distanceMs = Math.abs(altPickup.getTime() - pickupAt.getTime())
-            candidates.push({
+            results.push({
                 pickupAt: altPickup.toISOString(),
                 returnAt: altReturn.toISOString(),
-                durationMinutes: durationMin,
                 durationHours: Math.ceil(durationMin / 60),
-                sameDuration: durationMin === requestedMinutes,
-                distanceMs,
+                sameDuration: true,
             })
         }
     }
 
-    // Rank: same duration first, then closest to requested start
-    candidates.sort((a, b) => {
-        if (a.sameDuration !== b.sameDuration) return a.sameDuration ? -1 : 1
-        return a.distanceMs - b.distanceMs
-    })
-
-    // Deduplicate by pickup+return string and take top N
-    const seen = new Set()
-    const unique = []
-    for (const c of candidates) {
-        const key = `${c.pickupAt}|${c.returnAt}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        unique.push({
-            pickupAt: c.pickupAt,
-            returnAt: c.returnAt,
-            durationHours: c.durationHours,
-            sameDuration: c.sameDuration,
-        })
-        if (unique.length >= MAX_ALTERNATIVES) break
-    }
-
-    return unique
+    return results
 }
 
 export const getBookingAvailability = async (data, client = prisma) => {
@@ -104,6 +80,11 @@ export const getBookingAvailability = async (data, client = prisma) => {
 
     if (Number.isNaN(pickupAt.getTime()) || Number.isNaN(returnAt.getTime()) || pickupAt >= returnAt) {
         throw new ApiError(400, 'Pickup must be before return')
+    }
+
+    // Reject past pickup (shared by check-availability and create-booking)
+    if (pickupAt.getTime() < Date.now() - PAST_PICKUP_GRACE_MS) {
+        throw new ApiError(400, 'Pickup time cannot be in the past')
     }
 
     const durationHours = Math.ceil((returnAt - pickupAt) / (1000 * 60 * 60))

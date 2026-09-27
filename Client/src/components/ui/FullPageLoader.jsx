@@ -5,6 +5,9 @@ import { useEffect } from 'react'
  * Full-viewport loading overlay for major async actions
  * (availability check, payment, verification, cancellation).
  * Uses a light backdrop + blur so the page remains visible but blocked.
+ *
+ * Body scroll lock is applied only while open. Cleanup always restores
+ * overflow so navigation away mid-load cannot leave the page unscrollable.
  */
 export default function FullPageLoader({
     open = false,
@@ -13,10 +16,15 @@ export default function FullPageLoader({
 }) {
     useEffect(() => {
         if (!open) return
-        const prev = document.body.style.overflow
+
+        const previousBody = document.body.style.overflow
+        const previousHtml = document.documentElement.style.overflow
         document.body.style.overflow = 'hidden'
+        document.documentElement.style.overflow = 'hidden'
+
         return () => {
-            document.body.style.overflow = prev
+            document.body.style.overflow = previousBody || ''
+            document.documentElement.style.overflow = previousHtml || ''
         }
     }, [open])
 

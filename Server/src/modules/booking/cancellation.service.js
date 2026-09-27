@@ -98,7 +98,9 @@ export const resolveBookingPayment = (booking) => {
     if (paid.length === 0) return null
 
     const razorpay = paid.find(
-        (p) => (p.gateway === 'RAZORPAY' || !p.gateway || p.gateway === 'razorpay') && p.gatewayPaymentId
+        (p) =>
+            (p.gateway === 'RAZORPAY' || !p.gateway || p.gateway === 'razorpay') &&
+            p.gatewayPaymentId
     )
     if (razorpay) return razorpay
 
@@ -176,13 +178,18 @@ export const calculateCancellation = (booking, options = {}) => {
 
     // Admin manual adjustment of refund (audit stored separately by caller)
     let wasAdjusted = false
-    if (actor === 'ADMIN' && adjustedRefundAmount != null && Number.isFinite(Number(adjustedRefundAmount))) {
+    if (
+        actor === 'ADMIN' &&
+        adjustedRefundAmount != null &&
+        Number.isFinite(Number(adjustedRefundAmount))
+    ) {
         const adjusted = round2(Math.max(0, Math.min(bookingAmount, Number(adjustedRefundAmount))))
         if (adjusted !== refundAmount) {
             wasAdjusted = true
             refundAmount = adjusted
             cancellationAmount = round2(bookingAmount - refundAmount)
-            cancellationPercentage = bookingAmount > 0 ? round2((cancellationAmount / bookingAmount) * 100) : 0
+            cancellationPercentage =
+                bookingAmount > 0 ? round2((cancellationAmount / bookingAmount) * 100) : 0
         }
     }
 
@@ -338,12 +345,16 @@ const processRazorpayRefund = async (booking, payment, refundAmount) => {
         })
 
         // Persist refund id on payment gatewayResponse for audit trail
-        const prev = payment.gatewayResponse && typeof payment.gatewayResponse === 'object' ? payment.gatewayResponse : {}
+        const prev = payment.gatewayResponse && typeof payment.gatewayResponse === 'object'
+            ? payment.gatewayResponse
+            : {}
         await prisma.payment.update({
             where: { id: payment.id },
             data: {
                 status:
-                    refundAmount >= Number(payment.amount) ? PAYMENT_STATUS.REFUNDED : PAYMENT_STATUS.PARTIALLY_REFUNDED,
+                    refundAmount >= Number(payment.amount)
+                        ? PAYMENT_STATUS.REFUNDED
+                        : PAYMENT_STATUS.PARTIALLY_REFUNDED,
                 gatewayResponse: {
                     ...prev,
                     cancellationRefund: {
@@ -363,7 +374,10 @@ const processRazorpayRefund = async (booking, payment, refundAmount) => {
             razorpayRefund: refund,
         }
     } catch (err) {
-        console.error(`❌ Razorpay refund failed for booking ${booking.bookingNumber}:`, err?.message || err)
+        console.error(
+            `❌ Razorpay refund failed for booking ${booking.bookingNumber}:`,
+            err?.message || err
+        )
         return {
             refundStatus: 'FAILED',
             refundGatewayId: null,
@@ -444,7 +458,8 @@ export const executeCancellation = async ({
         payment &&
         (payment.gateway === 'ADMIN_OFFLINE' ||
             payment.gateway === 'CASH' ||
-            (payment.paymentMethod && String(payment.paymentMethod).toUpperCase().includes('CASH')))
+            (payment.paymentMethod &&
+                String(payment.paymentMethod).toUpperCase().includes('CASH')))
 
     let refundStatus = 'NONE'
     let refundGatewayId = null
@@ -490,7 +505,8 @@ export const executeCancellation = async ({
             refundAmount: calc.refundAmount,
             refundStatus,
             adminAdjustedRefundAmount: calc.wasAdjusted ? calc.refundAmount : null,
-            adminAdjustmentReason: calc.wasAdjusted && adjustmentReason ? String(adjustmentReason).slice(0, 500) : null,
+            adminAdjustmentReason:
+                calc.wasAdjusted && adjustmentReason ? String(adjustmentReason).slice(0, 500) : null,
         }
 
         return tx.booking.update({

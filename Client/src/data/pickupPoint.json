@@ -1,0 +1,32 @@
+{
+  "eyebrow": "Pickup Point",
+  "titleBefore": "RideOn",
+  "titleHighlight": "Pickup Point",
+  "subtitle": "Collect your bike from our designated pickup location. Easy to find, quick and hassle-free.",
+  "cardLabel": "Pickup Point",
+  "cardTitle": "RideOn Pickup Point",
+  "cardDescription": "Collect your bike from our designated pickup location.",
+  "mapLabel": "RideOn Pickup Point",
+  "mapsUrl": "https://maps.app.goo.gl/zTgfhvZ2WgUUoqjs6?g_st=ac",
+  "mapsEmbedUrl": "https://www.google.com/maps?q=https://maps.app.goo.gl/zTgfhvZ2WgUUoqjs6&output=embed&z=16",
+  "features": [
+    {
+      "id": "secure",
+      "title": "Secure Location",
+      "description": "A safe and authorized pickup point for all riders.",
+      "tone": "blue"
+    },
+    {
+      "id": "easy",
+      "title": "Easy to Find",
+      "description": "Clearly marked location with Google Maps.",
+      "tone": "green"
+    },
+    {
+      "id": "quick",
+      "title": "Quick Pickup",
+      "description": "Collect your bike and get on the road in minutes.",
+      "tone": "blue"
+    }
+  ]
+}

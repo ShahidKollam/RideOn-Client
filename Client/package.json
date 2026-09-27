@@ -1,7 +1,7 @@
 {
   "name": "rideon-client",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.14",
   "type": "module",
   "scripts": {
     "dev": "vite",

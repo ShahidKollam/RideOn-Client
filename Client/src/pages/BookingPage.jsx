@@ -28,6 +28,7 @@ import { getApiErrorMessage } from '@/lib/apiClient'
 import { checkAvailability } from '@/services/bookingService'
 import { createPaymentOrder, markPaymentFailed, verifyPayment } from '@/services/paymentService'
 import { getVehicles } from '@/services/vehicleService'
+import { clearBookingDraft, loadBookingDraft, saveBookingDraft } from '@/lib/bookingDraft'
 import {
     formatDisplayDate,
     formatDisplayDateTime,
@@ -142,20 +143,35 @@ export default function BookingPage() {
     const [checkingAvailability, setCheckingAvailability] = useState(false)
     useDocumentTitle('Book a ride')
     const resultRef = useRef(null)
-    const [helmetCount, setHelmetCount] = useState(0)
     const initialPickup = useMemo(() => {
         const value = new Date()
         value.setMinutes(0, 0, 0)
         value.setHours(value.getHours() + 1)
         return { date: toDateInput(value), time: toTimeInput(value) }
     }, [])
-    const [values, setValues] = useState({
-        pickupDate: initialPickup.date,
-        pickupTime: initialPickup.time,
-        returnDate: toDateInput(new Date()),
-        returnTime: '',
+    const [helmetCount, setHelmetCount] = useState(() => {
+        const draft = loadBookingDraft()
+        return draft && Number.isFinite(draft.helmetCount) ? draft.helmetCount : 0
+    })
+    const [values, setValues] = useState(() => {
+        const draft = loadBookingDraft()
+        if (draft && (draft.pickupDate || draft.pickupTime || draft.returnDate || draft.returnTime)) {
+            return {
+                pickupDate: draft.pickupDate || initialPickup.date,
+                pickupTime: draft.pickupTime || initialPickup.time,
+                returnDate: draft.returnDate || toDateInput(new Date()),
+                returnTime: draft.returnTime || '',
+            }
+        }
+        return {
+            pickupDate: initialPickup.date,
+            pickupTime: initialPickup.time,
+            returnDate: toDateInput(new Date()),
+            returnTime: '',
+        }
     })
     const [summaryOpen, setSummaryOpen] = useState(false)
+    const restoredDraftRef = useRef(Boolean(loadBookingDraft()))
 
     useEffect(() => {
         getVehicles({ isActive: true, limit: 1 })
@@ -175,12 +191,32 @@ export default function BookingPage() {
         setAvailability(null)
         setOrderPricing(null)
         setDateError('')
-        setValues((current) => ({ ...current, [field]: value }))
+        setValues((current) => {
+            const next = { ...current, [field]: value }
+            saveBookingDraft({
+                pickupDate: next.pickupDate,
+                pickupTime: next.pickupTime,
+                returnDate: next.returnDate,
+                returnTime: next.returnTime,
+                helmetCount,
+            })
+            return next
+        })
     }
     const updateHelmetCount = (value) => {
         setAvailability(null)
         setOrderPricing(null)
         setHelmetCount(value)
+        setValues((current) => {
+            saveBookingDraft({
+                pickupDate: current.pickupDate,
+                pickupTime: current.pickupTime,
+                returnDate: current.returnDate,
+                returnTime: current.returnTime,
+                helmetCount: value,
+            })
+            return current
+        })
     }
 
     const runAvailabilityCheck = async (pickupDateObj, returnDateObj, helmet) => {
@@ -195,6 +231,13 @@ export default function BookingPage() {
                 helmetCount: helmet,
             })
             setAvailability(summary)
+            saveBookingDraft({
+                pickupDate: values.pickupDate,
+                pickupTime: values.pickupTime,
+                returnDate: values.returnDate,
+                returnTime: values.returnTime,
+                helmetCount: helmet,
+            })
             // Smooth scroll result into view (mobile-friendly, not aggressive)
             requestAnimationFrame(() => {
                 const el = resultRef.current
@@ -217,6 +260,26 @@ export default function BookingPage() {
             setCheckingAvailability(false)
         }
     }
+
+    // One-shot: restored draft inputs → re-fetch availability once vehicle is ready
+    useEffect(() => {
+        if (!vehicle?.campusId || !restoredDraftRef.current) return
+        restoredDraftRef.current = false
+        const p = combineDateAndTime(values.pickupDate, values.pickupTime)
+        const r = combineDateAndTime(values.returnDate, values.returnTime)
+        if (!p || !r || r <= p) return
+        if (!isAuthenticated) return
+        runAvailabilityCheck(p, r, helmetCount).catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vehicle, isAuthenticated])
+
+    // Keep draft TTL honest while the page stays open
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            loadBookingDraft()
+        }, 30_000)
+        return () => window.clearInterval(id)
+    }, [])
 
     const checkBookingAvailability = async (event) => {
         event?.preventDefault?.()
@@ -252,12 +315,14 @@ export default function BookingPage() {
         if (Number.isNaN(nextPickup.getTime()) || Number.isNaN(nextReturn.getTime())) return
 
         setDateError('')
-        setValues({
+        const nextValues = {
             pickupDate: toDateInputValue(nextPickup),
             pickupTime: toTimeInputValue(nextPickup),
             returnDate: toDateInputValue(nextReturn),
             returnTime: toTimeInputValue(nextReturn),
-        })
+        }
+        setValues(nextValues)
+        saveBookingDraft({ ...nextValues, helmetCount })
         setAvailability(null)
 
         if (!isAuthenticated) {
@@ -329,6 +394,7 @@ export default function BookingPage() {
                             razorpay_signature: response.razorpay_signature,
                         })
                         paymentFlowEnded = true
+                        clearBookingDraft()
                         // Keep loader visible until navigation completes
                         navigate(`/booking-success/${result.booking.id}`, {
                             state: { booking: result.booking, payment: result.payment },
@@ -565,13 +631,32 @@ export default function BookingPage() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="mt-3 flex justify-end">
+                                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-100 bg-[#f4f8ff] p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
+                                            <div className="flex min-w-0 items-start gap-3">
+                                                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
+                                                    <ShieldCheck className="size-5" strokeWidth={2} />
+                                                </span>
+                                                <p className="text-[13px] leading-5 text-slate-600">
+                                                    By continuing, you agree to RideOn&apos;s{' '}
+                                                    <Link to="/terms" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Terms &amp; Conditions
+                                                    </Link>
+                                                    ,{' '}
+                                                    <Link to="/cancellation-policy" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Cancellation Policy
+                                                    </Link>
+                                                    , and{' '}
+                                                    <Link to="/privacy" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Privacy Policy
+                                                    </Link>
+                                                    .
+                                                </p>
+                                            </div>
                                             <Button
                                                 type="button"
                                                 onClick={submitBooking}
                                                 disabled={submitting}
-                                                variant="outline"
-                                                className="h-10 rounded-lg border-[#a9c9ff] px-5 text-[14px] font-semibold text-rideon-blue hover:bg-blue-50"
+                                                className="h-9 shrink-0 rounded-lg bg-[#0764f5] px-4 text-[13px] font-semibold text-white hover:bg-[#075be0] sm:h-10 sm:px-5"
                                             >
                                                 Continue to payment <ArrowRight className="size-[18px]" />
                                             </Button>
@@ -750,9 +835,12 @@ export default function BookingPage() {
                                 type="button"
                                 variant="outline"
                                 className="h-11 shrink-0 rounded-lg border-[#f3d9a8] bg-white px-5 text-[14px] text-[#1d294b]"
+                                asChild
                             >
-                                <FileText className="size-[18px]" />
-                                View policy
+                                <Link to="/cancellation-policy">
+                                    <FileText className="size-[18px]" />
+                                    View policy
+                                </Link>
                             </Button>
                         </section>
                     </main>
@@ -768,12 +856,32 @@ export default function BookingPage() {
                 </div>
             </div>
             {availability?.available && (
-                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                    <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-blue-100 bg-[#f4f8ff] px-3 py-2.5">
+                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
+                            <ShieldCheck className="size-4" strokeWidth={2} />
+                        </span>
+                        <p className="text-[11px] leading-4 text-slate-600">
+                            By continuing, you agree to RideOn&apos;s{' '}
+                            <Link to="/terms" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Terms &amp; Conditions
+                            </Link>
+                            ,{' '}
+                            <Link to="/cancellation-policy" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Cancellation Policy
+                            </Link>
+                            , and{' '}
+                            <Link to="/privacy" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Privacy Policy
+                            </Link>
+                            .
+                        </p>
+                    </div>
                     <Button
                         type="button"
                         onClick={submitBooking}
                         disabled={submitting || checkingAvailability}
-                        className="h-12 w-full rounded-lg bg-[#0764f5] text-[15px] font-semibold text-white hover:bg-[#075be0]"
+                        className="h-10 w-full rounded-lg bg-[#0764f5] text-[14px] font-semibold text-white hover:bg-[#075be0]"
                     >
                         {submitting ? (
                             'Processing payment…'

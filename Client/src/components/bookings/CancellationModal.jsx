@@ -30,7 +30,9 @@ export default function CancellationModal({
         document.body.style.overflow = 'hidden'
         return () => {
             document.removeEventListener('keydown', onKey)
-            document.body.style.overflow = prev
+            // Always clear to empty string if previous was empty/unset so a
+            // route change mid-modal cannot leave the document unscrollable.
+            document.body.style.overflow = prev || ''
         }
     }, [open, confirming, onClose])
 
@@ -40,7 +42,7 @@ export default function CancellationModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+            className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-booking-title"
