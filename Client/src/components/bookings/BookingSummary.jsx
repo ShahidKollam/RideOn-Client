@@ -60,7 +60,7 @@ export default function BookingSummary({
         vehicle?.bikeNumber ||
         vehicle?.name ||
         `${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim() ||
-        'Campus bike'
+        'HONDA ACTIVA'
     const isAvailable = availability?.available ?? status === 'AVAILABLE'
     const includedKm = availability?.includedKm
     const gstLabel =

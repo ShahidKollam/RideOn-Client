@@ -38,7 +38,7 @@ function statusStyles(status) {
 
 export default function BookingCard({ booking, onViewDetails }) {
     const styles = statusStyles(booking?.status)
-    const bikeName = booking?.bike?.name || 'Campus bike'
+    const bikeName = booking?.bike?.name || 'HONDA ACTIVA'
     const bikeNo = booking?.bike?.bikeNumber || booking?.bike?.label || ''
     const reg = booking?.bike?.registrationNumber || ''
     const campus = booking?.campus?.name || 'NIT Calicut'

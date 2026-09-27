@@ -72,6 +72,33 @@ export const findAvailableBike = async (pickupAt, returnAt, campusId, client = p
 /**
  * Returns true if any bike at the campus is free for the range (with buffer).
  */
+
+/**
+ * Count how many campus bikes are free for the range (buffer-aware).
+ */
+export const countAvailableBikes = async (pickupAt, returnAt, campusId, client = prisma) => {
+    const bikes = await client.bike.findMany({
+        where: {
+            campusId,
+            status: 'AVAILABLE',
+            isActive: true,
+        },
+        orderBy: { currentOdometer: 'asc' },
+    })
+
+    let count = 0
+    for (const bike of bikes) {
+        const availability = await checkBikeAvailability(
+            bike.id,
+            new Date(pickupAt),
+            new Date(returnAt),
+            client
+        )
+        if (availability.available) count += 1
+    }
+    return count
+}
+
 export const hasAvailableBike = async (pickupAt, returnAt, campusId, client = prisma) => {
     try {
         await findAvailableBike(pickupAt, returnAt, campusId, client)

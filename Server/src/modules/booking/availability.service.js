@@ -1,7 +1,7 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 import { calculatePrice, findPricingByDuration, MAX_RENTAL_HOURS, MIN_RENTAL_HOURS } from './pricing.service.js'
-import { findAvailableBike, hasAvailableBike } from '../bike/bike.service.js'
+import { findAvailableBike, countAvailableBikes } from '../bike/bike.service.js'
 import { calculateHelmetAmount, getBookingBufferMinutes } from '../settings/settings.service.js'
 
 const MAX_ALTERNATIVES = 5
@@ -59,14 +59,15 @@ const findAlternativeSlots = async (pickupAt, returnAt, campusId, client) => {
             if (seen.has(key)) continue
             seen.add(key)
 
-            const free = await hasAvailableBike(altPickup, altReturn, campusId, client)
-            if (!free) continue
+            const availableCount = await countAvailableBikes(altPickup, altReturn, campusId, client)
+            if (availableCount < 1) continue
 
             results.push({
                 pickupAt: altPickup.toISOString(),
                 returnAt: altReturn.toISOString(),
                 durationHours: Math.ceil(durationMin / 60),
                 sameDuration: true,
+                availableCount,
             })
         }
     }
@@ -117,12 +118,8 @@ export const getBookingAvailability = async (data, client = prisma) => {
         helmetAmount,
     })
 
-    let availableBike = null
-    try {
-        availableBike = await findAvailableBike(pickupAt, returnAt, data.campusId, client)
-    } catch {
-        // no bike
-    }
+    const availableCount = await countAvailableBikes(pickupAt, returnAt, data.campusId, client)
+    const availableBike = availableCount > 0
 
     const bufferMinutes = await getBookingBufferMinutes(client)
 
@@ -150,6 +147,7 @@ export const getBookingAvailability = async (data, client = prisma) => {
 
         return {
             available: false,
+            availableCount: 0,
             reason: 'No available bikes for the selected time',
             durationHours,
             bookingBufferMinutes: bufferMinutes,
@@ -162,6 +160,7 @@ export const getBookingAvailability = async (data, client = prisma) => {
 
     return {
         available: true,
+        availableCount,
         durationHours,
         bookingBufferMinutes: bufferMinutes,
         pricing: pricingInfo,

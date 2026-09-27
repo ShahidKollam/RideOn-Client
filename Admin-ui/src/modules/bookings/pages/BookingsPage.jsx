@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, CalendarCheck, Eye, KeyRound, Undo2, CircleX, CreditCard } from 'lucide-react'
+import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { DataTable } from '../../../components/ui/DataTable'
@@ -20,6 +20,47 @@ import { AlertTriangle } from 'lucide-react'
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateTime = (v) => (v ? new Date(v).toLocaleString() : '—')
+
+const todayYmd = () => {
+    const n = new Date()
+    const y = n.getFullYear()
+    const m = String(n.getMonth() + 1).padStart(2, '0')
+    const d = String(n.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+/** Local calendar day → ISO start (for API `from`) */
+const toStartISO = (ymd) => {
+    if (!ymd) return null
+    const d = new Date(`${ymd}T00:00:00`)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+/** Local calendar day → ISO end (for API `to`) */
+const toEndISO = (ymd) => {
+    if (!ymd) return null
+    const d = new Date(`${ymd}T23:59:59.999`)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+const addDaysYmd = (ymd, days) => {
+    const d = new Date(`${ymd}T12:00:00`)
+    d.setDate(d.getDate() + days)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+}
+const startOfMonthYmd = () => {
+    const n = new Date()
+    const y = n.getFullYear()
+    const m = String(n.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}-01`
+}
+const formatDisplayDate = (ymd) => {
+    if (!ymd) return ''
+    const d = new Date(`${ymd}T12:00:00`)
+    if (Number.isNaN(d.getTime())) return ymd
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 const Detail = ({ label, value }) =>
     value === undefined || value === null || value === '' || value === false ? null : (
         <div className="flex items-start justify-between gap-4 py-2 text-sm first:pt-0 last:pb-0">
@@ -59,6 +100,9 @@ export default function BookingsPage() {
         [search, setSearch] = useState(''),
         [searchInput, setSearchInput] = useState(''),
         [statusFilter, setStatusFilter] = useState(''),
+        [dateFrom, setDateFrom] = useState(''),
+        [dateTo, setDateTo] = useState(''),
+        [dateMode, setDateMode] = useState('single'), // 'single' | 'range'
         [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1')
     const [selected, setSelected] = useState(null),
         [pickupTarget, setPickupTarget] = useState(null),
@@ -69,12 +113,29 @@ export default function BookingsPage() {
         [paymentMethod, setPaymentMethod] = useState('UPI'),
         [reference, setReference] = useState('')
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly }],
+        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly, dateFrom, dateTo }],
         queryFn: () => {
-            const qs = new URLSearchParams({ page, limit })
+            const qs = new URLSearchParams({ page: String(page), limit: String(limit) })
             if (search) qs.set('search', search)
             if (statusFilter) qs.set('status', statusFilter)
             if (lateOnly) qs.set('lateOnly', 'true')
+            // Filter by scheduled pickup: single day or inclusive range
+            if (dateFrom && dateTo) {
+                const start = toStartISO(dateFrom)
+                const end = toEndISO(dateTo)
+                if (start) qs.set('from', start)
+                if (end) qs.set('to', end)
+            } else if (dateFrom) {
+                const start = toStartISO(dateFrom)
+                const end = toEndISO(dateFrom)
+                if (start) qs.set('from', start)
+                if (end) qs.set('to', end)
+            } else if (dateTo) {
+                const start = toStartISO(dateTo)
+                const end = toEndISO(dateTo)
+                if (start) qs.set('from', start)
+                if (end) qs.set('to', end)
+            }
             return api.get(`/bookings?${qs}`)
         },
     })
@@ -240,54 +301,253 @@ export default function BookingsPage() {
                 ))}
             </div>
             <Card className="overflow-hidden">
-                <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-token">
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault()
-                            setSearch(searchInput.trim())
-                            setPage(1)
-                        }}
-                        className="flex-1 flex gap-2"
-                    >
-                        <div className="relative flex-1 max-w-sm">
-                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                            <Input
-                                className="pl-9"
-                                placeholder="Search booking #…"
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                            />
-                        </div>
-                        <Button type="submit" variant="secondary">
-                            Search
-                        </Button>
-                    </form>
-                    <Select
-                        value={statusFilter}
-                        onChange={(e) => {
-                            setStatusFilter(e.target.value)
-                            setPage(1)
-                        }}
-                    >
-                        <option value="">All statuses</option>
-                        {/* {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'PARTIALLY_PAID'].map((s) => ( */}
-                        {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((s) => (
-                            <option key={s} value={s}>
-                                {s.replace('_', ' ')}
-                            </option>
-                        ))}
-                    </Select>
-                    <label className="inline-flex items-center gap-2 text-sm text-secondary whitespace-nowrap cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={lateOnly}
-                            onChange={(e) => {
-                                setLateOnly(e.target.checked)
+                <div className="space-y-3 border-b border-token p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                setSearch(searchInput.trim())
                                 setPage(1)
                             }}
-                        />
-                        Late returns only
-                    </label>
+                            className="flex flex-1 gap-2"
+                        >
+                            <div className="relative max-w-sm flex-1">
+                                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                                <Input
+                                    className="pl-9"
+                                    placeholder="Search booking #, name, email…"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                />
+                            </div>
+                            <Button type="submit" variant="secondary">
+                                Search
+                            </Button>
+                        </form>
+                        <Select
+                            value={statusFilter}
+                            onChange={(e) => {
+                                setStatusFilter(e.target.value)
+                                setPage(1)
+                            }}
+                        >
+                            <option value="">All statuses</option>
+                            {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'FAILED'].map((s) => (
+                                <option key={s} value={s}>
+                                    {s.replaceAll('_', ' ')}
+                                </option>
+                            ))}
+                        </Select>
+                        <label className="inline-flex cursor-pointer select-none items-center gap-2 whitespace-nowrap text-sm text-secondary">
+                            <input
+                                type="checkbox"
+                                checked={lateOnly}
+                                onChange={(e) => {
+                                    setLateOnly(e.target.checked)
+                                    setPage(1)
+                                }}
+                            />
+                            Late returns only
+                        </label>
+                    </div>
+
+                    {/* Date filter — single day or range (API: from / to on pickupAt) */}
+                    <div className="rounded-xl border border-token bg-[var(--color-primary-soft)]/40 p-3 sm:p-4">
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-muted">
+                                    <Calendar size={15} className="shrink-0 text-[var(--color-primary)]" />
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                                        Filter by pickup date
+                                    </span>
+                                </div>
+                                {/* Mode toggle */}
+                                <div className="inline-flex rounded-lg border border-token bg-surface p-0.5">
+                                    <button
+                                        type="button"
+                                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                            dateMode === 'single'
+                                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
+                                                : 'text-muted hover:text-primary-token'
+                                        }`}
+                                        onClick={() => {
+                                            setDateMode('single')
+                                            if (dateFrom) {
+                                                setDateTo(dateFrom)
+                                            } else if (dateTo) {
+                                                setDateFrom(dateTo)
+                                            }
+                                            setPage(1)
+                                        }}
+                                    >
+                                        Single day
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                            dateMode === 'range'
+                                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
+                                                : 'text-muted hover:text-primary-token'
+                                        }`}
+                                        onClick={() => {
+                                            setDateMode('range')
+                                            setPage(1)
+                                        }}
+                                    >
+                                        Date range
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                                {dateMode === 'single' ? (
+                                    <label className="block min-w-0 sm:w-48">
+                                        <span className="mb-1 block text-xs text-muted">Day</span>
+                                        <Input
+                                            type="date"
+                                            value={dateFrom || dateTo || ''}
+                                            onChange={(e) => {
+                                                const v = e.target.value
+                                                setDateFrom(v)
+                                                setDateTo(v)
+                                                setPage(1)
+                                            }}
+                                        />
+                                    </label>
+                                ) : (
+                                    <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 sm:max-w-md">
+                                        <label className="block min-w-0">
+                                            <span className="mb-1 block text-xs text-muted">From</span>
+                                            <Input
+                                                type="date"
+                                                value={dateFrom}
+                                                max={dateTo || undefined}
+                                                onChange={(e) => {
+                                                    setDateFrom(e.target.value)
+                                                    setPage(1)
+                                                }}
+                                            />
+                                        </label>
+                                        <label className="block min-w-0">
+                                            <span className="mb-1 block text-xs text-muted">To</span>
+                                            <Input
+                                                type="date"
+                                                value={dateTo}
+                                                min={dateFrom || undefined}
+                                                onChange={(e) => {
+                                                    setDateTo(e.target.value)
+                                                    setPage(1)
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+
+                                {/* Presets */}
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {[
+                                        {
+                                            label: 'Today',
+                                            apply: () => {
+                                                const t = todayYmd()
+                                                setDateFrom(t)
+                                                setDateTo(t)
+                                                setDateMode('single')
+                                            },
+                                        },
+                                        {
+                                            label: 'Yesterday',
+                                            apply: () => {
+                                                const y = addDaysYmd(todayYmd(), -1)
+                                                setDateFrom(y)
+                                                setDateTo(y)
+                                                setDateMode('single')
+                                            },
+                                        },
+                                        {
+                                            label: 'Last 7 days',
+                                            apply: () => {
+                                                const t = todayYmd()
+                                                setDateFrom(addDaysYmd(t, -6))
+                                                setDateTo(t)
+                                                setDateMode('range')
+                                            },
+                                        },
+                                        {
+                                            label: 'This month',
+                                            apply: () => {
+                                                const t = todayYmd()
+                                                setDateFrom(startOfMonthYmd())
+                                                setDateTo(t)
+                                                setDateMode('range')
+                                            },
+                                        },
+                                    ].map((preset) => (
+                                        <Button
+                                            key={preset.label}
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => {
+                                                preset.apply()
+                                                setPage(1)
+                                            }}
+                                        >
+                                            {preset.label}
+                                        </Button>
+                                    ))}
+                                    {(dateFrom || dateTo) && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setDateFrom('')
+                                                setDateTo('')
+                                                setPage(1)
+                                            }}
+                                        >
+                                            <X size={14} />
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {(dateFrom || dateTo) && (
+                                <p className="text-xs text-secondary">
+                                    Showing bookings with scheduled pickup{' '}
+                                    {dateFrom && dateTo && dateFrom === dateTo
+                                        ? (
+                                              <>
+                                                  on <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
+                                              </>
+                                          )
+                                        : dateFrom && dateTo
+                                          ? (
+                                                <>
+                                                    from{' '}
+                                                    <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
+                                                    {' '}to{' '}
+                                                    <span className="font-semibold text-primary-token">{formatDisplayDate(dateTo)}</span>
+                                                </>
+                                            )
+                                          : dateFrom
+                                            ? (
+                                                  <>
+                                                      from <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
+                                                  </>
+                                              )
+                                            : (
+                                                  <>
+                                                      on <span className="font-semibold text-primary-token">{formatDisplayDate(dateTo)}</span>
+                                                  </>
+                                              )}
+                                    .
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </div>
                 {/* Mobile cards */}
                 <MobileList>
@@ -395,15 +655,8 @@ export default function BookingsPage() {
                 ) : (
                     booking && (
                         <div className="flex flex-col gap-4">
-                            {/* <Section title="Customer" className="order-3">
-                                <Detail label="Name" value={booking.user?.name} />
-                                <Detail label="Email" value={booking.user?.email} />
-                                <Detail label="Phone" value={booking.user?.phone} />
-                            </Section> */}
                             <Section title="Bike" className="order-4">
-                                {/* <Detail label="Bike" value={booking.bike?.name} /> */}
                                 <Detail label="Registration" value={booking.bike?.registrationNumber} />
-                                {/* <Detail label="Campus" value={booking.campus?.name} /> */}
                                 <Detail
                                     label="Status"
                                     value={booking.bike?.status && <StatusBadge status={booking.bike.status} />}
@@ -456,7 +709,6 @@ export default function BookingsPage() {
                                 {booking.lateHelmetFee != null && (
                                     <Detail label="Late helmet fee" value={money(booking.lateHelmetFee)} />
                                 )}
-                                {/* GST breakdown */}
                                 {booking.originalGstAmount != null && Number(booking.originalGstAmount) > 0 && (
                                     <Detail label="GST (original)" value={money(booking.originalGstAmount)} />
                                 )}

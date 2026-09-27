@@ -97,19 +97,36 @@ export default function BookingDetailsModal({ open, bookingId, onClose, onUpdate
         }
     }, [open, bookingId])
 
+    // Escape closes drawer only when cancel modal is not open
     useEffect(() => {
         if (!open) return undefined
         const onKey = (e) => {
             if (e.key === 'Escape' && !confirming && !cancelOpen) onClose?.()
         }
         document.addEventListener('keydown', onKey)
-        const prev = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-        return () => {
-            document.removeEventListener('keydown', onKey)
-            document.body.style.overflow = prev || ''
-        }
+        return () => document.removeEventListener('keydown', onKey)
     }, [open, confirming, cancelOpen, onClose])
+
+    // Body scroll lock for the drawer only. Do not depend on cancelOpen —
+    // nested cancel must not snapshot/restore overflow:hidden and stick the page.
+    useEffect(() => {
+        if (!open) return undefined
+        const prevBody = document.body.style.overflow
+        const prevHtml = document.documentElement.style.overflow
+        document.body.style.overflow = 'hidden'
+        document.documentElement.style.overflow = 'hidden'
+        return () => {
+            document.body.style.overflow = prevBody || ''
+            document.documentElement.style.overflow = prevHtml || ''
+            // Hard-clear in case a nested modal left hidden in the snapshot
+            if (document.body.style.overflow === 'hidden') {
+                document.body.style.overflow = ''
+            }
+            if (document.documentElement.style.overflow === 'hidden') {
+                document.documentElement.style.overflow = ''
+            }
+        }
+    }, [open])
 
     const openCancelModal = async () => {
         if (!bookingId) return
@@ -162,7 +179,7 @@ export default function BookingDetailsModal({ open, bookingId, onClose, onUpdate
         (cancellation?.canCancel === true ||
             (!cancellation && ['PAYMENT_PENDING', 'CONFIRMED'].includes(String(booking?.status || '').toUpperCase())))
 
-    const bikeName = booking?.bike?.name || 'Campus bike'
+    const bikeName = booking?.bike?.name || 'HONDA ACTIVA'
     const bikeNo = booking?.bike?.bikeNumber || ''
     const reg = booking?.bike?.registrationNumber || ''
     const campus = booking?.campus?.name || 'NIT Calicut'

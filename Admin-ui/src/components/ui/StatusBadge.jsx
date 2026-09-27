@@ -20,7 +20,7 @@ const statusStyles = {
   FAILED: 'bg-red-500/15 text-red-600 dark:text-red-400',
   NOT_APPLICABLE: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
   CANCELLED: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
-  IN_USE: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  // IN_USE: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',  
 };
 
 export function StatusBadge({ status, className }) {

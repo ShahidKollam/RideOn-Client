@@ -5,67 +5,54 @@
   },
   "members": [
     {
-      "id": "aarav-nair",
-      "name": "Aarav Nair",
-      "role": "Founder & CEO",
-      "bio": "Drives the vision and keeps us moving forward.",
-      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "nikhil-ks",
+      "name": "Nikhil K S",
+      "role": "Founder and CEO",
+      "bio": "Chemical Engineering Student\nDriven by ideas, built with purpose.\nTurning vision into reality, one ride at a time.",
+      "image": "/team/nikhil-ks.png"
     },
     {
-      "id": "meera-krishnan",
-      "name": "Meera Krishnan",
-      "role": "Operations Lead",
-      "bio": "Makes sure everything runs smoothly, every day.",
-      "image": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "venu-s",
+      "name": "Venu S",
+      "role": "Co Founder",
+      "bio": "Department of Mechanical Engineering\nBuilding and running the fleet that keeps campus moving.",
+      "image": "/team/venu-s.png"
     },
     {
-      "id": "rohan-verma",
-      "name": "Rohan Verma",
-      "role": "Product & Technology",
-      "bio": "Builds the tech that powers your ride.",
-      "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "vivek-v",
+      "name": "Vivek V",
+      "role": "Co Founder and CFO",
+      "bio": "Mechanical Engineering Student\nSteering finance with clarity and care.",
+      "image": "/team/vivek-v.png"
     },
     {
-      "id": "ananya-sharma",
-      "name": "Ananya Sharma",
-      "role": "Customer Experience",
-      "bio": "Here to help, always. Your ride, our priority.",
-      "image": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "shahid-ali",
+      "name": "Shahid Ali",
+      "role": "Technical Head & Product Engineer",
+      "bio": "Building the digital foundation of RideOn.\nWhere ideas meet code, and code becomes reality.",
+      "image": "/team/shahid-ali.png",
+      "linkedin": "https://www.linkedin.com/in/shahid-kollam/"
     },
     {
-      "id": "kabir-singh",
-      "name": "Kabir Singh",
-      "role": "Growth & Partnerships",
-      "bio": "Connects campuses and partners so RideOn can reach more students.",
-      "image": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "sreerag-sivan",
+      "name": "Sreerag Sivan",
+      "role": "Head of Automotive Operations",
+      "bio": "Department of Mechanical Engineering\nKeeps every RideOn vehicle ready, safe, and on the road.",
+      "image": "/team/sreerag-sivan.png"
     },
     {
-      "id": "priya-menon",
-      "name": "Priya Menon",
-      "role": "Design Lead",
-      "bio": "Crafts a simple, friendly experience from first book to final drop-off.",
-      "image": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "deepak-a",
+      "name": "Deepak A",
+      "role": "Head of Financial Affairs",
+      "bio": "Department of Mechanical Engineering\nKeeping RideOn’s numbers clear, careful, and on track.",
+      "image": "/team/deepak-a.png"
     },
     {
-      "id": "aditya-rao",
-      "name": "Aditya Rao",
-      "role": "Campus Relations",
-      "bio": "Works with student communities to keep RideOn grounded on campus.",
-      "image": "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=400&h=400&fit=crop&crop=faces",
-      "linkedin": "https://www.linkedin.com/",
-      "twitter": "https://x.com/"
+      "id": "shyamjith",
+      "name": "Shyamjith",
+      "role": "Director & Marketing Head",
+      "bio": "Electronics & Communication Engineering\nDriving RideOn’s brand and campus reach.",
+      "image": "/team/shyamjith.png"
     }
   ]
 }
