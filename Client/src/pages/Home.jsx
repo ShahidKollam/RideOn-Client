@@ -4,8 +4,10 @@ import PromoBanner from "@/components/home/PromoBanner"
 import { Link } from 'react-router-dom'
 import { ArrowRight, Bike } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 export default function Home() {
+    useDocumentTitle('Campus bike rentals')
   return (
     <div className="min-h-screen bg-white">
       <main className="pt-[88px] ">

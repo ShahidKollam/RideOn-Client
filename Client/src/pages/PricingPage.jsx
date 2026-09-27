@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { getPricingPackages } from '@/services/pricingService'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const benefits = [
     [ShieldCheck, 'Well maintained', 'Regularly serviced bikes'],
@@ -26,6 +27,7 @@ const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`
 const durationLabel = (hours) => `${hours} ${hours === 1 ? 'Hour' : 'Hours'}`
 
 export default function PricingPage() {
+    useDocumentTitle('Pricing')
     const [packages, setPackages] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, Users as UsersIcon, Eye, Pencil, UserCheck, UserX } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
+import { MobileList, MobileCard } from '../../../components/ui/MobileList';
 import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Button } from '../../../components/ui/Button';
@@ -186,7 +187,21 @@ export default function UsersPage() {
           </Select>
         </div>
 
-        <DataTable
+        <MobileList>
+        {(rows || []).map((r) => (
+          <MobileCard key={r.id} onClick={() => typeof setSelected === 'function' ? setSelected(r) : undefined}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm text-primary-token truncate">{r.name || '—'}</span>
+              {r.isVerified != null && (
+                <span className="text-xs text-muted">{r.isVerified ? 'Verified' : 'Unverified'}</span>
+              )}
+            </div>
+            <p className="text-xs text-muted truncate">{r.email || '—'}</p>
+          </MobileCard>
+        ))}
+      </MobileList>
+      <div className="hidden md:block">
+      <DataTable
           columns={columns}
           rows={rows}
           loading={isLoading}
@@ -206,6 +221,7 @@ export default function UsersPage() {
           }}
           onRowClick={(row) => setSelected(row)}
         />
+      </div>
       </Card>
 
       <Drawer

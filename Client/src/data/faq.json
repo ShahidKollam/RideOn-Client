@@ -1,0 +1,189 @@
+{
+  "page": {
+    "eyebrow": "FAQ",
+    "titleParts": [
+      { "text": "Answers,", "tone": "dark" },
+      { "text": " ", "tone": "dark" },
+      { "text": "Before", "tone": "blue" },
+      { "text": " ", "tone": "dark" },
+      { "text": "You Ride.", "tone": "green" }
+    ],
+    "subtitle": "Everything you need to know about booking and renting with RideOn."
+  },
+  "categories": [
+    {
+      "id": "booking",
+      "title": "Booking",
+      "items": [
+        {
+          "q": "How do I book a bike?",
+          "a": "Select your pickup and return date and time, check availability, choose your available option, and complete the booking process."
+        },
+        {
+          "q": "How do I check bike availability?",
+          "a": "Click Book Ride, select your required pickup and return time, and the available options will be shown."
+        },
+        {
+          "q": "Can I book a bike for a future date?",
+          "a": "Yes, you can book for an available future date and time shown by RideOn."
+        },
+        {
+          "q": "Can I change my booking?",
+          "a": "Booking changes are subject to availability and the applicable RideOn booking and cancellation rules."
+        },
+        {
+          "q": "How will I know my booking is confirmed?",
+          "a": "After your booking is successfully completed, you will receive a booking confirmation with your rental details."
+        }
+      ]
+    },
+    {
+      "id": "rental",
+      "title": "Rental",
+      "items": [
+        {
+          "q": "Who can rent a RideOn bike?",
+          "a": "You must meet RideOn's eligibility requirements and have a valid driving licence required to legally ride the rented bike."
+        },
+        {
+          "q": "What documents do I need?",
+          "a": "You may be required to provide your valid driving licence, identification, and other information required for verification."
+        },
+        {
+          "q": "Can someone else ride the bike I booked?",
+          "a": "No. The bike is intended for the customer named on the booking unless RideOn specifically authorizes another rider."
+        },
+        {
+          "q": "Can I use the bike for racing or stunts?",
+          "a": "No. Racing, stunt riding, overloading, and other prohibited uses are not allowed."
+        },
+        {
+          "q": "Can I ride the bike after consuming alcohol?",
+          "a": "No. Riding under the influence of alcohol or drugs is strictly prohibited."
+        }
+      ]
+    },
+    {
+      "id": "pricing-payment",
+      "title": "Pricing & Payment",
+      "items": [
+        {
+          "q": "What rental options are available?",
+          "a": "RideOn offers rental options based on the available pricing plans, including hourly, half-day, and daily options where applicable."
+        },
+        {
+          "q": "What is included in the rental price?",
+          "a": "The booking summary will show the applicable rental charges, taxes, fees, and any included items or services before you complete your booking."
+        },
+        {
+          "q": "Is a security deposit required?",
+          "a": "If a security deposit applies to your booking, the amount will be shown during the booking process."
+        },
+        {
+          "q": "When will I get my security deposit back?",
+          "a": "The eligible security deposit amount will be processed after the bike is returned and any applicable deductions have been determined."
+        },
+        {
+          "q": "What payment methods can I use?",
+          "a": "Available payment methods will be shown during the booking and payment process."
+        }
+      ]
+    },
+    {
+      "id": "pickup-return",
+      "title": "Pickup & Return",
+      "items": [
+        {
+          "q": "Where do I pick up the bike?",
+          "a": "Your confirmed pickup location and instructions will be provided with your booking details."
+        },
+        {
+          "q": "What happens if I return the bike late?",
+          "a": "A grace period may apply. After the applicable grace period, late-return charges may be applied according to RideOn's current policy."
+        },
+        {
+          "q": "Can I return the bike earlier than my booking time?",
+          "a": "Yes, but returning the bike early does not automatically mean that unused rental time will be refunded. The applicable rule is determined by RideOn's policy."
+        },
+        {
+          "q": "What should I do if the bike breaks down?",
+          "a": "Contact RideOn immediately. Do not attempt an unauthorized repair."
+        },
+        {
+          "q": "What should I do if the bike is damaged or involved in an accident?",
+          "a": "Contact RideOn immediately and provide the necessary details. Do not leave the incident unreported."
+        }
+      ]
+    },
+    {
+      "id": "cancellation",
+      "title": "Cancellation",
+      "items": [
+        {
+          "q": "Can I cancel my booking?",
+          "a": "Yes. You can cancel your booking according to the RideOn Cancellation Policy."
+        },
+        {
+          "q": "How much will I get back if I cancel?",
+          "a": "The applicable refund depends on how early you cancel before your scheduled pickup time. See our Cancellation Policy for the current cancellation charges."
+        },
+        {
+          "q": "When will my refund be processed?",
+          "a": "If your cancellation qualifies for a refund, it will be processed according to the RideOn Cancellation Policy and applicable payment-provider processing times."
+        },
+        {
+          "q": "What happens if I don't show up for my booking?",
+          "a": "A no-show may be subject to the applicable cancellation rules."
+        }
+      ]
+    },
+    {
+      "id": "bike-rules",
+      "title": "Bike & Rental Rules",
+      "items": [
+        {
+          "q": "Do I get a helmet with the bike?",
+          "a": "Helmet availability and any related charges are shown during the booking process where applicable."
+        },
+        {
+          "q": "Is there a kilometre limit?",
+          "a": "Included kilometres (if any) are shown on the pricing plans and in your booking summary."
+        },
+        {
+          "q": "What happens if I exceed the included kilometres?",
+          "a": "Additional kilometres may be charged according to the applicable RideOn pricing."
+        },
+        {
+          "q": "Who is responsible for traffic fines?",
+          "a": "Traffic fines, challans, and applicable penalties resulting from the customer's use of the bike are the customer's responsibility."
+        },
+        {
+          "q": "What happens if I lose the bike key or an accessory?",
+          "a": "Inform RideOn immediately. Applicable replacement or recovery charges may apply."
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "title": "Support",
+      "items": [
+        {
+          "q": "How can I contact RideOn?",
+          "a": "You can contact our support team using the contact details provided on the Contact Us page."
+        },
+        {
+          "q": "I have a problem with my booking. What should I do?",
+          "a": "Contact RideOn support and provide your booking ID and details of the issue. Our team will assist you."
+        }
+      ]
+    }
+  ],
+  "cta": {
+    "title": "Still have questions?",
+    "subtitle": "We're here to help.",
+    "contactLabel": "Contact Us",
+    "contactTo": "/contact",
+    "bookLabel": "Book Ride",
+    "bookTo": "/booking"
+  }
+}

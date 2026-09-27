@@ -14,6 +14,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../components/ui/Toast';
+import { MobileList, MobileCard } from '../../../components/ui/MobileList';
 
 function parseList(data) {
   const rows = data?.bikes || data?.items || data?.data || (Array.isArray(data) ? data : []);
@@ -31,6 +32,7 @@ function parseList(data) {
 const EMPTY_FORM = {
   campusId: '',
   registrationNumber: '',
+  bikeNumber: '',
   name: '',
   brand: '',
   model: '',
@@ -132,6 +134,7 @@ export default function BikesPage() {
     setForm({
       campusId: row.campusId || row.campus?.id || '',
       registrationNumber: row.registrationNumber || '',
+      bikeNumber: row.bikeNumber || '',
       name: row.name || '',
       brand: row.brand || '',
       model: row.model || '',
@@ -161,6 +164,7 @@ export default function BikesPage() {
     }
 
     const payload = {
+      bikeNumber: form.bikeNumber.trim() || null,
       name: form.name.trim() || undefined,
       brand: form.brand.trim() || undefined,
       model: form.model.trim() || undefined,
@@ -177,6 +181,7 @@ export default function BikesPage() {
     if (!editing) {
       payload.campusId = form.campusId.trim();
       payload.registrationNumber = form.registrationNumber.trim();
+      if (form.bikeNumber.trim()) payload.bikeNumber = form.bikeNumber.trim();
     }
     saveMut.mutate(payload);
   }
@@ -195,7 +200,7 @@ export default function BikesPage() {
               {r.name || `${r.brand || ''} ${r.model || ''}`.trim() || '—'}
             </p>
             <p className="text-xs text-muted truncate">
-              {r.registrationNumber || r.regNo || '—'}
+              {[r.bikeNumber, r.registrationNumber || r.regNo].filter(Boolean).join(' · ') || '—'}
             </p>
           </div>
         </div>
@@ -337,7 +342,23 @@ export default function BikesPage() {
           </Select>
         </div>
 
-        <DataTable
+        <MobileList>
+        {rows.map((r) => (
+          <MobileCard key={r.id} onClick={() => setSelected(r)}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm text-primary-token">{r.bikeNumber || r.name || '—'}</span>
+              <StatusBadge status={r.status || 'AVAILABLE'} />
+            </div>
+            <p className="text-sm text-secondary truncate">{r.name || [r.brand, r.model].filter(Boolean).join(' ')}</p>
+            <p className="text-xs text-muted">{r.registrationNumber || '—'}</p>
+          </MobileCard>
+        ))}
+        {!isLoading && rows.length === 0 && (
+          <p className="text-sm text-muted text-center py-8">No bikes found</p>
+        )}
+      </MobileList>
+      <div className="hidden md:block">
+      <DataTable
           columns={columns}
           rows={rows}
           loading={isLoading}
@@ -357,6 +378,7 @@ export default function BikesPage() {
           }}
           onRowClick={(row) => setSelected(row)}
         />
+      </div>
       </Card>
 
       {/* Detail Drawer */}
@@ -412,6 +434,7 @@ export default function BikesPage() {
             </div>
             {[
               ['Name', selected.name],
+              ['Bike Number', selected.bikeNumber],
               ['Registration', selected.registrationNumber],
               ['Brand', selected.brand],
               ['Model', selected.model],
@@ -518,6 +541,20 @@ export default function BikesPage() {
               </div>
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-1.5">
+              Bike Number <span className="text-muted font-normal">(optional)</span>
+            </label>
+            <Input
+              value={form.bikeNumber}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, bikeNumber: e.target.value }))
+              }
+              placeholder="RO-001"
+            />
+            <p className="mt-1 text-xs text-muted">Human-readable ID. Must be unique if set.</p>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-secondary mb-1.5">

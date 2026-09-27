@@ -1,0 +1,227 @@
+{
+  "page": {
+    "eyebrow": "Terms & Conditions",
+    "titleParts": [
+      {
+        "text": "Ride Together,",
+        "tone": "dark"
+      },
+      {
+        "text": " ",
+        "tone": "dark"
+      },
+      {
+        "text": "With Clear",
+        "tone": "blue"
+      },
+      {
+        "text": " ",
+        "tone": "dark"
+      },
+      {
+        "text": "Terms.",
+        "tone": "green"
+      }
+    ],
+    "subtitle": "These Terms & Conditions outline the rules and responsibilities for using RideOn's bike rental services. By using our services, you agree to these terms.",
+    "lastUpdated": "September 24, 2026"
+  },
+  "intro": "These Terms & Conditions govern your use of the RideOn website, booking platform, and bike rental services. By creating an account, making a booking, or renting a bike through RideOn, you agree to these Terms & Conditions.",
+  "sections": [
+    {
+      "id": "eligibility",
+      "title": "Eligibility",
+      "paragraphs": [
+        "You must meet RideOn's eligibility requirements and hold a valid driving licence required to legally operate the rented bike.",
+        "You must provide accurate and complete information during registration, verification, and booking."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Account Information",
+      "paragraphs": [
+        "You are responsible for keeping your account information accurate and secure."
+      ],
+      "listIntro": "You must not:",
+      "list": [
+        "Create an account using another person's information.",
+        "Share your account with another person.",
+        "Provide false or misleading information.",
+        "Allow another person to use a booking made in your name without RideOn's approval."
+      ],
+      "paragraphsAfter": [
+        "RideOn may suspend or terminate an account in case of misuse, fraud, or violation of these Terms."
+      ]
+    },
+    {
+      "id": "booking",
+      "title": "Booking",
+      "paragraphs": [
+        "A booking is confirmed only after the required booking and payment process has been successfully completed.",
+        "Bike availability depends on the selected pickup and return time.",
+        "You are responsible for providing accurate booking and personal information."
+      ]
+    },
+    {
+      "id": "rental-period",
+      "title": "Rental Period",
+      "paragraphs": [
+        "The rental begins at the confirmed pickup time and ends at the confirmed return time.",
+        "The bike must be returned within the booked rental period. Late returns may result in additional charges according to RideOn's applicable late-return policy."
+      ]
+    },
+    {
+      "id": "use-of-bike",
+      "title": "Use of the Bike",
+      "paragraphs": [
+        "The bike must be used responsibly and only for lawful purposes."
+      ],
+      "listIntro": "You must not:",
+      "list": [
+        "Allow another person to use the bike without RideOn's approval.",
+        "Sub-rent or transfer the bike.",
+        "Use the bike for racing or stunt riding.",
+        "Overload the bike.",
+        "Use the bike for illegal activities.",
+        "Ride under the influence of alcohol or drugs.",
+        "Modify or repair the bike without RideOn's permission."
+      ]
+    },
+    {
+      "id": "customer-responsibility",
+      "title": "Customer Responsibility",
+      "paragraphs": [
+        "You are responsible for taking reasonable care of the bike during the rental period."
+      ],
+      "listIntro": "You must immediately inform RideOn if the bike is involved in:",
+      "list": [
+        "An accident",
+        "Theft or loss",
+        "Damage",
+        "A breakdown",
+        "Any other significant incident"
+      ]
+    },
+    {
+      "id": "damage-loss-theft",
+      "title": "Damage, Loss & Theft",
+      "paragraphs": [
+        "You may be responsible for applicable costs resulting from damage, loss, theft, misuse, or negligence during your rental.",
+        "Where applicable, this may include reasonable repair, replacement, recovery, or missing-item charges."
+      ]
+    },
+    {
+      "id": "traffic-fines",
+      "title": "Traffic Fines & Penalties",
+      "paragraphs": [
+        "Any traffic fines, challans, penalties, towing charges, or other legal charges resulting from your use of the bike are your responsibility, where applicable."
+      ]
+    },
+    {
+      "id": "late-return",
+      "title": "Late Return",
+      "paragraphs": [
+        "The bike must be returned at the confirmed return time.",
+        "A grace period may apply. After the applicable grace period, late-return charges may be applied according to RideOn's current late-return policy."
+      ]
+    },
+    {
+      "id": "payment-charges",
+      "title": "Payment & Charges",
+      "paragraphs": [
+        "You are responsible for paying all applicable charges shown during the booking process."
+      ],
+      "listIntro": "Depending on your booking, charges may include:",
+      "list": [
+        "Rental charges",
+        "Applicable GST and taxes",
+        "Platform or service fees",
+        "Helmet charges",
+        "Security deposit",
+        "Late-return charges",
+        "Other applicable charges"
+      ],
+      "paragraphsAfter": [
+        "The applicable amount will be shown during the booking and payment process."
+      ]
+    },
+    {
+      "id": "security-deposit",
+      "title": "Security Deposit",
+      "paragraphs": [
+        "Where applicable, RideOn may collect a refundable security deposit.",
+        "Eligible deductions may be made for applicable outstanding charges, damage, missing items, or other amounts permitted under the rental terms.",
+        "Any remaining eligible amount will be refunded according to RideOn's applicable refund process."
+      ]
+    },
+    {
+      "id": "cancellation",
+      "title": "Cancellation",
+      "paragraphs": [
+        "Bookings may be cancelled according to the RideOn Cancellation Policy.",
+        "Any applicable cancellation charges and refund amounts will be determined according to the policy applicable at the time of cancellation."
+      ],
+      "link": {
+        "label": "Cancellation Policy",
+        "to": "/cancellation-policy"
+      }
+    },
+    {
+      "id": "breakdown-repairs",
+      "title": "Breakdown & Repairs",
+      "paragraphs": [
+        "If the bike breaks down or develops a significant mechanical issue, you must contact RideOn immediately.",
+        "You must not carry out unauthorized repairs or modifications to the bike."
+      ]
+    },
+    {
+      "id": "rideon-rights",
+      "title": "RideOn's Rights",
+      "paragraphs": [
+        "RideOn may cancel, suspend, or terminate a booking or rental if:"
+      ],
+      "list": [
+        "These Terms are violated.",
+        "Required information or documents cannot be verified.",
+        "The bike is misused.",
+        "Fraudulent or unauthorized activity is suspected.",
+        "Continued rental creates a safety, legal, or operational concern."
+      ]
+    },
+    {
+      "id": "governing-law",
+      "title": "Governing Law",
+      "paragraphs": [
+        "These Terms & Conditions shall be governed by the applicable laws of India."
+      ]
+    },
+    {
+      "id": "limitation-liability",
+      "title": "Limitation of Liability",
+      "paragraphs": [
+        "RideOn will not be responsible for losses or claims arising from misuse of the bike, violation of these Terms, or unlawful use by the customer, except where liability cannot legally be excluded or limited."
+      ]
+    },
+    {
+      "id": "changes-to-terms",
+      "title": "Changes to These Terms",
+      "paragraphs": [
+        "RideOn may update these Terms & Conditions from time to time.",
+        "Any updated version will be published on this page with the revised Last Updated date."
+      ]
+    },
+    {
+      "id": "contact-us",
+      "title": "Contact Us",
+      "paragraphs": [
+        "For questions regarding these Terms & Conditions, please contact us:"
+      ],
+      "contact": {
+        "company": "RideOn Private Limited",
+        "address": "Katangal, NIT P.O., Kozhikode \u2013 673601",
+        "email": "support@rideon.in",
+        "phone": "+91 98765 43210"
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import DashboardPage from '../modules/dashboard/pages/DashboardPage';
 import UsersPage from '../modules/users/pages/UsersPage';
 import BikesPage from '../modules/bikes/pages/BikesPage';
 import BookingsPage from '../modules/bookings/pages/BookingsPage';
+import BookingDetailPage from '../modules/bookings/pages/BookingDetailPage';
 import PaymentsPage from '../modules/payments/pages/PaymentsPage';
 import PricingPage from '../modules/pricing/pages/PricingPage';
 import PoliciesPage from '../modules/policies/pages/PoliciesPage';
@@ -61,6 +62,14 @@ export const router = createBrowserRouter([
         element: (
           <Guard permission="bookings.read">
             <BookingsPage />
+          </Guard>
+        ),
+      },
+      {
+        path: 'bookings/:id',
+        element: (
+          <Guard permission="bookings.read">
+            <BookingDetailPage />
           </Guard>
         ),
       },

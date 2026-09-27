@@ -79,3 +79,25 @@ export const verifyWebhookSignature = (rawBody, signature) => {
 export const toPaise = (amountInRupees) => Math.round(Number(amountInRupees) * 100)
 
 export const fromPaise = (amountInPaise) => Number((Number(amountInPaise) / 100).toFixed(2))
+
+/**
+ * Create a partial or full refund against an existing Razorpay payment.
+ * Amount is in paise. Razorpay returns funds to the original payment method.
+ */
+export const createRazorpayRefund = async ({ paymentId, amountInPaise, notes = {} }) => {
+    const razorpay = getRazorpay()
+
+    if (!paymentId) {
+        throw new ApiError(400, 'Razorpay payment id is required for refund')
+    }
+    if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
+        throw new ApiError(400, 'Refund amount must be a positive number of paise')
+    }
+
+    const refund = await razorpay.payments.refund(paymentId, {
+        amount: amountInPaise,
+        notes,
+    })
+
+    return refund
+}

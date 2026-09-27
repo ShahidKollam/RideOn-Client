@@ -19,13 +19,23 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import BookingSummary from '@/components/bookings/BookingSummary'
 import { Button } from '@/components/ui/button'
+import FullPageLoader from '@/components/ui/FullPageLoader'
 import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { checkAvailability } from '@/services/bookingService'
 import { createPaymentOrder, markPaymentFailed, verifyPayment } from '@/services/paymentService'
 import { getVehicles } from '@/services/vehicleService'
+import { clearBookingDraft, loadBookingDraft, saveBookingDraft } from '@/lib/bookingDraft'
+import {
+    formatDisplayDate,
+    formatDisplayDateTime,
+    formatDisplayTime,
+    toDateInputValue,
+    toTimeInputValue,
+} from '@/lib/dateFormat'
 
 const toDateInput = (date) => {
     const offset = date.getTimezoneOffset() * 60000
@@ -126,21 +136,42 @@ export default function BookingPage() {
     const [error, setError] = useState('')
     const [dateError, setDateError] = useState('')
     const [submitting, setSubmitting] = useState(false)
+    /** 'order' | 'verify' | null — distinguishes payment preparation vs post-pay verification */
+    const [paymentPhase, setPaymentPhase] = useState(null)
     const [availability, setAvailability] = useState(null)
-    const [helmetCount, setHelmetCount] = useState(0)
+    const [orderPricing, setOrderPricing] = useState(null)
+    const [checkingAvailability, setCheckingAvailability] = useState(false)
+    useDocumentTitle('Book a ride')
+    const resultRef = useRef(null)
     const initialPickup = useMemo(() => {
         const value = new Date()
         value.setMinutes(0, 0, 0)
         value.setHours(value.getHours() + 1)
         return { date: toDateInput(value), time: toTimeInput(value) }
     }, [])
-    const [values, setValues] = useState({
-        pickupDate: initialPickup.date,
-        pickupTime: initialPickup.time,
-        returnDate: toDateInput(new Date()),
-        returnTime: '',
+    const [helmetCount, setHelmetCount] = useState(() => {
+        const draft = loadBookingDraft()
+        return draft && Number.isFinite(draft.helmetCount) ? draft.helmetCount : 0
+    })
+    const [values, setValues] = useState(() => {
+        const draft = loadBookingDraft()
+        if (draft && (draft.pickupDate || draft.pickupTime || draft.returnDate || draft.returnTime)) {
+            return {
+                pickupDate: draft.pickupDate || initialPickup.date,
+                pickupTime: draft.pickupTime || initialPickup.time,
+                returnDate: draft.returnDate || toDateInput(new Date()),
+                returnTime: draft.returnTime || '',
+            }
+        }
+        return {
+            pickupDate: initialPickup.date,
+            pickupTime: initialPickup.time,
+            returnDate: toDateInput(new Date()),
+            returnTime: '',
+        }
     })
     const [summaryOpen, setSummaryOpen] = useState(false)
+    const restoredDraftRef = useRef(Boolean(loadBookingDraft()))
 
     useEffect(() => {
         getVehicles({ isActive: true, limit: 1 })
@@ -158,16 +189,100 @@ export default function BookingPage() {
     const returnAt = combineDateAndTime(values.returnDate, values.returnTime)
     const updateValue = (field, value) => {
         setAvailability(null)
+        setOrderPricing(null)
         setDateError('')
-        setValues((current) => ({ ...current, [field]: value }))
+        setValues((current) => {
+            const next = { ...current, [field]: value }
+            saveBookingDraft({
+                pickupDate: next.pickupDate,
+                pickupTime: next.pickupTime,
+                returnDate: next.returnDate,
+                returnTime: next.returnTime,
+                helmetCount,
+            })
+            return next
+        })
     }
     const updateHelmetCount = (value) => {
         setAvailability(null)
+        setOrderPricing(null)
         setHelmetCount(value)
+        setValues((current) => {
+            saveBookingDraft({
+                pickupDate: current.pickupDate,
+                pickupTime: current.pickupTime,
+                returnDate: current.returnDate,
+                returnTime: current.returnTime,
+                helmetCount: value,
+            })
+            return current
+        })
     }
 
+    const runAvailabilityCheck = async (pickupDateObj, returnDateObj, helmet) => {
+        if (!vehicle?.campusId) return
+        setCheckingAvailability(true)
+        setOrderPricing(null)
+        try {
+            const summary = await checkAvailability({
+                campusId: vehicle.campusId,
+                pickupAt: pickupDateObj.toISOString(),
+                returnAt: returnDateObj.toISOString(),
+                helmetCount: helmet,
+            })
+            setAvailability(summary)
+            saveBookingDraft({
+                pickupDate: values.pickupDate,
+                pickupTime: values.pickupTime,
+                returnDate: values.returnDate,
+                returnTime: values.returnTime,
+                helmetCount: helmet,
+            })
+            // Smooth scroll result into view (mobile-friendly, not aggressive)
+            requestAnimationFrame(() => {
+                const el = resultRef.current
+                if (!el) return
+                const rect = el.getBoundingClientRect()
+                const alreadyVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.55
+                if (!alreadyVisible) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                }
+            })
+            return summary
+        } catch (requestError) {
+            showToast({
+                type: 'error',
+                title: 'Could not check availability',
+                description: getApiErrorMessage(requestError),
+            })
+            throw requestError
+        } finally {
+            setCheckingAvailability(false)
+        }
+    }
+
+    // One-shot: restored draft inputs → re-fetch availability once vehicle is ready
+    useEffect(() => {
+        if (!vehicle?.campusId || !restoredDraftRef.current) return
+        restoredDraftRef.current = false
+        const p = combineDateAndTime(values.pickupDate, values.pickupTime)
+        const r = combineDateAndTime(values.returnDate, values.returnTime)
+        if (!p || !r || r <= p) return
+        if (!isAuthenticated) return
+        runAvailabilityCheck(p, r, helmetCount).catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vehicle, isAuthenticated])
+
+    // Keep draft TTL honest while the page stays open
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            loadBookingDraft()
+        }, 30_000)
+        return () => window.clearInterval(id)
+    }, [])
+
     const checkBookingAvailability = async (event) => {
-        event.preventDefault()
+        event?.preventDefault?.()
         if (!pickupAt || !returnAt || returnAt <= pickupAt) {
             setDateError('Return date and time must be after the pickup date and time.')
             return
@@ -176,36 +291,69 @@ export default function BookingPage() {
             navigate('/auth/login', { state: { from: '/booking' } })
             return
         }
+        if (checkingAvailability || submitting) return
 
-        setSubmitting(true)
         try {
-            const summary = await checkAvailability({
-                campusId: vehicle.campusId,
-                pickupAt: pickupAt.toISOString(),
-                returnAt: returnAt.toISOString(),
-                helmetCount,
-            })
-            setAvailability(summary)
-            if (!summary.available)
+            const summary = await runAvailabilityCheck(pickupAt, returnAt, helmetCount)
+            if (summary && !summary.available) {
                 showToast({
                     type: 'error',
-                    title: 'Bike unavailable',
-                    description: summary.reason || 'Choose another time.',
+                    title: 'No bike available',
+                    description: summary.reason || 'No bike available for your selected time',
                 })
-        } catch (requestError) {
-            showToast({
-                type: 'error',
-                title: 'Could not check availability',
-                description: getApiErrorMessage(requestError),
-            })
-        } finally {
-            setSubmitting(false)
+            }
+        } catch {
+            /* toast already shown */
+        }
+    }
+
+    /** Select backend alternative → update form fields → re-check availability */
+    const selectAlternative = async (alt) => {
+        if (!alt?.pickupAt || !alt?.returnAt || checkingAvailability || submitting) return
+        const nextPickup = new Date(alt.pickupAt)
+        const nextReturn = new Date(alt.returnAt)
+        if (Number.isNaN(nextPickup.getTime()) || Number.isNaN(nextReturn.getTime())) return
+
+        setDateError('')
+        const nextValues = {
+            pickupDate: toDateInputValue(nextPickup),
+            pickupTime: toTimeInputValue(nextPickup),
+            returnDate: toDateInputValue(nextReturn),
+            returnTime: toTimeInputValue(nextReturn),
+        }
+        setValues(nextValues)
+        saveBookingDraft({ ...nextValues, helmetCount })
+        setAvailability(null)
+
+        if (!isAuthenticated) {
+            navigate('/auth/login', { state: { from: '/booking' } })
+            return
+        }
+
+        try {
+            const summary = await runAvailabilityCheck(nextPickup, nextReturn, helmetCount)
+            if (summary?.available) {
+                showToast({
+                    type: 'success',
+                    title: 'Time available',
+                    description: 'The selected alternative is available. You can continue to payment.',
+                })
+            } else if (summary) {
+                showToast({
+                    type: 'error',
+                    title: 'No bike available',
+                    description: summary.reason || 'Try another alternative.',
+                })
+            }
+        } catch {
+            /* toast already shown */
         }
     }
 
     const submitBooking = async () => {
         if (!availability?.available) return
         setSubmitting(true)
+        setPaymentPhase('order')
         try {
             const order = await createPaymentOrder({
                 campusId: vehicle.campusId,
@@ -213,6 +361,7 @@ export default function BookingPage() {
                 returnAt: returnAt.toISOString(),
                 helmetCount,
             })
+            if (order?.pricing) setOrderPricing(order.pricing)
             const checkoutLoaded = await loadRazorpayCheckout()
             if (!checkoutLoaded) throw new Error('Razorpay Checkout could not be loaded. Please try again.')
 
@@ -220,6 +369,8 @@ export default function BookingPage() {
             const failPayment = (message) => {
                 if (paymentFlowEnded) return
                 paymentFlowEnded = true
+                setSubmitting(false)
+                setPaymentPhase(null)
                 markPaymentFailed(order.orderId).catch(() => {})
                 navigate('/payment-failed', { state: { message } })
             }
@@ -235,6 +386,7 @@ export default function BookingPage() {
                 theme: { color: '#0764f5' },
                 handler: async (response) => {
                     setSubmitting(true)
+                    setPaymentPhase('verify')
                     try {
                         const result = await verifyPayment({
                             razorpay_order_id: response.razorpay_order_id,
@@ -242,6 +394,8 @@ export default function BookingPage() {
                             razorpay_signature: response.razorpay_signature,
                         })
                         paymentFlowEnded = true
+                        clearBookingDraft()
+                        // Keep loader visible until navigation completes
                         navigate(`/booking-success/${result.booking.id}`, {
                             state: { booking: result.booking, payment: result.payment },
                         })
@@ -252,8 +406,6 @@ export default function BookingPage() {
                                 'Payment verification failed. Please contact support if money was deducted.'
                             )
                         )
-                    } finally {
-                        setSubmitting(false)
                     }
                 },
                 modal: {
@@ -265,10 +417,13 @@ export default function BookingPage() {
                 failPayment(response.error?.description || 'Your payment could not be completed.')
             )
             checkout.open()
+            // Hide overlay while Razorpay checkout is open
             setSubmitting(false)
+            setPaymentPhase(null)
         } catch (requestError) {
             showToast({ type: 'error', title: 'Could not start payment', description: getApiErrorMessage(requestError) })
             setSubmitting(false)
+            setPaymentPhase(null)
         }
     }
 
@@ -290,6 +445,21 @@ export default function BookingPage() {
 
     return (
         <div className="min-h-screen bg-[#fcfdff] pb-28 pt-24 text-[#081440] md:pb-12 sm:pt-28">
+            <FullPageLoader
+                open={checkingAvailability}
+                message="Checking availability…"
+                subMessage="Finding an available bike for your selected time."
+            />
+            <FullPageLoader
+                open={submitting && paymentPhase === 'order'}
+                message="Preparing payment…"
+                subMessage="Creating your order. Razorpay will open next."
+            />
+            <FullPageLoader
+                open={submitting && paymentPhase === 'verify'}
+                message="Confirming your payment…"
+                subMessage="Verifying with the payment gateway. You’ll be redirected shortly."
+            />
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_495px] xl:items-start">
                     <main>
@@ -391,10 +561,10 @@ export default function BookingPage() {
                             </div>
                             <Button
                                 type="submit"
-                                disabled={submitting}
+                                disabled={submitting || checkingAvailability}
                                 className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]"
                             >
-                                {submitting ? (
+                                {checkingAvailability ? (
                                     'Checking availability…'
                                 ) : (
                                     <>
@@ -406,7 +576,10 @@ export default function BookingPage() {
                         </form>
 
                         {availability && (
-                            <section className="mt-4 hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] md:block sm:p-6">
+                            <section
+                                ref={resultRef}
+                                className="mt-4 hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[0_8px_20px_rgba(28,55,113,0.035)] rideon-fade-in md:block sm:p-6"
+                            >
                                 <div className="flex items-center gap-4">
                                     <span className="flex size-[29px] items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">
                                         2
@@ -458,23 +631,82 @@ export default function BookingPage() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="mt-3 flex justify-end">
+                                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-100 bg-[#f4f8ff] p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
+                                            <div className="flex min-w-0 items-start gap-3">
+                                                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
+                                                    <ShieldCheck className="size-5" strokeWidth={2} />
+                                                </span>
+                                                <p className="text-[13px] leading-5 text-slate-600">
+                                                    By continuing, you agree to RideOn&apos;s{' '}
+                                                    <Link to="/terms" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Terms &amp; Conditions
+                                                    </Link>
+                                                    ,{' '}
+                                                    <Link to="/cancellation-policy" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Cancellation Policy
+                                                    </Link>
+                                                    , and{' '}
+                                                    <Link to="/privacy" className="font-semibold text-rideon-blue underline underline-offset-2 hover:text-rideon-blue/80">
+                                                        Privacy Policy
+                                                    </Link>
+                                                    .
+                                                </p>
+                                            </div>
                                             <Button
                                                 type="button"
                                                 onClick={submitBooking}
                                                 disabled={submitting}
-                                                variant="outline"
-                                                className="h-10 rounded-lg border-[#a9c9ff] px-5 text-[14px] font-semibold text-rideon-blue hover:bg-blue-50"
+                                                className="h-9 shrink-0 rounded-lg bg-[#0764f5] px-4 text-[13px] font-semibold text-white hover:bg-[#075be0] sm:h-10 sm:px-5"
                                             >
                                                 Continue to payment <ArrowRight className="size-[18px]" />
                                             </Button>
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-                                        {availability.reason || 'This bike is not available for the selected time.'}
-                                        {availability.availableFrom &&
-                                            ` Next available: ${new Date(availability.availableFrom).toLocaleString()}.`}
+                                    <div className="mt-5 rideon-slide-up space-y-4">
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                                            <p className="font-semibold">No bike available for your selected time</p>
+                                            <p className="mt-1 text-amber-800/90">
+                                                {availability.reason || 'Try one of the alternative times below.'}
+                                            </p>
+                                            {availability.bookingBufferMinutes != null && (
+                                                <p className="mt-2 text-xs text-amber-700/80">
+                                                    Booking buffer: {availability.bookingBufferMinutes} minutes between rides
+                                                </p>
+                                            )}
+                                        </div>
+                                        {Array.isArray(availability.alternatives) && availability.alternatives.length > 0 ? (
+                                            <div>
+                                                <h3 className="mb-3 text-sm font-bold text-[#0b1742]">Alternative times</h3>
+                                                <ul className="grid gap-2 sm:grid-cols-2">
+                                                    {availability.alternatives.map((alt, index) => (
+                                                        <li key={`${alt.pickupAt}-${alt.returnAt}-${index}`}>
+                                                            <button
+                                                                type="button"
+                                                                disabled={checkingAvailability || submitting}
+                                                                onClick={() => selectAlternative(alt)}
+                                                                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-rideon-blue hover:bg-blue-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rideon-blue/40 disabled:opacity-60"
+                                                            >
+                                                                <span className="min-w-0">
+                                                                    <span className="block text-xs font-semibold text-slate-400">
+                                                                        {formatDisplayDate(alt.pickupAt)}
+                                                                        {alt.sameDuration ? ' · Same duration' : alt.durationHours != null ? ` · ${alt.durationHours}h` : ''}
+                                                                    </span>
+                                                                    <span className="mt-0.5 block text-sm font-semibold text-[#0b1742]">
+                                                                        {formatDisplayTime(alt.pickupAt)} – {formatDisplayTime(alt.returnAt)}
+                                                                    </span>
+                                                                </span>
+                                                                <span className="shrink-0 text-sm font-semibold text-rideon-blue group-hover:underline">
+                                                                    Select →
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500">No alternative times available right now. Try a different day or duration.</p>
+                                        )}
                                     </div>
                                 )}
                                 <div className="mt-4 flex items-center gap-4 rounded-lg border border-[#e5edf9] bg-[#f7faff] px-5 py-3 text-[13px] text-[#344879]">
@@ -485,7 +717,7 @@ export default function BookingPage() {
                         )}
 
                         {availability && (
-                            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(28,55,113,0.035)] md:hidden">
+                            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(28,55,113,0.035)] rideon-fade-in md:hidden">
                                 <div className="flex items-center gap-3">
                                     <span className="flex size-7 items-center justify-center rounded-full bg-[#20a64b] text-sm font-bold text-white">
                                         2
@@ -546,8 +778,43 @@ export default function BookingPage() {
                                         </button>
                                     </>
                                 ) : (
-                                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                                        {availability.reason || 'This bike is not available for the selected time.'}
+                                    <div className="mt-4 rideon-slide-up space-y-3">
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                            <p className="font-semibold">No bike available for your selected time</p>
+                                            <p className="mt-1 text-xs text-amber-800/90">
+                                                {availability.reason || 'Choose an alternative below.'}
+                                            </p>
+                                        </div>
+                                        {Array.isArray(availability.alternatives) && availability.alternatives.length > 0 ? (
+                                            <div className="space-y-2">
+                                                <h3 className="text-sm font-bold text-[#0b1742]">Alternative times</h3>
+                                                {availability.alternatives.map((alt, index) => (
+                                                    <button
+                                                        key={`m-${alt.pickupAt}-${index}`}
+                                                        type="button"
+                                                        disabled={checkingAvailability || submitting}
+                                                        onClick={() => selectAlternative(alt)}
+                                                        className="flex w-full flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-rideon-blue/40 disabled:opacity-60"
+                                                    >
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            Alternative
+                                                        </span>
+                                                        <span className="text-sm font-bold text-[#0b1742]">
+                                                            {formatDisplayDate(alt.pickupAt)}
+                                                        </span>
+                                                        <span className="text-sm font-semibold text-[#0b1742]">
+                                                            {formatDisplayTime(alt.pickupAt)} – {formatDisplayTime(alt.returnAt)}
+                                                        </span>
+                                                        {alt.durationHours != null && (
+                                                            <span className="text-xs text-slate-500">{alt.durationHours} hour{alt.durationHours === 1 ? '' : 's'}</span>
+                                                        )}
+                                                        <span className="mt-1 text-sm font-semibold text-rideon-blue">Select →</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500">No alternatives available. Try another time.</p>
+                                        )}
                                     </div>
                                 )}
                             </section>
@@ -568,9 +835,12 @@ export default function BookingPage() {
                                 type="button"
                                 variant="outline"
                                 className="h-11 shrink-0 rounded-lg border-[#f3d9a8] bg-white px-5 text-[14px] text-[#1d294b]"
+                                asChild
                             >
-                                <FileText className="size-[18px]" />
-                                View policy
+                                <Link to="/cancellation-policy">
+                                    <FileText className="size-[18px]" />
+                                    View policy
+                                </Link>
                             </Button>
                         </section>
                     </main>
@@ -580,20 +850,41 @@ export default function BookingPage() {
                         pickupAt={pickupAt?.toISOString()}
                         returnAt={returnAt?.toISOString()}
                         availability={availability}
-                        status="AVAILABLE"
+                        orderPricing={orderPricing}
+                        status={availability?.available ? 'AVAILABLE' : undefined}
                     />
                 </div>
             </div>
             {availability?.available && (
-                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                    <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-blue-100 bg-[#f4f8ff] px-3 py-2.5">
+                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
+                            <ShieldCheck className="size-4" strokeWidth={2} />
+                        </span>
+                        <p className="text-[11px] leading-4 text-slate-600">
+                            By continuing, you agree to RideOn&apos;s{' '}
+                            <Link to="/terms" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Terms &amp; Conditions
+                            </Link>
+                            ,{' '}
+                            <Link to="/cancellation-policy" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Cancellation Policy
+                            </Link>
+                            , and{' '}
+                            <Link to="/privacy" className="font-semibold text-rideon-blue underline underline-offset-2">
+                                Privacy Policy
+                            </Link>
+                            .
+                        </p>
+                    </div>
                     <Button
                         type="button"
                         onClick={submitBooking}
-                        disabled={submitting}
-                        className="h-12 w-full rounded-lg bg-[#0764f5] text-[15px] font-semibold text-white hover:bg-[#075be0]"
+                        disabled={submitting || checkingAvailability}
+                        className="h-10 w-full rounded-lg bg-[#0764f5] text-[14px] font-semibold text-white hover:bg-[#075be0]"
                     >
                         {submitting ? (
-                            'Continuing…'
+                            'Processing payment…'
                         ) : (
                             <>
                                 Continue to payment <ArrowRight className="size-[18px]" />
@@ -632,7 +923,8 @@ export default function BookingPage() {
                             pickupAt={pickupAt?.toISOString()}
                             returnAt={returnAt?.toISOString()}
                             availability={availability}
-                            status="AVAILABLE"
+                            orderPricing={orderPricing}
+                            status={availability?.available ? 'AVAILABLE' : undefined}
                         />
                     </div>
                 </div>

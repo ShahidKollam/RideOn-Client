@@ -127,3 +127,49 @@
     @apply border-red-500 ring-2 ring-red-500/15;
   }
 }
+
+/* RideOn — subtle UI motion (booking availability) */
+@media (prefers-reduced-motion: no-preference) {
+  .rideon-fade-in {
+    animation: rideon-fade-in 0.28s ease-out both;
+  }
+  .rideon-slide-up {
+    animation: rideon-slide-up 0.3s ease-out both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rideon-fade-in,
+  .rideon-slide-up {
+    animation: none;
+  }
+}
+@keyframes rideon-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rideon-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Team page — staggered card entrance */
+@media (prefers-reduced-motion: no-preference) {
+  .team-card-in {
+    animation: team-card-in 0.45s ease-out both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-card-in {
+    animation: none;
+  }
+}
+@keyframes team-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

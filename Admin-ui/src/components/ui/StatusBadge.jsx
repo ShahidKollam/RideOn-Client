@@ -14,6 +14,13 @@ const statusStyles = {
   CONFIRMED: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   PAYMENT_PENDING: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   PARTIALLY_PAID: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  LATE_RETURN: 'bg-red-500/15 text-red-600 dark:text-red-400',
+  SUCCESS: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  PENDING: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  FAILED: 'bg-red-500/15 text-red-600 dark:text-red-400',
+  NOT_APPLICABLE: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  CANCELLED: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  IN_USE: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
 };
 
 export function StatusBadge({ status, className }) {

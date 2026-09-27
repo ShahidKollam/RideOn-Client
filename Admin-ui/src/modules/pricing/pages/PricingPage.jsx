@@ -1,3 +1,4 @@
+import { MobileList, MobileCard } from '../../../components/ui/MobileList';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -11,8 +12,9 @@ import {
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
-import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
+import { DataTable } from '../../../components/ui/DataTable';
+// import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Card } from '../../../components/ui/Card';
@@ -312,7 +314,19 @@ export default function PricingPage() {
             </Button>
           </form>
         </div>
-        <DataTable
+        <MobileList>
+        {(rows || []).map((r) => (
+          <MobileCard key={r.id} onClick={() => typeof setSelected === 'function' ? setSelected(r) : undefined}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm text-primary-token">{r.packageName || `${r.durationHours}h`}</span>
+              <StatusBadge status={r.isActive === false ? 'DISABLED' : 'AVAILABLE'} />
+            </div>
+            <p className="text-sm text-secondary">₹{Number(r.price||0).toLocaleString('en-IN')} · {r.durationHours}h</p>
+          </MobileCard>
+        ))}
+      </MobileList>
+      <div className="hidden md:block">
+      <DataTable
           columns={columns}
           rows={rows}
           loading={isLoading}
@@ -332,6 +346,7 @@ export default function PricingPage() {
           }}
           onRowClick={(row) => setSelected(row)}
         />
+      </div>
       </Card>
 
       {/* Detail Drawer */}

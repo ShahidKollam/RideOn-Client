@@ -1,0 +1,71 @@
+{
+  "page": {
+    "eyebrow": "Team",
+    "title": "Meet the Team Behind Your Ride"
+  },
+  "members": [
+    {
+      "id": "aarav-nair",
+      "name": "Aarav Nair",
+      "role": "Founder & CEO",
+      "bio": "Drives the vision and keeps us moving forward.",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "meera-krishnan",
+      "name": "Meera Krishnan",
+      "role": "Operations Lead",
+      "bio": "Makes sure everything runs smoothly, every day.",
+      "image": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "rohan-verma",
+      "name": "Rohan Verma",
+      "role": "Product & Technology",
+      "bio": "Builds the tech that powers your ride.",
+      "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "ananya-sharma",
+      "name": "Ananya Sharma",
+      "role": "Customer Experience",
+      "bio": "Here to help, always. Your ride, our priority.",
+      "image": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "kabir-singh",
+      "name": "Kabir Singh",
+      "role": "Growth & Partnerships",
+      "bio": "Connects campuses and partners so RideOn can reach more students.",
+      "image": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "priya-menon",
+      "name": "Priya Menon",
+      "role": "Design Lead",
+      "bio": "Crafts a simple, friendly experience from first book to final drop-off.",
+      "image": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    },
+    {
+      "id": "aditya-rao",
+      "name": "Aditya Rao",
+      "role": "Campus Relations",
+      "bio": "Works with student communities to keep RideOn grounded on campus.",
+      "image": "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=400&h=400&fit=crop&crop=faces",
+      "linkedin": "https://www.linkedin.com/",
+      "twitter": "https://x.com/"
+    }
+  ]
+}

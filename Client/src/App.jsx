@@ -18,11 +18,15 @@ const VehicleDetailsPage = lazy(() => import('@/pages/VehicleDetailsPage'))
 const BookingPage = lazy(() => import('@/pages/BookingPage'))
 const BookingSuccessPage = lazy(() => import('@/pages/BookingSuccessPage'))
 const BookingsPage = lazy(() => import('@/pages/BookingsPage'))
-const BookingDetailsPage = lazy(() => import('@/pages/BookingDetailsPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const ContactPage = lazy(() => import('@/pages/ContactPage'))
 const PricingPage = lazy(() => import('@/pages/PricingPage'))
 const PaymentFailedPage = lazy(() => import('@/pages/PaymentFailedPage'))
+const CancellationPolicyPage = lazy(() => import('@/pages/CancellationPolicyPage'))
+const TermsPage = lazy(() => import('@/pages/TermsPage'))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
+const FaqPage = lazy(() => import('@/pages/FaqPage'))
+const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'))
 
 export default function App() {
     return (
@@ -40,9 +44,14 @@ export default function App() {
                     <Route path="/booking-success/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingSuccessPage /></Suspense></ProtectedRoute>} />
                     <Route path="/payment-failed" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><PaymentFailedPage /></Suspense></ProtectedRoute>} />
                     <Route path="/bookings" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/bookings/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingDetailsPage /></Suspense></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><UserProfilePage /></Suspense></ProtectedRoute>} />
+                    <Route path="/bookings/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />
                     <Route path="/about" element={<Suspense fallback={<LoadingScreen />}><AboutPage /></Suspense>} />
                     <Route path="/contact" element={<Suspense fallback={<LoadingScreen />}><ContactPage /></Suspense>} />
+                    <Route path="/cancellation-policy" element={<Suspense fallback={<LoadingScreen />}><CancellationPolicyPage /></Suspense>} />
+                    <Route path="/terms" element={<Suspense fallback={<LoadingScreen />}><TermsPage /></Suspense>} />
+                    <Route path="/privacy" element={<Suspense fallback={<LoadingScreen />}><PrivacyPage /></Suspense>} />
+                    <Route path="/faq" element={<Suspense fallback={<LoadingScreen />}><FaqPage /></Suspense>} />
 
                     <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                     <Route

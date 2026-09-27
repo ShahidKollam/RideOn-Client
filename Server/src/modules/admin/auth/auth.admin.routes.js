@@ -6,12 +6,15 @@ import {
   loginController,
   meController,
   logoutController,
+  refreshController,
 } from './auth.admin.controller.js'
 
 const router = express.Router()
 
 router.post('/login', validate(adminLoginSchema), loginController)
+router.post('/refresh', refreshController)
 router.get('/me', authenticateAdmin, meController)
-router.post('/logout', authenticateAdmin, logoutController)
+// Logout accepts either valid access token OR just the refresh cookie
+router.post('/logout', logoutController)
 
 export default router

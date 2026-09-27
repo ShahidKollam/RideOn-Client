@@ -1,0 +1,124 @@
+{
+  "page": {
+    "eyebrow": "Privacy Policy",
+    "titleParts": [
+      { "text": "Your Privacy,", "tone": "dark" },
+      { "text": " ", "tone": "dark" },
+      { "text": "Our", "tone": "blue" },
+      { "text": " ", "tone": "dark" },
+      { "text": "Priority.", "tone": "green" }
+    ],
+    "subtitle": "RideOn respects your privacy. This policy explains how we collect, use, and protect your information when you use our website, booking services, and bike rental services.",
+    "lastUpdated": "September 24, 2026"
+  },
+  "intro": "RideOn Private Limited (\"RideOn\", \"we\", \"our\", or \"us\") respects your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use our website, booking services, and bike rental services.",
+  "sections": [
+    {
+      "id": "information-we-collect",
+      "title": "Information We Collect",
+      "paragraphs": [
+        "We may collect information such as:"
+      ],
+      "list": [
+        "Name",
+        "Phone number",
+        "Email address",
+        "Address",
+        "College and student ID details",
+        "Driving licence details",
+        "Booking and rental information",
+        "Payment and transaction details",
+        "Information you provide when contacting our support team"
+      ],
+      "paragraphsAfter": [
+        "We may also collect basic technical information such as your device, browser, IP address, and website activity for security and service improvement."
+      ]
+    },
+    {
+      "id": "how-we-use",
+      "title": "How We Use Your Information",
+      "paragraphs": [
+        "We use your information to:"
+      ],
+      "list": [
+        "Create and manage your RideOn account",
+        "Verify your identity and eligibility",
+        "Process and manage bookings",
+        "Process payments and refunds",
+        "Provide customer support",
+        "Send booking and service-related updates",
+        "Manage cancellations and rental charges",
+        "Prevent fraud, misuse, and unauthorized access",
+        "Improve our website and services",
+        "Comply with applicable legal requirements"
+      ]
+    },
+    {
+      "id": "payment-information",
+      "title": "Payment Information",
+      "paragraphs": [
+        "Payments may be processed through third-party payment providers.",
+        "RideOn does not store sensitive payment credentials such as your card PIN, CVV, or banking password. Payment providers may process your payment information according to their own privacy policies."
+      ]
+    },
+    {
+      "id": "sharing",
+      "title": "Sharing of Information",
+      "paragraphs": [
+        "We may share necessary information with trusted service providers who help us operate RideOn, such as payment, hosting, communication, and technology providers.",
+        "We may also disclose information when required by law or by a lawful request from an appropriate authority.",
+        "We do not sell your personal information."
+      ]
+    },
+    {
+      "id": "data-security",
+      "title": "Data Security",
+      "paragraphs": [
+        "We take reasonable measures to protect your personal information from unauthorized access, loss, misuse, or disclosure.",
+        "However, no online service can guarantee complete security of information."
+      ]
+    },
+    {
+      "id": "data-retention",
+      "title": "Data Retention",
+      "paragraphs": [
+        "We retain your information for as long as reasonably necessary to provide our services, maintain booking and payment records, resolve disputes, prevent misuse, and meet applicable legal requirements."
+      ]
+    },
+    {
+      "id": "cookies",
+      "title": "Cookies",
+      "paragraphs": [
+        "Our website may use cookies and similar technologies to maintain sessions, improve functionality, remember preferences, maintain security, and understand website usage.",
+        "You can manage cookies through your browser settings."
+      ]
+    },
+    {
+      "id": "your-rights",
+      "title": "Your Rights",
+      "paragraphs": [
+        "You may contact us to request access to or correction of your personal information, subject to applicable laws and requirements."
+      ]
+    },
+    {
+      "id": "changes-to-policy",
+      "title": "Changes to This Policy",
+      "paragraphs": [
+        "We may update this Privacy Policy from time to time. Any changes will be published on this page with an updated \"Last Updated\" date."
+      ]
+    },
+    {
+      "id": "contact-us",
+      "title": "Contact Us",
+      "paragraphs": [
+        "If you have any questions about this Privacy Policy or how we handle your information, please contact us:"
+      ],
+      "contact": {
+        "company": "RideOn Private Limited",
+        "address": "Katangal, NIT P.O., Kozhikode – 673601",
+        "email": "support@rideon.in",
+        "phone": "+91 98765 43210"
+      }
+    }
+  ]
+}

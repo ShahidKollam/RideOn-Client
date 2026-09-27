@@ -1,4 +1,12 @@
-import { createBooking, cancelBooking, pickupBooking, returnBooking, getBooking, getBookings } from './booking.service.js';
+import {
+  createBooking,
+  cancelBooking,
+  previewCancelBooking,
+  pickupBooking,
+  returnBooking,
+  getBooking,
+  getBookings,
+} from './booking.service.js';
 import { checkAvailability } from './availability.service.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 import ApiResponse from '../../utils/ApiResponse.js';
@@ -26,6 +34,11 @@ export const getBookingsController = asyncHandler(async (req, res) => {
 export const getBookingController = asyncHandler(async (req, res) => {
   const booking = await getBooking(req.params.id, req.user ? req.user.id : null);
   res.status(200).json(new ApiResponse(200, booking, 'Booking retrieved successfully'));
+});
+
+export const previewCancelBookingController = asyncHandler(async (req, res) => {
+  const result = await previewCancelBooking(req.params.id, req.user.id);
+  res.status(200).json(new ApiResponse(200, result, 'Cancellation preview'));
 });
 
 export const cancelBookingController = asyncHandler(async (req, res) => {

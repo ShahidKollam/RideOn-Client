@@ -25,7 +25,20 @@ export async function getBooking(id) {
     return responsePayload(response)
 }
 
+/**
+ * Cancellation preview — backend is the only source of truth for fees/refund.
+ * GET /bookings/:id/cancellation-preview — no body.
+ */
+export async function getCancellationPreview(id) {
+    const response = await apiClient.get(`/bookings/${id}/cancellation-preview`)
+    return responsePayload(response)
+}
+
+/**
+ * Confirm cancellation — empty body. Backend recalculates everything.
+ * PATCH /bookings/:id/cancel — body {}
+ */
 export async function cancelBooking(id) {
-    const response = await apiClient.patch(`/bookings/${id}/cancel`)
+    const response = await apiClient.patch(`/bookings/${id}/cancel`, {})
     return responsePayload(response)
 }

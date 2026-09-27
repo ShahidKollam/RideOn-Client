@@ -120,21 +120,31 @@ export const assignBike = async (bookingId, bikeId) => {
     })
 }
 
+/**
+ * Customer cancellation — recalculates policy on backend, processes refund when applicable.
+ * Idempotent: second call does not create another refund.
+ */
 export const cancelBooking = async (bookingId, userId) => {
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
-    if (!booking) throw new ApiError(404, 'Booking not found')
-    if (booking.userId !== userId) throw new ApiError(403, 'Not authorized')
-
-    if (!['PAYMENT_PENDING', 'CONFIRMED'].includes(booking.status)) {
-        throw new ApiError(400, 'Cannot cancel booking in current status')
-    }
-
-    const updated = await prisma.booking.update({
-        where: { id: bookingId },
-        data: { status: 'CANCELLED' },
+    const { executeCancellation } = await import('./cancellation.service.js')
+    const result = await executeCancellation({
+        bookingId,
+        userId,
+        actor: 'CUSTOMER',
+        applyCancellationFee: true,
     })
+    return {
+        ...result.booking,
+        cancellation: result.calculation,
+        alreadyCancelled: result.alreadyCancelled,
+    }
+}
 
-    return updated
+/**
+ * Customer cancellation preview (no side effects).
+ */
+export const previewCancelBooking = async (bookingId, userId) => {
+    const { previewCustomerCancellation } = await import('./cancellation.service.js')
+    return previewCustomerCancellation(bookingId, userId)
 }
 
 export const pickupBooking = async (bookingId, pickupOdometer, adminId = null) => {
@@ -164,7 +174,7 @@ export const pickupBooking = async (bookingId, pickupOdometer, adminId = null) =
     return await prisma.$transaction(async (tx) => {
         await tx.bike.update({
             where: { id: bike.id },
-            data: { status: 'MAINTENANCE' }, // or occupied logic, but per spec
+            data: { status: 'IN_USE' },
         })
 
         const updatedBooking = await tx.booking.update({
@@ -250,10 +260,20 @@ export const getBooking = async (id, userId = null) => {
             user: true,
             bike: true,
             campus: true,
+            pricing: true,
+            payments: { orderBy: { createdAt: 'asc' } },
         },
     })
     if (!booking) throw new ApiError(404, 'Booking not found')
-    return booking
+
+    const { getCancellationPolicy, buildCancellationInfo } = await import('./cancellation.service.js')
+    const policy = await getCancellationPolicy()
+    const cancellation = buildCancellationInfo(booking, policy, 'CUSTOMER')
+
+    return {
+        ...booking,
+        cancellation,
+    }
 }
 
 export const getBookings = async (query = {}, userId = null) => {
@@ -279,7 +299,7 @@ export const getBookings = async (query = {}, userId = null) => {
             orderBy: { createdAt: 'desc' },
             include: {
                 user: { select: { name: true, email: true } },
-                bike: { select: { registrationNumber: true, name: true } },
+                bike: { select: { id: true, registrationNumber: true, bikeNumber: true, name: true } },
                 campus: true,
             },
         }),
@@ -289,5 +309,48 @@ export const getBookings = async (query = {}, userId = null) => {
     return {
         bookings,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    }
+}
+
+
+/**
+ * Sum of unpaid late-related amounts from COMPLETED bookings for a user.
+ * Used by client payment flow so outstanding late is collected with next payment.
+ * Kept separate from the new booking rental amount.
+ */
+export const getUserOutstandingLateAmount = async (userId, client = prisma) => {
+    const completed = await client.booking.findMany({
+        where: {
+            userId,
+            status: 'COMPLETED',
+            paymentStatus: { in: ['PARTIALLY_PAID', 'PENDING'] },
+        },
+        include: {
+            payments: { select: { amount: true, status: true } },
+        },
+    })
+
+    let outstanding = 0
+    const bookings = []
+    for (const b of completed) {
+        const paid = (b.payments || [])
+            .filter((p) => p.status === 'PAID')
+            .reduce((s, p) => s + Number(p.amount || 0), 0)
+        const due = Number((Number(b.totalAmount) - paid).toFixed(2))
+        if (due > 0) {
+            outstanding += due
+            bookings.push({
+                bookingId: b.id,
+                bookingNumber: b.bookingNumber,
+                outstandingAmount: due,
+                lateFee: b.lateFee || 0,
+                disruptionPenalty: b.disruptionPenalty || 0,
+            })
+        }
+    }
+
+    return {
+        outstandingLateAmount: Number(outstanding.toFixed(2)),
+        outstandingBookings: bookings,
     }
 }

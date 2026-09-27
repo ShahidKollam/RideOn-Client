@@ -1,14 +1,17 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import AuthLayout, { EmailInput } from '@/components/auth/AuthLayout'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/context/ToastContext'
 import { getApiErrorMessage } from '@/lib/apiClient'
 import { sendLoginLink } from '@/services/authService'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const nitcEmailPattern = /^[^\s@]+@nitc\.ac\.in$/i
 
 export default function LoginPage() {
+    useDocumentTitle('Log in')
     const [loginEmail, setLoginEmail] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -49,7 +52,7 @@ export default function LoginPage() {
     }
 
     return (
-        <AuthLayout activeTab="login">
+        <AuthLayout activeTab="login" showTerms={false}>
             <form onSubmit={handleLogin}>
                 <div className="text-center">
                     <h1 className="text-[1.75rem] leading-tight font-extrabold text-rideon-dark">
@@ -94,6 +97,13 @@ export default function LoginPage() {
                 >
                     {loading ? 'Sending...' : 'Send Magic Link'}
                 </Button>
+            
+                <p className="mt-6 text-center text-sm text-slate-500">
+                    Don&apos;t have an account?{' '}
+                    <Link to="/auth/signup" className="font-semibold text-rideon-blue hover:underline">
+                        Sign up
+                    </Link>
+                </p>
             </form>
         </AuthLayout>
     )
