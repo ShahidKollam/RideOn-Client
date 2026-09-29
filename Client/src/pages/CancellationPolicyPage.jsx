@@ -170,7 +170,7 @@ export default function CancellationPolicyPage() {
 
             <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Hero */}
-                <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="grid items-center gap-8 lg:grid-cols-[1.25fr_0.75fr]">
                     <div>
                         <p className="text-sm font-bold uppercase tracking-[0.16em] text-rideon-green">
                             Cancellation Policy
@@ -187,9 +187,9 @@ export default function CancellationPolicyPage() {
                     </div>
 
                     {/* Decorative calendar illustration */}
-                    <div className="relative mx-auto hidden h-44 w-44 items-center justify-center lg:flex" aria-hidden>
-                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-100/80 to-green-100/60 blur-sm" />
-                        <div className="relative flex size-36 flex-col overflow-hidden rounded-2xl border border-white bg-white shadow-[0_16px_40px_rgba(29,140,248,0.15)]">
+                    <div className="relative ml-auto hidden h-48 w-48 items-center justify-center lg:flex xl:mr-4" aria-hidden>
+                        <div className="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-rideon-blue/15 via-blue-100/70 to-rideon-green/15 blur-sm" />
+                        <div className="relative flex size-40 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white shadow-[0_20px_48px_rgba(29,140,248,0.18)] ring-1 ring-slate-100/80">
                             <div className="flex h-9 items-center justify-center bg-rideon-blue">
                                 <div className="flex gap-1.5">
                                     <span className="size-1.5 rounded-full bg-white/80" />

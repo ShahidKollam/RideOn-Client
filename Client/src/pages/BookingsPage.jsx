@@ -100,7 +100,7 @@ export default function BookingsPage() {
     const pastCount = useMemo(() => bookings.length - upcomingCount, [bookings, upcomingCount])
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-slate-50/60 pb-14 pt-24 sm:pt-28">
+        <div className="relative min-h-screen overflow-hidden bg-slate-50/50 pt-24 pb-14 sm:pt-28 sm:pb-16">
             <div
                 className="pointer-events-none absolute -right-16 top-10 size-72 rounded-full bg-rideon-blue/10 blur-3xl"
                 aria-hidden
@@ -126,13 +126,13 @@ export default function BookingsPage() {
                     </div>
 
                     <div
-                        className="relative mx-auto hidden h-44 w-44 items-center justify-center lg:flex"
+                        className="relative ml-auto hidden h-48 w-48 items-center justify-center lg:flex xl:mr-4"
                         aria-hidden
                     >
-                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-100/80 to-green-100/60 blur-sm" />
-                        <div className="relative flex size-36 items-center justify-center rounded-2xl border border-white bg-white shadow-[0_16px_40px_rgba(29,140,248,0.15)]">
+                        <div className="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-rideon-blue/15 via-blue-100/70 to-rideon-green/15 blur-sm" />
+                        <div className="relative flex size-40 items-center justify-center rounded-2xl border border-white/90 bg-white shadow-[0_20px_48px_rgba(29,140,248,0.18)] ring-1 ring-slate-100/80">
                             <CalendarDays className="size-14 text-rideon-blue" strokeWidth={1.4} />
-                            <div className="absolute -bottom-1 -right-1 flex size-11 items-center justify-center rounded-full bg-rideon-green text-white shadow-lg shadow-green-500/25">
+                            <div className="absolute -bottom-1.5 -right-1.5 flex size-12 items-center justify-center rounded-full bg-rideon-green text-white shadow-lg shadow-green-500/30 ring-4 ring-white">
                                 <Bike className="size-5" strokeWidth={2.2} />
                             </div>
                         </div>
