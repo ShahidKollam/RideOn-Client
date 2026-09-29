@@ -16,7 +16,7 @@ export default function AppLayout() {
             </main>
 
             {/* On home, Pickup is rendered inside Home (order: FAQ → Pickup → CTA) */}
-            {!isHome && <PickupPointSection />}
+            {/* {!isHome && <PickupPointSection />} */}
             <Footer />
         </div>
     )

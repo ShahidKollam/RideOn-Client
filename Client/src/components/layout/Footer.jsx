@@ -104,11 +104,25 @@ export default function Footer() {
                                 support@rideon.in
                             </a>
                             <a
-                                href="tel:+919876543210"
+                                href="tel:+918078042682"
                                 className="flex items-center gap-3 text-slate-400 transition hover:text-white"
                             >
                                 <Phone size={16} className="text-rideon-blue" />
-                                +91 98765 43210
+                                +91 80780 42682
+                            </a>
+                            <a
+                                href="tel:+918138853500"
+                                className="flex items-center gap-3 text-slate-400 transition hover:text-white"
+                            >
+                                <Phone size={16} className="text-rideon-blue" />
+                                +91 81388 53500
+                            </a>
+                            <a
+                                href="tel:+919895170317"
+                                className="flex items-center gap-3 text-slate-400 transition hover:text-white"
+                            >
+                                <Phone size={16} className="text-rideon-blue" />
+                                +91 98951 70317
                             </a>
                             <a
                                 href={footerData.mapsUrl || 'https://maps.app.goo.gl/zTgfhvZ2WgUUoqjs6?g_st=ac'}

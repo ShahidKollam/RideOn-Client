@@ -15,11 +15,11 @@ export default function Home() {
     return (
         <div className="min-h-screen bg-white">
             {/* Navbar spacing — hero keeps its own layout; DO NOT change Hero */}
-            <div className="pt-[88px]">
+            <div className="pt-10 sm:pt-[50px]">
                 <HeroSection />
             </div>
 
-            <HomeTrustBar />
+            {/* <HomeTrustBar /> */}
             <HowItWorks />
             <HomeVehicle />
             <HomePricing />

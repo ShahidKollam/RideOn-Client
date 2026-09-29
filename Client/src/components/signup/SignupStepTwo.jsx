@@ -1,19 +1,10 @@
-import { Lock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronDown, Lock } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import SignupProgress from '@/components/signup/SignupProgress'
-
-const departments = [
-    'Architecture and Planning',
-    'Chemical Engineering',
-    'Civil Engineering',
-    'Computer Science and Engineering',
-    'Electrical Engineering',
-    'Electronics and Communication Engineering',
-    'Mechanical Engineering',
-    'Production Engineering',
-]
+import departments from '@/data/departments.json'
 
 const hostels = [
     'A Hostel',
@@ -36,6 +27,26 @@ export default function SignupStepTwo({
     onSubmit,
     submitLabel = 'Complete Profile',
 }) {
+    const [deptOpen, setDeptOpen] = useState(false)
+
+    // Lock background page while department modal is open
+    useEffect(() => {
+        if (!deptOpen) return
+        const prevOverflow = document.body.style.overflow
+        const prevTouch = document.body.style.touchAction
+        document.body.style.overflow = 'hidden'
+        document.body.style.touchAction = 'none'
+        return () => {
+            document.body.style.overflow = prevOverflow
+            document.body.style.touchAction = prevTouch
+        }
+    }, [deptOpen])
+
+    const selectDepartment = (department) => {
+        onChange('department', department)
+        setDeptOpen(false)
+    }
+
     return (
         <section
             className={cn(
@@ -57,7 +68,12 @@ export default function SignupStepTwo({
                         <label htmlFor="mobileNumber" className="block text-sm font-bold text-rideon-dark">
                             Mobile Number
                         </label>
-                        <div className={cn('mt-3 flex h-12 overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-rideon-blue focus-within:ring-2 focus-within:ring-rideon-blue/15', errors.mobileNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300')}>
+                        <div
+                            className={cn(
+                                'mt-3 flex h-12 overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-rideon-blue focus-within:ring-2 focus-within:ring-rideon-blue/15',
+                                errors.mobileNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                            )}
+                        >
                             <div className="flex w-20 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-sm font-bold text-rideon-dark">
                                 +91
                             </div>
@@ -68,10 +84,11 @@ export default function SignupStepTwo({
                                 inputMode="numeric"
                                 value={values.mobileNumber}
                                 onChange={(event) => onChange('mobileNumber', event.target.value)}
-                                placeholder="Enter your mobile number"
                                 aria-invalid={Boolean(errors.mobileNumber)}
                                 aria-describedby={errors.mobileNumber ? 'mobileNumber-error' : undefined}
-                                className="min-w-0 flex-1 px-4 text-sm text-rideon-dark outline-none"
+                                className="h-full w-full border-0 bg-transparent px-4 text-sm text-rideon-dark outline-none placeholder:text-slate-400"
+                                placeholder="10-digit mobile number"
+                                autoComplete="tel"
                             />
                         </div>
                         {errors.mobileNumber && (
@@ -92,7 +109,10 @@ export default function SignupStepTwo({
                             onChange={(event) => onChange('hostel', event.target.value)}
                             aria-invalid={Boolean(errors.hostel)}
                             aria-describedby={errors.hostel ? 'hostel-error' : undefined}
-                            className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
+                            className={cn(
+                                'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
+                                errors.hostel ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                            )}
                         >
                             <option value="">Select your hostel</option>
                             {hostels.map((hostel) => (
@@ -112,6 +132,8 @@ export default function SignupStepTwo({
                         <label htmlFor="department" className="block text-sm font-bold text-rideon-dark">
                             Department
                         </label>
+
+                        {/* Desktop: native select */}
                         <select
                             id="department"
                             name="department"
@@ -119,7 +141,10 @@ export default function SignupStepTwo({
                             onChange={(event) => onChange('department', event.target.value)}
                             aria-invalid={Boolean(errors.department)}
                             aria-describedby={errors.department ? 'department-error' : undefined}
-                            className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
+                            className={cn(
+                                'mt-3 hidden h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15 sm:block',
+                                errors.department ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                            )}
                         >
                             <option value="">Select your department</option>
                             {departments.map((department) => (
@@ -128,6 +153,28 @@ export default function SignupStepTwo({
                                 </option>
                             ))}
                         </select>
+
+                        {/* Mobile: opens scrollable modal */}
+                        <button
+                            type="button"
+                            id="department-mobile-trigger"
+                            onClick={() => unlocked && setDeptOpen(true)}
+                            aria-haspopup="dialog"
+                            aria-expanded={deptOpen}
+                            aria-invalid={Boolean(errors.department)}
+                            aria-describedby={errors.department ? 'department-error' : undefined}
+                            className={cn(
+                                'mt-3 flex h-12 w-full items-center justify-between rounded-lg border bg-white px-4 text-left text-sm outline-none transition-colors sm:hidden',
+                                errors.department ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                values.department ? 'text-rideon-dark' : 'text-slate-400',
+                            )}
+                        >
+                            <span className="truncate">
+                                {values.department || 'Select your department'}
+                            </span>
+                            <ChevronDown className="size-4 shrink-0 text-slate-400" strokeWidth={2} />
+                        </button>
+
                         {errors.department && (
                             <p id="department-error" className="mt-2 text-sm font-medium text-red-600">
                                 {errors.department}
@@ -146,7 +193,10 @@ export default function SignupStepTwo({
                             onChange={(event) => onChange('yearOfStudy', event.target.value)}
                             aria-invalid={Boolean(errors.yearOfStudy)}
                             aria-describedby={errors.yearOfStudy ? 'yearOfStudy-error' : undefined}
-                            className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
+                            className={cn(
+                                'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
+                                errors.yearOfStudy ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                            )}
                         >
                             <option value="">Select your year</option>
                             {years.map((year) => (
@@ -162,48 +212,22 @@ export default function SignupStepTwo({
                         )}
                     </div>
 
-                    <div>
-                        <label htmlFor="licenseNumber" className="block text-sm font-bold text-rideon-dark">
-                            Driving License Number
-                        </label>
+                    <div className="flex items-start gap-3 pt-1">
                         <input
-                            id="licenseNumber"
-                            name="licenseNumber"
-                            type="text"
-                            value={values.licenseNumber}
-                            onChange={(event) => onChange('licenseNumber', event.target.value.toUpperCase())}
-                            placeholder="Enter your driving license number"
-                            aria-invalid={Boolean(errors.licenseNumber)}
-                            aria-describedby={errors.licenseNumber ? 'licenseNumber-error' : undefined}
-                            className="mt-3 h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15"
-                        />
-                        {errors.licenseNumber && (
-                            <p id="licenseNumber-error" className="mt-2 text-sm font-medium text-red-600">
-                                {errors.licenseNumber}
-                            </p>
-                        )}
-                    </div>
-
-                    <label className={cn('flex items-start gap-3 rounded-lg border bg-slate-50/70 px-4 py-3 text-sm leading-6 text-slate-500', errors.acceptedTerms ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-200')}>
-                        <input
+                            id="acceptedTerms"
+                            name="acceptedTerms"
                             type="checkbox"
                             checked={Boolean(values.acceptedTerms)}
                             onChange={(event) => onChange('acceptedTerms', event.target.checked)}
                             aria-invalid={Boolean(errors.acceptedTerms)}
-                            className="mt-1 size-4 rounded border-slate-300 text-rideon-blue accent-rideon-blue"
+                            className="mt-1 size-4 rounded border-slate-300 text-rideon-blue focus:ring-rideon-blue/20"
                         />
-                        <span>
-                            I accept the{' '}
-                            <a href="/terms" className="font-semibold text-rideon-blue underline-offset-4 hover:underline">
-                                Terms & Conditions
-                            </a>{' '}
-                            and confirm my profile details are accurate.
-                        </span>
-                    </label>
+                        <label htmlFor="acceptedTerms" className="text-sm leading-6 text-slate-600">
+                            I agree to the terms and privacy policy.
+                        </label>
+                    </div>
                     {errors.acceptedTerms && (
-                        <p className="text-sm font-medium text-red-600">
-                            {errors.acceptedTerms}
-                        </p>
+                        <p className="text-sm font-medium text-red-600">{errors.acceptedTerms}</p>
                     )}
                 </fieldset>
 
@@ -216,6 +240,65 @@ export default function SignupStepTwo({
                     {loading ? 'Saving...' : submitLabel}
                 </Button>
             </form>
+
+            {/* Mobile department selection modal */}
+            {deptOpen && (
+                <div
+                    className="fixed inset-0 z-[80] flex items-end justify-center sm:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="department-modal-title"
+                >
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/45"
+                        aria-label="Close department list"
+                        onClick={() => setDeptOpen(false)}
+                    />
+                    <div
+                        className="relative z-10 flex w-full max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-[0_-12px_40px_rgba(15,23,42,0.18)]"
+                        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                    >
+                        {/* Fixed header */}
+                        <div className="shrink-0 border-b border-slate-100 px-5 py-4">
+                            <h2
+                                id="department-modal-title"
+                                className="text-base font-bold text-rideon-dark"
+                            >
+                                Select your department
+                            </h2>
+                        </div>
+
+                        {/* Scrollable list — all departments reachable */}
+                        <div
+                            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                            <ul className="py-1">
+                                {departments.map((department) => {
+                                    const selected = values.department === department
+                                    return (
+                                        <li key={department}>
+                                            <button
+                                                type="button"
+                                                onClick={() => selectDepartment(department)}
+                                                className={cn(
+                                                    'flex w-full items-center px-5 py-3.5 text-left text-sm transition-colors',
+                                                    selected
+                                                        ? 'bg-rideon-blue/10 font-semibold text-rideon-blue'
+                                                        : 'text-rideon-dark hover:bg-slate-50 active:bg-slate-100',
+                                                )}
+                                            >
+                                                {department}
+                                            </button>
+                                        </li>
+                                    )
+                                })}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     )
 }
