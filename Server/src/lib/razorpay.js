@@ -25,14 +25,38 @@ export const getRazorpay = () => {
 /**
  * Amount must be in paise (smallest currency unit)
  */
-export const createRazorpayOrder = async ({ amountInPaise, currency = 'INR', receipt, notes = {} }) => {
+// export const createRazorpayOrder = async ({ amountInPaise, currency = 'INR', receipt, notes = {} }) => {
+//     const razorpay = getRazorpay()
+
+//     const order = await razorpay.orders.create({
+//         amount: amountInPaise,
+//         currency,
+//         receipt,
+//         notes,
+//     })
+
+//     return order
+// }
+export const createRazorpayOrder = async ({
+    amountInPaise,
+    currency = 'INR',
+    receipt,
+    notes = {}
+}) => {
     const razorpay = getRazorpay()
 
-    const order = await razorpay.orders.create({
+    const configurationId = process.env.RAZORPAY_CONFIG_ID
+
+    if (!configurationId) {
+        throw new ApiError(500, 'Razorpay configuration ID is not configured')
+    }
+
+    const order = await razorpay.orders.create( {
         amount: amountInPaise,
         currency,
         receipt,
         notes,
+        config_id: configurationId,
     })
 
     return order
