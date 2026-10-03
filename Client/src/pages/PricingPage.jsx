@@ -84,17 +84,15 @@ export default function PricingPage() {
     return (
         <div className="min-h-screen bg-[#f8fafc] pt-20 sm:pt-24 lg:pt-28">
             <main className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8 lg:pb-20">
-
                 {/* =====================================================
                     HERO
                 ====================================================== */}
 
                 <section className="relative overflow-hidden pb-1 sm:pb-3">
-                    {/* Ambient background */}
-
+                    {/* Subtle brand atmosphere */}
                     <div className="pointer-events-none absolute -right-32 -top-32 size-80 rounded-full bg-rideon-blue/[0.045] blur-3xl" />
 
-                    <div className="pointer-events-none absolute -left-32 top-20 size-64 rounded-full bg-rideon-green/[0.04] blur-3xl" />
+                    <div className="pointer-events-none absolute -left-24 top-20 size-56 rounded-full bg-rideon-green/[0.035] blur-3xl" />
 
                     <div className="relative">
                         <div className="flex items-center gap-3">
@@ -105,7 +103,7 @@ export default function PricingPage() {
                             <span className="h-px w-8 bg-rideon-green/60" />
                         </div>
 
-                        <h1 className="mt-3 whitespace-normal text-3xl font-extrabold leading-[1.05] tracking-tight text-rideon-dark sm:whitespace-nowrap sm:text-5xl lg:text-[52px]">
+                        <h1 className="mt-3 text-3xl font-extrabold leading-[1.05] tracking-tight text-rideon-dark sm:whitespace-nowrap sm:text-5xl lg:text-[52px]">
                             Clear pricing.{' '}
                             <span className="text-rideon-blue">
                                 Confident
@@ -115,10 +113,10 @@ export default function PricingPage() {
                             </span>
                         </h1>
 
-                        <p className="mt-4 max-w-2xl text-sm leading-6 text-[#40537e] sm:text-base">
-                            Choose the time that works for your ride.
-                            Every package includes a generous KM
-                            allowance with no complicated pricing.
+                        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#40537e] sm:text-base">
+                            Choose the time that works for your ride. Every
+                            package includes a generous KM allowance with no
+                            complicated pricing.
                         </p>
                     </div>
                 </section>
@@ -163,7 +161,9 @@ export default function PricingPage() {
                             )}
                     </div>
 
-                    {/* Loading */}
+                    {/* -------------------------------------------------
+                        LOADING
+                    -------------------------------------------------- */}
 
                     {loading ? (
                         <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
@@ -183,16 +183,15 @@ export default function PricingPage() {
                         </div>
                     ) : sortedPackages.length ? (
                         <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                            {sortedPackages.map((item, index) => (
+                            {sortedPackages.map((item) => (
                                 <PackageCard
                                     key={item.id}
                                     item={item}
-                                    index={index}
                                 />
                             ))}
                         </div>
                     ) : (
-                        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+                        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-8 text-left text-sm text-slate-500">
                             Pricing packages are not available at the moment.
                         </div>
                     )}
@@ -277,8 +276,7 @@ export default function PricingPage() {
                 ====================================================== */}
 
                 <section className="relative mt-9 overflow-hidden rounded-3xl bg-[#09294f] px-5 py-7 shadow-[0_18px_45px_rgba(9,41,79,0.16)] sm:mt-11 sm:px-8 sm:py-8">
-                    {/* Background effects */}
-
+                    {/* Decorative brand glow */}
                     <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-rideon-blue/20 blur-2xl" />
 
                     <div className="pointer-events-none absolute -bottom-24 right-24 size-48 rounded-full bg-rideon-green/15 blur-2xl" />
@@ -303,12 +301,13 @@ export default function PricingPage() {
                         </div>
 
                         <Button
-                            className="h-11 shrink-0 rounded-xl bg-white px-5 font-bold text-rideon-dark shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-xl"
+                            className="group h-11 shrink-0 rounded-xl bg-white px-5 font-bold text-rideon-dark shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-xl"
                             asChild
                         >
                             <Link to="/booking">
                                 Book a Ride
-                                <ArrowRight className="ml-2 size-4" />
+
+                                <ArrowRight className="ml-2 size-4 transition-transform duration-200 group-hover:translate-x-1" />
                             </Link>
                         </Button>
                     </div>
@@ -336,175 +335,71 @@ export default function PricingPage() {
    PACKAGE CARD
 ============================================================ */
 
-function PackageCard({ item, index }) {
+function PackageCard({ item }) {
     /*
-     * IMPORTANT:
-     * API uses `isFeatured`, not `featured`.
+     * Only the backend `isFeatured` flag controls
+     * the featured visual state.
      */
-
     const isFeatured = item.isFeatured === true
-
-    /*
-     * Alternate the featured accent between RideOn colors.
-     *
-     * Featured:
-     *   Blue
-     *   Green
-     *   Blue
-     *
-     * Normal:
-     *   Mostly neutral with subtle blue/green hover.
-     */
-
-    const featuredIsGreen = index % 2 === 1
-
-    const featuredStyles = featuredIsGreen
-        ? {
-              card: [
-                  'border-rideon-green/25',
-                  'bg-gradient-to-br',
-                  'from-white',
-                  'via-white',
-                  'to-green-50/70',
-                  'shadow-[0_8px_28px_rgba(102,191,57,0.07)]',
-                  'hover:border-rideon-green/45',
-                  'hover:shadow-[0_16px_38px_rgba(102,191,57,0.12)]',
-              ].join(' '),
-
-              accent:
-                  'bg-rideon-green',
-
-              icon:
-                  'bg-green-50 text-rideon-green ring-green-100',
-
-              badge:
-                  'bg-green-50 text-rideon-green ring-green-100',
-
-              included:
-                  'text-rideon-green',
-
-              extra:
-                  'text-rideon-green',
-
-              hoverIcon:
-                  'group-hover:bg-rideon-green group-hover:text-white',
-          }
-        : {
-              card: [
-                  'border-rideon-blue/25',
-                  'bg-gradient-to-br',
-                  'from-white',
-                  'via-white',
-                  'to-blue-50/70',
-                  'shadow-[0_8px_28px_rgba(29,140,248,0.07)]',
-                  'hover:border-rideon-blue/45',
-                  'hover:shadow-[0_16px_38px_rgba(29,140,248,0.12)]',
-              ].join(' '),
-
-              accent:
-                  'bg-rideon-blue',
-
-              icon:
-                  'bg-blue-50 text-rideon-blue ring-blue-100',
-
-              badge:
-                  'bg-blue-50 text-rideon-blue ring-blue-100',
-
-              included:
-                  'text-rideon-blue',
-
-              extra:
-                  'text-rideon-blue',
-
-              hoverIcon:
-                  'group-hover:bg-rideon-blue group-hover:text-white',
-          }
-
-    const normalStyles = index % 2 === 1
-        ? {
-              border:
-                  'hover:border-rideon-green/25 hover:shadow-[0_14px_32px_rgba(102,191,57,0.08)]',
-              icon:
-                  'bg-green-50 text-rideon-green group-hover:bg-rideon-green group-hover:text-white',
-              accent:
-                  'bg-rideon-green',
-              text:
-                  'text-rideon-green',
-          }
-        : {
-              border:
-                  'hover:border-rideon-blue/25 hover:shadow-[0_14px_32px_rgba(29,140,248,0.08)]',
-              icon:
-                  'bg-blue-50 text-rideon-blue group-hover:bg-rideon-blue group-hover:text-white',
-              accent:
-                  'bg-rideon-blue',
-              text:
-                  'text-rideon-blue',
-          }
 
     return (
         <article
             className={[
-                'group relative flex min-h-[148px] flex-col overflow-hidden rounded-2xl border p-3.5 transition-all duration-300 ease-out sm:min-h-[154px] sm:p-4',
+                'group relative flex min-h-[140px] flex-col overflow-hidden rounded-2xl border p-3.5 transition-all duration-300 ease-out sm:min-h-[146px] sm:p-4',
 
                 isFeatured
-                    ? featuredStyles.card
+                    ? [
+                          'border-rideon-green/35',
+                          'bg-gradient-to-br',
+                          'from-green-50/90',
+                          'via-white',
+                          'to-green-50/30',
+                          'shadow-[0_10px_30px_rgba(102,191,57,0.08)]',
+                          'hover:-translate-y-1',
+                          'hover:border-rideon-green/55',
+                          'hover:shadow-[0_18px_40px_rgba(102,191,57,0.14)]',
+                      ].join(' ')
                     : [
                           'border-slate-200',
                           'bg-white',
                           'shadow-[0_6px_20px_rgba(28,55,113,0.035)]',
-                          normalStyles.border,
+                          'hover:-translate-y-1',
+                          'hover:border-rideon-blue/25',
+                          'hover:shadow-[0_18px_40px_rgba(29,140,248,0.10)]',
                       ].join(' '),
-
-                'hover:-translate-y-0.5',
             ].join(' ')}
         >
-            {/* =====================================================
-                FEATURED TOP ACCENT
-            ====================================================== */}
+            {/* -----------------------------------------------------
+                FEATURED ACCENT
+            ------------------------------------------------------ */}
 
             {isFeatured && (
-                <span
-                    className={[
-                        'absolute left-4 right-4 top-0 h-0.5 rounded-full',
-                        featuredStyles.accent,
-                    ].join(' ')}
-                />
+                <span className="absolute left-4 right-4 top-0 h-0.5 rounded-full bg-rideon-green" />
             )}
 
-            {/* =====================================================
+            {/* -----------------------------------------------------
                 FEATURED BADGE
-            ====================================================== */}
+            ------------------------------------------------------ */}
 
             {isFeatured && (
-                <span
-                    className={[
-                        'absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.08em] ring-1 sm:right-4 sm:top-3.5',
-                        featuredStyles.badge,
-                    ].join(' ')}
-                >
-                    <span
-                        className={[
-                            'size-1.5 rounded-full',
-                            featuredStyles.accent,
-                        ].join(' ')}
-                    />
-
+                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.08em] text-rideon-green ring-1 ring-green-100 sm:right-4 sm:top-3.5">
+                    <span className="size-1.5 rounded-full bg-rideon-green" />
                     Featured
                 </span>
             )}
 
-            {/* =====================================================
+            {/* -----------------------------------------------------
                 TOP ROW
-            ====================================================== */}
+            ------------------------------------------------------ */}
 
             <div className="flex items-start justify-between gap-2">
                 <span
                     className={[
                         'flex size-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset transition-all duration-300 sm:size-9',
+
                         isFeatured
-                            ? featuredStyles.icon
-                            : normalStyles.icon,
+                            ? 'bg-green-50 text-rideon-green ring-green-100 group-hover:scale-105 group-hover:bg-rideon-green group-hover:text-white'
+                            : 'bg-blue-50 text-rideon-blue ring-blue-100 group-hover:scale-105 group-hover:rotate-3 group-hover:bg-rideon-blue group-hover:text-white',
                     ].join(' ')}
                 >
                     <Clock3
@@ -515,73 +410,46 @@ function PackageCard({ item, index }) {
 
                 <span
                     className={[
-                        'rounded-full px-2 py-1 text-[9px] font-bold',
+                        'rounded-full px-2 py-1 text-[9px] font-bold transition-colors duration-300',
+
                         isFeatured
-                            ? 'bg-white/80 text-[#7181a1] ring-1 ring-slate-100'
-                            : 'bg-slate-50 text-[#7181a1]',
+                            ? 'bg-white text-rideon-green ring-1 ring-green-100'
+                            : 'bg-slate-50 text-[#7181a1] group-hover:bg-blue-50 group-hover:text-rideon-blue',
                     ].join(' ')}
                 >
                     {item.includedKm} km
                 </span>
             </div>
 
-            {/* =====================================================
+            {/* -----------------------------------------------------
                 PACKAGE NAME + PRICE
-            ====================================================== */}
+            ------------------------------------------------------ */}
 
             <div className="mt-2.5">
-                <div className="flex items-center gap-2">
-                    <p className="truncate text-xs font-bold text-[#40537e] sm:text-[13px]">
-                        {packageName(item)}
-                    </p>
+                <p className="truncate text-xs font-bold text-[#40537e] sm:text-[13px]">
+                    {packageName(item)}
+                </p>
 
-                    {isFeatured && (
-                        <span
-                            className={[
-                                'hidden text-[9px] font-bold sm:inline',
-                                featuredIsGreen
-                                    ? 'text-rideon-green'
-                                    : 'text-rideon-blue',
-                            ].join(' ')}
-                        >
-                            Popular
-                        </span>
-                    )}
-                </div>
-
-                <p
-                    className={[
-                        'mt-0.5 text-lg font-extrabold tracking-tight transition-transform duration-300 sm:text-xl',
-                        'group-hover:translate-x-0.5',
-                        isFeatured
-                            ? 'text-rideon-dark'
-                            : 'text-rideon-dark',
-                    ].join(' ')}
-                >
+                <p className="mt-0.5 text-lg font-extrabold tracking-tight text-rideon-dark transition-transform duration-300 group-hover:translate-x-0.5 sm:text-xl">
                     {money(item.price)}
                 </p>
             </div>
 
-            {/* =====================================================
+            {/* -----------------------------------------------------
                 BOTTOM INFORMATION
-            ====================================================== */}
+            ------------------------------------------------------ */}
 
             <div
                 className={[
                     'mt-auto flex items-center justify-between gap-2 border-t pt-2.5',
                     isFeatured
-                        ? 'border-slate-200/80'
+                        ? 'border-green-100/80'
                         : 'border-slate-100/80',
                 ].join(' ')}
             >
                 <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-[#7181a1] sm:text-[11px]">
                     <CheckCircle2
-                        className={[
-                            'size-3.5 shrink-0',
-                            isFeatured
-                                ? featuredStyles.included
-                                : normalStyles.text,
-                        ].join(' ')}
+                        className="size-3.5 shrink-0 text-rideon-green"
                         strokeWidth={2}
                     />
 
@@ -590,14 +458,7 @@ function PackageCard({ item, index }) {
                     </span>
                 </span>
 
-                <span
-                    className={[
-                        'whitespace-nowrap text-[10px] font-bold sm:text-[11px]',
-                        isFeatured
-                            ? featuredStyles.extra
-                            : normalStyles.text,
-                    ].join(' ')}
-                >
+                <span className="whitespace-nowrap text-[10px] font-bold text-rideon-green sm:text-[11px]">
                     {money(item.extraKmRate)}/km
                 </span>
             </div>
