@@ -32,10 +32,13 @@ export default function SignupStepTwo({
     // Lock background page while department modal is open
     useEffect(() => {
         if (!deptOpen) return
+
         const prevOverflow = document.body.style.overflow
         const prevTouch = document.body.style.touchAction
+
         document.body.style.overflow = 'hidden'
         document.body.style.touchAction = 'none'
+
         return () => {
             document.body.style.overflow = prevOverflow
             document.body.style.touchAction = prevTouch
@@ -63,73 +66,114 @@ export default function SignupStepTwo({
             />
 
             <form onSubmit={onSubmit} className="mt-8 space-y-5 lg:mt-0">
-                <fieldset disabled={!unlocked} className="space-y-5 disabled:pointer-events-none">
+                <fieldset
+                    disabled={!unlocked}
+                    className="space-y-5 disabled:pointer-events-none"
+                >
                     <div>
-                        <label htmlFor="mobileNumber" className="block text-sm font-bold text-rideon-dark">
+                        <label
+                            htmlFor="mobileNumber"
+                            className="block text-sm font-bold text-rideon-dark"
+                        >
                             Mobile Number
                         </label>
+
                         <div
                             className={cn(
                                 'mt-3 flex h-12 overflow-hidden rounded-lg border bg-white transition-colors focus-within:border-rideon-blue focus-within:ring-2 focus-within:ring-rideon-blue/15',
-                                errors.mobileNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                errors.mobileNumber
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
                             )}
                         >
                             <div className="flex w-20 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-sm font-bold text-rideon-dark">
                                 +91
                             </div>
+
                             <input
                                 id="mobileNumber"
                                 name="mobileNumber"
                                 type="tel"
                                 inputMode="numeric"
                                 value={values.mobileNumber}
-                                onChange={(event) => onChange('mobileNumber', event.target.value)}
+                                onChange={(event) =>
+                                    onChange(
+                                        'mobileNumber',
+                                        event.target.value,
+                                    )
+                                }
                                 aria-invalid={Boolean(errors.mobileNumber)}
-                                aria-describedby={errors.mobileNumber ? 'mobileNumber-error' : undefined}
+                                aria-describedby={
+                                    errors.mobileNumber
+                                        ? 'mobileNumber-error'
+                                        : undefined
+                                }
                                 className="h-full w-full border-0 bg-transparent px-4 text-sm text-rideon-dark outline-none placeholder:text-slate-400"
                                 placeholder="10-digit mobile number"
                                 autoComplete="tel"
                             />
                         </div>
+
                         {errors.mobileNumber && (
-                            <p id="mobileNumber-error" className="mt-2 text-sm font-medium text-red-600">
+                            <p
+                                id="mobileNumber-error"
+                                className="mt-2 text-sm font-medium text-red-600"
+                            >
                                 {errors.mobileNumber}
                             </p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="hostel" className="block text-sm font-bold text-rideon-dark">
+                        <label
+                            htmlFor="hostel"
+                            className="block text-sm font-bold text-rideon-dark"
+                        >
                             Hostel
                         </label>
+
                         <select
                             id="hostel"
                             name="hostel"
                             value={values.hostel}
-                            onChange={(event) => onChange('hostel', event.target.value)}
+                            onChange={(event) =>
+                                onChange('hostel', event.target.value)
+                            }
                             aria-invalid={Boolean(errors.hostel)}
-                            aria-describedby={errors.hostel ? 'hostel-error' : undefined}
+                            aria-describedby={
+                                errors.hostel ? 'hostel-error' : undefined
+                            }
                             className={cn(
                                 'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
-                                errors.hostel ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                errors.hostel
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
                             )}
                         >
                             <option value="">Select your hostel</option>
+
                             {hostels.map((hostel) => (
                                 <option key={hostel} value={hostel}>
                                     {hostel}
                                 </option>
                             ))}
                         </select>
+
                         {errors.hostel && (
-                            <p id="hostel-error" className="mt-2 text-sm font-medium text-red-600">
+                            <p
+                                id="hostel-error"
+                                className="mt-2 text-sm font-medium text-red-600"
+                            >
                                 {errors.hostel}
                             </p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="department" className="block text-sm font-bold text-rideon-dark">
+                        <label
+                            htmlFor="department"
+                            className="block text-sm font-bold text-rideon-dark"
+                        >
                             Department
                         </label>
 
@@ -138,15 +182,26 @@ export default function SignupStepTwo({
                             id="department"
                             name="department"
                             value={values.department}
-                            onChange={(event) => onChange('department', event.target.value)}
+                            onChange={(event) =>
+                                onChange('department', event.target.value)
+                            }
                             aria-invalid={Boolean(errors.department)}
-                            aria-describedby={errors.department ? 'department-error' : undefined}
+                            aria-describedby={
+                                errors.department
+                                    ? 'department-error'
+                                    : undefined
+                            }
                             className={cn(
                                 'mt-3 hidden h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15 sm:block',
-                                errors.department ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                errors.department
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
                             )}
                         >
-                            <option value="">Select your department</option>
+                            <option value="">
+                                Select your department
+                            </option>
+
                             {departments.map((department) => (
                                 <option key={department} value={department}>
                                     {department}
@@ -158,82 +213,138 @@ export default function SignupStepTwo({
                         <button
                             type="button"
                             id="department-mobile-trigger"
-                            onClick={() => unlocked && setDeptOpen(true)}
+                            onClick={() =>
+                                unlocked && setDeptOpen(true)
+                            }
                             aria-haspopup="dialog"
                             aria-expanded={deptOpen}
                             aria-invalid={Boolean(errors.department)}
-                            aria-describedby={errors.department ? 'department-error' : undefined}
+                            aria-describedby={
+                                errors.department
+                                    ? 'department-error'
+                                    : undefined
+                            }
                             className={cn(
                                 'mt-3 flex h-12 w-full items-center justify-between rounded-lg border bg-white px-4 text-left text-sm outline-none transition-colors sm:hidden',
-                                errors.department ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
-                                values.department ? 'text-rideon-dark' : 'text-slate-400',
+                                errors.department
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
+                                values.department
+                                    ? 'text-rideon-dark'
+                                    : 'text-slate-400',
                             )}
                         >
                             <span className="truncate">
-                                {values.department || 'Select your department'}
+                                {values.department ||
+                                    'Select your department'}
                             </span>
-                            <ChevronDown className="size-4 shrink-0 text-slate-400" strokeWidth={2} />
+
+                            <ChevronDown
+                                className="size-4 shrink-0 text-slate-400"
+                                strokeWidth={2}
+                            />
                         </button>
 
                         {errors.department && (
-                            <p id="department-error" className="mt-2 text-sm font-medium text-red-600">
+                            <p
+                                id="department-error"
+                                className="mt-2 text-sm font-medium text-red-600"
+                            >
                                 {errors.department}
                             </p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="yearOfStudy" className="block text-sm font-bold text-rideon-dark">
+                        <label
+                            htmlFor="yearOfStudy"
+                            className="block text-sm font-bold text-rideon-dark"
+                        >
                             Year of Study
                         </label>
+
                         <select
                             id="yearOfStudy"
                             name="yearOfStudy"
                             value={values.yearOfStudy}
-                            onChange={(event) => onChange('yearOfStudy', event.target.value)}
+                            onChange={(event) =>
+                                onChange(
+                                    'yearOfStudy',
+                                    event.target.value,
+                                )
+                            }
                             aria-invalid={Boolean(errors.yearOfStudy)}
-                            aria-describedby={errors.yearOfStudy ? 'yearOfStudy-error' : undefined}
+                            aria-describedby={
+                                errors.yearOfStudy
+                                    ? 'yearOfStudy-error'
+                                    : undefined
+                            }
                             className={cn(
                                 'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
-                                errors.yearOfStudy ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                errors.yearOfStudy
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
                             )}
                         >
                             <option value="">Select your year</option>
+
                             {years.map((year) => (
                                 <option key={year} value={year}>
                                     {year}
                                 </option>
                             ))}
                         </select>
+
                         {errors.yearOfStudy && (
-                            <p id="yearOfStudy-error" className="mt-2 text-sm font-medium text-red-600">
+                            <p
+                                id="yearOfStudy-error"
+                                className="mt-2 text-sm font-medium text-red-600"
+                            >
                                 {errors.yearOfStudy}
                             </p>
                         )}
                     </div>
 
-                    {/* ===== MISSING FIELD ADDED ===== */}
                     <div>
-                        <label htmlFor="licenseNumber" className="block text-sm font-bold text-rideon-dark">
+                        <label
+                            htmlFor="licenseNumber"
+                            className="block text-sm font-bold text-rideon-dark"
+                        >
                             Driving License Number
                         </label>
+
                         <input
                             id="licenseNumber"
                             name="licenseNumber"
                             type="text"
                             value={values.licenseNumber}
-                            onChange={(event) => onChange('licenseNumber', event.target.value.toUpperCase())}
+                            onChange={(event) =>
+                                onChange(
+                                    'licenseNumber',
+                                    event.target.value.toUpperCase(),
+                                )
+                            }
                             aria-invalid={Boolean(errors.licenseNumber)}
-                            aria-describedby={errors.licenseNumber ? 'licenseNumber-error' : undefined}
+                            aria-describedby={
+                                errors.licenseNumber
+                                    ? 'licenseNumber-error'
+                                    : undefined
+                            }
                             className={cn(
                                 'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
-                                errors.licenseNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                                errors.licenseNumber
+                                    ? 'border-red-500 ring-2 ring-red-500/15'
+                                    : 'border-slate-300',
                             )}
                             placeholder="e.g. KL01 20201234567"
                             autoComplete="off"
                         />
+
                         {errors.licenseNumber && (
-                            <p id="licenseNumber-error" className="mt-2 text-sm font-medium text-red-600">
+                            <p
+                                id="licenseNumber-error"
+                                className="mt-2 text-sm font-medium text-red-600"
+                            >
                                 {errors.licenseNumber}
                             </p>
                         )}
@@ -245,16 +356,28 @@ export default function SignupStepTwo({
                             name="acceptedTerms"
                             type="checkbox"
                             checked={Boolean(values.acceptedTerms)}
-                            onChange={(event) => onChange('acceptedTerms', event.target.checked)}
+                            onChange={(event) =>
+                                onChange(
+                                    'acceptedTerms',
+                                    event.target.checked,
+                                )
+                            }
                             aria-invalid={Boolean(errors.acceptedTerms)}
                             className="mt-1 size-4 rounded border-slate-300 text-rideon-blue focus:ring-rideon-blue/20"
                         />
-                        <label htmlFor="acceptedTerms" className="text-sm leading-6 text-slate-600">
+
+                        <label
+                            htmlFor="acceptedTerms"
+                            className="text-sm leading-6 text-slate-600"
+                        >
                             I agree to the terms and privacy policy.
                         </label>
                     </div>
+
                     {errors.acceptedTerms && (
-                        <p className="text-sm font-medium text-red-600">{errors.acceptedTerms}</p>
+                        <p className="text-sm font-medium text-red-600">
+                            {errors.acceptedTerms}
+                        </p>
                     )}
                 </fieldset>
 
@@ -263,7 +386,11 @@ export default function SignupStepTwo({
                     disabled={!unlocked || loading}
                     className="h-12 w-full rounded-lg bg-rideon-green text-sm font-bold text-white shadow-[0_8px_20px_rgba(118,192,67,0.24)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-rideon-green/90 hover:shadow-[0_12px_28px_rgba(118,192,67,0.32)] disabled:pointer-events-none disabled:opacity-60"
                 >
-                    <Lock className="size-4" strokeWidth={2.25} />
+                    <Lock
+                        className="size-4"
+                        strokeWidth={2.25}
+                    />
+
                     {loading ? 'Saving...' : submitLabel}
                 </Button>
             </form>
@@ -282,9 +409,13 @@ export default function SignupStepTwo({
                         aria-label="Close department list"
                         onClick={() => setDeptOpen(false)}
                     />
+
                     <div
                         className="relative z-10 flex w-full max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-[0_-12px_40px_rgba(15,23,42,0.18)]"
-                        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                        style={{
+                            paddingBottom:
+                                'env(safe-area-inset-bottom, 0px)',
+                        }}
                     >
                         <div className="shrink-0 border-b border-slate-100 px-5 py-4">
                             <h2
@@ -297,16 +428,24 @@ export default function SignupStepTwo({
 
                         <div
                             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-                            style={{ WebkitOverflowScrolling: 'touch' }}
+                            style={{
+                                WebkitOverflowScrolling: 'touch',
+                            }}
                         >
                             <ul className="py-1">
                                 {departments.map((department) => {
-                                    const selected = values.department === department
+                                    const selected =
+                                        values.department === department
+
                                     return (
                                         <li key={department}>
                                             <button
                                                 type="button"
-                                                onClick={() => selectDepartment(department)}
+                                                onClick={() =>
+                                                    selectDepartment(
+                                                        department,
+                                                    )
+                                                }
                                                 className={cn(
                                                     'flex w-full items-center px-5 py-3.5 text-left text-sm transition-colors',
                                                     selected

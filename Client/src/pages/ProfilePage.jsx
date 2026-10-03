@@ -18,7 +18,7 @@ const initialValues = {
 }
 
 const mobilePattern = /^[6-9]\d{9}$/
-const licensePattern = /^[A-Z]{2}[0-9]{2}[\s-]?[0-9A-Z]{4,13}$/i
+// const licensePattern = /^[A-Z]{2}[0-9]{2}[\s-]?[0-9A-Z]{4,13}$/i
 
 function validateProfile(values) {
     const errors = {}
@@ -41,11 +41,9 @@ function validateProfile(values) {
         errors.yearOfStudy = 'Year of study is required.'
     }
 
-    if (!values.licenseNumber.trim()) {
-        errors.licenseNumber = 'Driving license number is required.'
-    } else if (!licensePattern.test(values.licenseNumber.trim())) {
-        errors.licenseNumber = 'Enter a valid driving license number.'
-    }
+if (!values.licenseNumber.trim()) {
+    errors.licenseNumber = 'Driving license number is required.'
+}
 
     if (!values.acceptedTerms) {
         errors.acceptedTerms = 'You must accept the terms to continue.'
