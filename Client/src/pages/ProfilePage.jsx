@@ -83,135 +83,65 @@ export default function ProfilePage() {
         })
     }
 
-    // const handleSubmit = async (event) => {
-    //     event.preventDefault()
-
-    //     const nextErrors = validateProfile(values)
-    //     setErrors(nextErrors)
-
-    //     if (Object.keys(nextErrors).length > 0) return
-
-    //     setLoading(true)
-
-    //     try {
-    //         const response = await completeProfile({
-    //             phone: values.mobileNumber.trim(),
-    //             hostel: values.hostel,
-    //             department: values.department,
-    //             yearOfStudy: Number.parseInt(values.yearOfStudy, 10),
-    //             drivingLicenseNumber: values.licenseNumber.trim().toUpperCase(),
-    //             acceptedTerms: values.acceptedTerms,
-    //         })
-
-    //         updateUser({
-    //             ...user,
-    //             ...response.data?.data,
-    //             onboardingStatus: 'PROFILE_COMPLETED',
-    //         })
-
-    //         showToast({
-    //             type: 'success',
-    //             title: 'Profile completed',
-    //             description: 'Your RideOn account is ready.',
-    //         })
-
-    //         navigate('/', { replace: true })
-    //     } catch (error) {
-    //         showToast({
-    //             type: 'error',
-    //             title: 'Could not complete profile',
-    //             description: getApiErrorMessage(error, 'Please review your details and try again.'),
-    //         })
-    //     } finally {
-    //         setLoading(false)
-    //     }
-    // }
-
     const handleSubmit = async (event) => {
-    console.log('🔥🔥 HANDLE SUBMIT FIRED')
+        event.preventDefault()
 
-    event.preventDefault()
+        const nextErrors = validateProfile(values)
+        setErrors(nextErrors)
 
-    console.log('📋 CURRENT FORM VALUES:', values)
+        if (Object.keys(nextErrors).length > 0) {
+            // Show toast so user knows why nothing happened
+            showToast({
+                type: 'error',
+                title: 'Please fix the errors',
+                description: 'Some required fields are missing or invalid.',
+            })
 
-    // Validate all profile fields
-    const nextErrors = validateProfile(values)
-
-    console.log('🔍 VALIDATION ERRORS:', nextErrors)
-
-    setErrors(nextErrors)
-
-    // Stop here if validation failed
-    if (Object.keys(nextErrors).length > 0) {
-        console.log('❌ STOPPED BY VALIDATION')
-        console.log(
-            '❌ Fields with errors:',
-            Object.keys(nextErrors)
-        )
-        return
-    }
-
-    console.log('✅ VALIDATION PASSED')
-    console.log('🚀 CALLING completeProfile API...')
-
-    setLoading(true)
-
-    try {
-        const payload = {
-            phone: values.mobileNumber.trim(),
-            hostel: values.hostel,
-            department: values.department,
-            yearOfStudy: Number.parseInt(values.yearOfStudy, 10),
-            drivingLicenseNumber: values.licenseNumber
-                .trim()
-                .toUpperCase(),
-            acceptedTerms: values.acceptedTerms,
+            // Scroll to the first error field
+            const firstErrorField = Object.keys(nextErrors)[0]
+            const el = document.getElementById(firstErrorField) || 
+                       document.getElementById(`${firstErrorField}-error`)
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+            return
         }
 
-        console.log('📤 API PAYLOAD:', payload)
+        setLoading(true)
 
-        const response = await completeProfile(payload)
+        try {
+            const response = await completeProfile({
+                phone: values.mobileNumber.trim(),
+                hostel: values.hostel,
+                department: values.department,
+                yearOfStudy: Number.parseInt(values.yearOfStudy, 10),
+                drivingLicenseNumber: values.licenseNumber.trim().toUpperCase(),
+                acceptedTerms: values.acceptedTerms,
+            })
 
-        console.log('✅ COMPLETE PROFILE API RESPONSE:', response)
+            updateUser({
+                ...user,
+                ...response.data?.data,
+                onboardingStatus: 'PROFILE_COMPLETED',
+            })
 
-        updateUser({
-            ...user,
-            ...response.data?.data,
-            onboardingStatus: 'PROFILE_COMPLETED',
-        })
+            showToast({
+                type: 'success',
+                title: 'Profile completed',
+                description: 'Your RideOn account is ready.',
+            })
 
-        console.log('👤 USER UPDATED')
-
-        showToast({
-            type: 'success',
-            title: 'Profile completed',
-            description: 'Your RideOn account is ready.',
-        })
-
-        console.log('🏠 NAVIGATING TO HOME')
-
-        navigate('/', { replace: true })
-    } catch (error) {
-        console.error('❌ COMPLETE PROFILE API ERROR:', error)
-
-        console.error('❌ ERROR RESPONSE:', error?.response)
-
-        console.error('❌ ERROR DATA:', error?.response?.data)
-
-        showToast({
-            type: 'error',
-            title: 'Could not complete profile',
-            description: getApiErrorMessage(
-                error,
-                'Please review your details and try again.'
-            ),
-        })
-    } finally {
-        console.log('🔄 SETTING LOADING FALSE')
-
-        setLoading(false)
+            navigate('/', { replace: true })
+        } catch (error) {
+            showToast({
+                type: 'error',
+                title: 'Could not complete profile',
+                description: getApiErrorMessage(error, 'Please review your details and try again.'),
+            })
+        } finally {
+            setLoading(false)
+        }
     }
-}
 
     return (
         <div className="min-h-screen overflow-hidden bg-white">
