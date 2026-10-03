@@ -31,7 +31,7 @@ const PERMISSIONS = [
   { name: 'bookings.read', description: 'List and view bookings' },
   { name: 'bookings.create', description: 'Create bookings' },
   { name: 'bookings.update', description: 'Update bookings (pickup/return)' },
-  { name: 'bookings.cancel', description: 'Cancel bookings' },
+  { name: 'bookings.cancel', description: 'Cancel bookings' }, 
   { name: 'payments.read', description: 'List and view payments' },
   { name: 'payments.refund', description: 'Refund payments' },
   { name: 'pricing.read', description: 'List and view pricing' },

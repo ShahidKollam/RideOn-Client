@@ -11,42 +11,36 @@ model User {
   id                   String           @id @default(cuid())
   email                String           @unique
   name                 String
-  studentId            String?
-  hostel               String?
-  department           String?
-  yearOfStudy          Int?
-  drivingLicenseNumber String?          @unique
   phone                String?
   campusId             String
-  campus               Campus           @relation(fields: [campusId], references: [id])
-  drivingLicense       DrivingLicense?
   isVerified           Boolean          @default(false)
-  acceptedTerms        Boolean          @default(false)
-  acceptedTermsAt      DateTime?
-  onboardingStatus     OnboardingStatus @default(SIGNED_UP)
-  refreshTokens        RefreshToken[]
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
-  magicLinkTokens      MagicLinkToken[]
+  acceptedTerms        Boolean          @default(false)
+  acceptedTermsAt      DateTime?
+  department           String?
+  drivingLicenseNumber String?          @unique
+  hostel               String?
+  onboardingStatus     OnboardingStatus @default(SIGNED_UP)
+  studentId            String?
+  yearOfStudy          Int?
   bookings             Booking[]
+  drivingLicense       DrivingLicense?
+  magicLinkTokens      MagicLinkToken[]
   payments             Payment[]
+  refreshTokens        RefreshToken[]
+  campus               Campus           @relation(fields: [campusId], references: [id])
 
   @@map("users")
-}
-
-enum OnboardingStatus {
-  SIGNED_UP
-  EMAIL_VERIFIED
-  PROFILE_COMPLETED
 }
 
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
 }
@@ -58,11 +52,11 @@ model Campus {
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  users     User[]
-  bikes     Bike[]
-  pricings  Pricing[]
-  bookings  Booking[]
   admins    Admin[]
+  bikes     Bike[]
+  bookings  Booking[]
+  pricings  Pricing[]
+  users     User[]
 
   @@map("campuses")
 }
@@ -70,7 +64,6 @@ model Campus {
 model DrivingLicense {
   id            String        @id @default(cuid())
   userId        String        @unique
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   licenseNumber String        @unique
   fullName      String
   dateOfBirth   DateTime
@@ -80,35 +73,27 @@ model DrivingLicense {
   documentUrl   String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("driving_licenses")
-}
-
-enum LicenseStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 model MagicLinkToken {
   id        String    @id @default(cuid())
   tokenHash String    @unique
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("magic_link_tokens")
 }
-
-// ==================== NEW MODELS ====================
 
 model Bike {
   id                 String     @id @default(cuid())
   campusId           String
   registrationNumber String     @unique
-  bikeNumber         String?    @unique
   name               String
   brand              String
   model              String
@@ -120,9 +105,9 @@ model Bike {
   isActive           Boolean    @default(true)
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
-
-  campus   Campus    @relation(fields: [campusId], references: [id])
-  bookings Booking[]
+  bikeNumber         String?    @unique
+  campus             Campus     @relation(fields: [campusId], references: [id])
+  bookings           Booking[]
 
   @@index([campusId])
   @@index([status])
@@ -131,16 +116,8 @@ model Bike {
   @@map("bikes")
 }
 
-enum BikeStatus {
-  AVAILABLE
-  IN_USE
-  MAINTENANCE
-  DISABLED
-  RETIRED
-}
-
 model Pricing {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   campusId      String
   packageName   String
   durationHours Int
@@ -148,14 +125,13 @@ model Pricing {
   includedKm    Int
   extraKmRate   Float
   depositAmount Float
-  displayOrder  Int      @default(0)
-  isFeatured    Boolean  @default(false)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  campus   Campus    @relation(fields: [campusId], references: [id])
-  bookings Booking[]
+  displayOrder  Int       @default(0)
+  isFeatured    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bookings      Booking[]
+  campus        Campus    @relation(fields: [campusId], references: [id])
 
   @@index([campusId])
   @@index([displayOrder])
@@ -164,62 +140,58 @@ model Pricing {
 }
 
 model Booking {
-  id             String        @id @default(cuid())
-  bookingNumber  String        @unique
-  userId         String
-  bikeId         String?
-  campusId       String
-  pricingId      String
-  pickupAt       DateTime
-  returnAt       DateTime
-  durationHours  Int
-  status         BookingStatus @default(PAYMENT_PENDING)
-  paymentStatus  PaymentStatus @default(PENDING)
-  baseAmount     Float
-  depositAmount  Float
-  discountAmount Float         @default(0)
-  totalAmount    Float
-  includedKm     Int
-  extraKmRate    Float
-  helmetCount    Int           @default(0)
-  helmetAmount   Float         @default(0)
-  lateHelmetFee  Float?
-  pickupOdometer Int?
-  returnOdometer Int?
-  actualKm       Int?
-  extraKm        Int?
-  extraKmCharge  Float?
-  lateFee              Float?
-  lateDurationMinutes  Int?
-  disruptionPenalty    Float?
-  lateFeeApplied       Boolean       @default(false)
-  disruptionPenaltyApplied Boolean   @default(false)
-  pickedUpAt     DateTime?
-  returnedAt     DateTime?
-  notes          String?
-
-  // Cancellation / refund (backend source of truth)
-  cancelledAt                DateTime?
-  cancelledBy                String? // CUSTOMER | ADMIN
-  cancelledByAdminId         String?
-  cancellationPercentage     Float?
-  cancellationAmount         Float?
-  originalCancellationAmount Float?
-  refundAmount               Float?
-  refundStatus               String? // NONE | PENDING | SUCCESS | FAILED | NOT_APPLICABLE
-  refundedAt                 DateTime?
-  refundGatewayId            String? // Razorpay refund id when applicable
+  id                         String        @id @default(cuid())
+  bookingNumber              String        @unique
+  userId                     String
+  bikeId                     String?
+  campusId                   String
+  pickupAt                   DateTime
+  returnAt                   DateTime
+  durationHours              Int
+  status                     BookingStatus @default(PAYMENT_PENDING)
+  paymentStatus              PaymentStatus @default(PENDING)
+  baseAmount                 Float
+  depositAmount              Float
+  discountAmount             Float         @default(0)
+  totalAmount                Float
+  includedKm                 Int
+  extraKmRate                Float
+  pickupOdometer             Int?
+  returnOdometer             Int?
+  actualKm                   Int?
+  extraKm                    Int?
+  extraKmCharge              Float?
+  lateFee                    Float?
+  pickedUpAt                 DateTime?
+  returnedAt                 DateTime?
+  notes                      String?
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+  pricingId                  String
+  helmetAmount               Float         @default(0)
+  helmetCount                Int           @default(0)
+  lateHelmetFee              Float?
+  lateDurationMinutes        Int?
+  disruptionPenalty          Float?
+  lateFeeApplied             Boolean       @default(false)
+  disruptionPenaltyApplied   Boolean       @default(false)
   adminAdjustedRefundAmount  Float?
   adminAdjustmentReason      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id])
-  bike     Bike?     @relation(fields: [bikeId], references: [id])
-  campus   Campus    @relation(fields: [campusId], references: [id])
-  pricing  Pricing   @relation(fields: [pricingId], references: [id])
-  payments Payment[]
+  cancellationAmount         Float?
+  cancellationPercentage     Float?
+  cancelledAt                DateTime?
+  cancelledBy                String?
+  cancelledByAdminId         String?
+  originalCancellationAmount Float?
+  refundAmount               Float?
+  refundGatewayId            String?
+  refundStatus               String?
+  refundedAt                 DateTime?
+  bike                       Bike?         @relation(fields: [bikeId], references: [id])
+  campus                     Campus        @relation(fields: [campusId], references: [id])
+  pricing                    Pricing       @relation(fields: [pricingId], references: [id])
+  user                       User          @relation(fields: [userId], references: [id])
+  payments                   Payment[]
 
   @@index([bookingNumber])
   @@index([userId])
@@ -232,51 +204,20 @@ model Booking {
   @@map("bookings")
 }
 
-enum BookingStatus {
-  PAYMENT_PENDING
-  CONFIRMED
-  ACTIVE
-  COMPLETED
-  CANCELLED
-  FAILED
-  NO_SHOW
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  PARTIALLY_PAID
-  FAILED
-  REFUNDED
-  PARTIALLY_REFUNDED
-}
-
 model SystemSetting {
-  id String @id @default(cuid())
-
-  gstEnabled Boolean @default(true)
-  gstRate    Float   @default(18)
-
-  platformFeeEnabled Boolean @default(true)
-  platformFee        Float   @default(20)
-
-  // Optional helmet add-on (not duration-based)
-  helmetFirstPrice  Float @default(0)
-  helmetSecondPrice Float @default(0)
-  lateHelmetFee     Float @default(0)
-
-  // Configurable booking buffer (minutes) between bookings
-  bookingBufferMinutes Int @default(15)
-
-  // Admin-configurable disruption penalty (separate from late rental charge)
-  disruptionPenalty Float @default(150)
-
-  // Cancellation policy (JSON). See DEFAULT_CANCELLATION_POLICY in cancellation.service.
-  // Shape: { enabled: boolean, rules: [{ hours: number, percent: number }, ...] }
-  cancellationPolicy Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  gstEnabled           Boolean  @default(true)
+  gstRate              Float    @default(18)
+  platformFeeEnabled   Boolean  @default(true)
+  platformFee          Float    @default(20)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  helmetFirstPrice     Float    @default(0)
+  helmetSecondPrice    Float    @default(0)
+  lateHelmetFee        Float    @default(0)
+  bookingBufferMinutes Int      @default(15)
+  disruptionPenalty    Float    @default(150)
+  cancellationPolicy   Json?
 
   @@map("system_settings")
 }
@@ -296,9 +237,8 @@ model Payment {
   paidAt           DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-
-  user    User     @relation(fields: [userId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  booking          Booking?      @relation(fields: [bookingId], references: [id])
+  user             User          @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([bookingId])
@@ -308,23 +248,21 @@ model Payment {
   @@map("payments")
 }
 
-// ==================== ADMIN MODULE ====================
-
 model Admin {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  roleId       String
-  role         Role       @relation(fields: [roleId], references: [id])
-  campusId     String?
-  campus       Campus?    @relation(fields: [campusId], references: [id])
-  isActive     Boolean    @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  auditLogs    AuditLog[]
+  id            String              @id @default(cuid())
+  name          String
+  email         String              @unique
+  passwordHash  String
+  roleId        String
+  campusId      String?
+  isActive      Boolean             @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   refreshTokens AdminRefreshToken[]
+  campus        Campus?             @relation(fields: [campusId], references: [id])
+  role          Role                @relation(fields: [roleId], references: [id])
+  auditLogs     AuditLog[]
 
   @@index([email])
   @@index([roleId])
@@ -337,11 +275,11 @@ model AdminRefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   adminId   String
-  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
   userAgent String?
   ipAddress String?
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId])
   @@index([expiresAt])
@@ -374,8 +312,8 @@ model Permission {
 model RolePermission {
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
@@ -384,7 +322,6 @@ model RolePermission {
 model AuditLog {
   id         String   @id @default(cuid())
   adminId    String?
-  admin      Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
   action     String
   entityType String?
   entityId   String?
@@ -392,10 +329,50 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+  admin      Admin?   @relation(fields: [adminId], references: [id])
 
   @@index([adminId])
   @@index([action])
   @@index([entityType])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum OnboardingStatus {
+  SIGNED_UP
+  EMAIL_VERIFIED
+  PROFILE_COMPLETED
+}
+
+enum LicenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BikeStatus {
+  AVAILABLE
+  MAINTENANCE
+  DISABLED
+  RETIRED
+  IN_USE
+}
+
+enum BookingStatus {
+  PAYMENT_PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FAILED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  PARTIALLY_PAID
 }
