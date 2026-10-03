@@ -212,6 +212,33 @@ export default function SignupStepTwo({
                         )}
                     </div>
 
+                    {/* ===== MISSING FIELD ADDED ===== */}
+                    <div>
+                        <label htmlFor="licenseNumber" className="block text-sm font-bold text-rideon-dark">
+                            Driving License Number
+                        </label>
+                        <input
+                            id="licenseNumber"
+                            name="licenseNumber"
+                            type="text"
+                            value={values.licenseNumber}
+                            onChange={(event) => onChange('licenseNumber', event.target.value.toUpperCase())}
+                            aria-invalid={Boolean(errors.licenseNumber)}
+                            aria-describedby={errors.licenseNumber ? 'licenseNumber-error' : undefined}
+                            className={cn(
+                                'mt-3 h-12 w-full rounded-lg border bg-white px-4 text-sm text-rideon-dark outline-none transition-colors focus:border-rideon-blue focus:ring-2 focus:ring-rideon-blue/15',
+                                errors.licenseNumber ? 'border-red-500 ring-2 ring-red-500/15' : 'border-slate-300',
+                            )}
+                            placeholder="e.g. KL01 20201234567"
+                            autoComplete="off"
+                        />
+                        {errors.licenseNumber && (
+                            <p id="licenseNumber-error" className="mt-2 text-sm font-medium text-red-600">
+                                {errors.licenseNumber}
+                            </p>
+                        )}
+                    </div>
+
                     <div className="flex items-start gap-3 pt-1">
                         <input
                             id="acceptedTerms"
@@ -259,7 +286,6 @@ export default function SignupStepTwo({
                         className="relative z-10 flex w-full max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-[0_-12px_40px_rgba(15,23,42,0.18)]"
                         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                     >
-                        {/* Fixed header */}
                         <div className="shrink-0 border-b border-slate-100 px-5 py-4">
                             <h2
                                 id="department-modal-title"
@@ -269,7 +295,6 @@ export default function SignupStepTwo({
                             </h2>
                         </div>
 
-                        {/* Scrollable list — all departments reachable */}
                         <div
                             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
                             style={{ WebkitOverflowScrolling: 'touch' }}
