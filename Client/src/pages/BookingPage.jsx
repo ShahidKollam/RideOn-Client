@@ -20,7 +20,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import BookingSummary from '@/components/bookings/BookingSummary'
 import { Button } from '@/components/ui/button'
 import FullPageLoader from '@/components/ui/FullPageLoader'
-import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
+import { ErrorState } from '@/components/ui/PageStates'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -433,15 +433,8 @@ export default function BookingPage() {
                 <ErrorState message={error} />
             </div>
         )
-    if (!vehicle)
-        return (
-            <div className="mx-auto max-w-7xl px-4 pt-28">
-                <SkeletonCard className="h-[43rem]" />
-            </div>
-        )
-
-    const image = vehicle.imageUrls?.[0]
-    const vehicleName = vehicle.name || `${vehicle.brand || ''} ${vehicle.model || ''}`.trim()
+    const image = vehicle?.imageUrls?.[0]
+    const vehicleName = vehicle?.name || `${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim() || 'Honda Activa'
 
     return (
         <div className="min-h-screen bg-[#fcfdff] pb-28 pt-24 text-[#081440] md:pb-12 sm:pt-28">
@@ -561,7 +554,7 @@ export default function BookingPage() {
                             </div>
                             <Button
                                 type="submit"
-                                disabled={submitting || checkingAvailability}
+                                disabled={submitting || checkingAvailability || !vehicle?.campusId}
                                 className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]"
                             >
                                 {checkingAvailability ? (

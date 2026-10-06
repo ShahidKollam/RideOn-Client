@@ -9,13 +9,8 @@ const blockingBookingStatuses = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
 
 export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client = prisma) => {
     const bike = await client.bike.findUnique({ where: { id: bikeId } })
-    if (!bike || !bike.isActive || bike.status !== 'AVAILABLE') {
+    if (!bike || !bike.isActive || !['AVAILABLE', 'IN_USE'].includes(bike.status)) {
         return { available: false, reason: 'Bike is not available' }
-    }
-
-    // Bike still on an active rental (not yet returned) is unavailable
-    if (bike.status === 'IN_USE') {
-        return { available: false, reason: 'Bike is currently rented' }
     }
 
     const bufferMinutes = await getBookingBufferMinutes(client)
@@ -50,7 +45,7 @@ export const findAvailableBike = async (pickupAt, returnAt, campusId, client = p
     const bikes = await client.bike.findMany({
         where: {
             campusId,
-            status: 'AVAILABLE',
+            status: { in: ['AVAILABLE', 'IN_USE'] },
             isActive: true,
         },
         orderBy: { currentOdometer: 'asc' },
@@ -80,7 +75,7 @@ export const countAvailableBikes = async (pickupAt, returnAt, campusId, client =
     const bikes = await client.bike.findMany({
         where: {
             campusId,
-            status: 'AVAILABLE',
+            status: { in: ['AVAILABLE', 'IN_USE'] },
             isActive: true,
         },
         orderBy: { currentOdometer: 'asc' },
