@@ -71,18 +71,36 @@ export const pickupBookingController = asyncHandler(async (req, res) => {
 
 export const returnBookingController = asyncHandler(async (req, res) => {
     const { id } = req.params
-    const { returnOdometer, applyLateFee = false, applyDisruptionPenalty = false } = req.body
+    const {
+        returnOdometer,
+        applyLateFee = false,
+        applyDisruptionPenalty = false,
+        adjustedOutstandingAmount,
+        adjustmentReason,
+    } = req.body
     const booking = await returnBooking(id, returnOdometer, {
         applyLateFee,
         applyDisruptionPenalty,
+        adjustedOutstandingAmount,
+        adjustmentReason,
     })
+    const { returnCalculation, ...responseBooking } = booking
     await audit(req, 'UPDATE', id, {
         action: 'return',
         returnOdometer,
         applyLateFee,
         applyDisruptionPenalty,
+        ...(returnCalculation?.adjustedOutstandingAmount != null
+            ? {
+                  systemFinalTotal: returnCalculation.systemFinalTotal,
+                  systemOutstanding: returnCalculation.systemOutstanding,
+                  adjustedOutstanding: returnCalculation.adjustedOutstandingAmount,
+                  adjustmentReason: returnCalculation.adjustmentReason,
+                  adminId: req.admin?.id || null,
+              }
+            : {}),
     })
-    res.status(200).json(new ApiResponse(200, 'Booking returned', booking))
+    res.status(200).json(new ApiResponse(200, 'Booking returned', responseBooking))
 })
 
 export const previewLateChargesController = asyncHandler(async (req, res) => {
