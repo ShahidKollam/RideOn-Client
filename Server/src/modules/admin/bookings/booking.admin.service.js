@@ -168,6 +168,11 @@ export const computeLateCharges = async (booking, settings, asOf = new Date()) =
         }
     }
 
+    const lateHelmetFee =
+        lateDurationMinutes > 0 && (booking.helmetCount || 0) > 0
+            ? Number(settings?.lateHelmetFee) || 0
+            : 0
+
     return {
         lateDurationMinutes,
         calculatedLateRental: Number(calculatedLateRental.toFixed(2)),
@@ -175,6 +180,9 @@ export const computeLateCharges = async (booking, settings, asOf = new Date()) =
         disruptionPenaltyAmount: Number(disruptionPenaltyAmount.toFixed(2)),
         affectedBooking,
         isLate: lateDurationMinutes > 0,
+        lateHelmetFee,
+        gstEnabled: Boolean(settings?.gstEnabled),
+        gstRate: Number(settings?.gstRate) || 0,
     }
 }
 
@@ -395,7 +403,12 @@ export const pickupBooking = async (id, pickupOdometer) => {
 }
 
 export const returnBooking = async (id, returnOdometer, options = {}) => {
-    const { applyLateFee = false, applyDisruptionPenalty = false } = options
+    const {
+        applyLateFee = false,
+        applyDisruptionPenalty = false,
+        adjustedOutstandingAmount,
+        adjustmentReason,
+    } = options
 
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -421,10 +434,7 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
 
     const lateInfo = await computeLateCharges(booking, settings, now)
 
-    let lateHelmetFee = 0
-    if (lateInfo.isLate && (booking.helmetCount || 0) > 0) {
-        lateHelmetFee = Number(settings?.lateHelmetFee) || 0
-    }
+    const lateHelmetFee = lateInfo.lateHelmetFee
 
     // Admin-controlled application of charges
     const lateFee = applyLateFee ? lateInfo.calculatedLateRental : 0
@@ -438,11 +448,37 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
         ? Number(((additionalSubtotal * Number(settings.gstRate)) / 100).toFixed(2))
         : 0
 
-    const finalTotal = Number(
+    const systemFinalTotal = Number(
         (booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2)
     )
 
     return prisma.$transaction(async (tx) => {
+        const paidAmount = (
+            await tx.payment.findMany({
+                where: { bookingId: id, status: 'PAID' },
+                select: { amount: true },
+            })
+        ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+
+        const systemOutstanding = Number(Math.max(0, systemFinalTotal - paidAmount).toFixed(2))
+        const hasOutstandingOverride = adjustedOutstandingAmount !== undefined
+        const adjustedOutstanding = hasOutstandingOverride
+            ? Number(adjustedOutstandingAmount)
+            : systemOutstanding
+        const isAdjusted = Math.abs(adjustedOutstanding - systemOutstanding) > 0.0001
+
+        if (!Number.isFinite(adjustedOutstanding) || adjustedOutstanding < 0) {
+            throw new ApiError(400, 'adjustedOutstandingAmount must be greater than or equal to 0')
+        }
+        if (isAdjusted && !adjustmentReason?.trim()) {
+            throw new ApiError(400, 'adjustmentReason is required when outstanding amount is adjusted')
+        }
+
+        const finalTotal = hasOutstandingOverride
+            ? Number((paidAmount + adjustedOutstanding).toFixed(2))
+            : systemFinalTotal
+        const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
+
         if (booking.bikeId) {
             await tx.bike.update({
                 where: { id: booking.bikeId },
@@ -452,15 +488,6 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
                 },
             })
         }
-
-        const paidAmount = (
-            await tx.payment.findMany({
-                where: { bookingId: id, status: 'PAID' },
-                select: { amount: true },
-            })
-        ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
-
-        const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
 
         const updated = await tx.booking.update({
             where: { id },
@@ -490,6 +517,13 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
                 appliedLateFee: lateFee,
                 appliedDisruptionPenalty: disruptionPenalty,
                 lateHelmetFee,
+            },
+            returnCalculation: {
+                systemFinalTotal,
+                systemOutstanding,
+                paidAmount: Number(paidAmount.toFixed(2)),
+                adjustedOutstandingAmount: hasOutstandingOverride ? adjustedOutstanding : null,
+                adjustmentReason: isAdjusted ? adjustmentReason.trim() : null,
             },
         }
     })

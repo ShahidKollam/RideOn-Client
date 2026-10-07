@@ -42,6 +42,9 @@ export const returnSchema = z.object({
   applyLateFee: z.boolean().optional().default(false),
   /** Admin decides whether configured disruption penalty is applied */
   applyDisruptionPenalty: z.boolean().optional().default(false),
+  /** Optional override of the amount still due after the return is calculated */
+  adjustedOutstandingAmount: z.number().min(0).optional(),
+  adjustmentReason: z.string().trim().max(500).optional(),
 })
 
 export const collectPaymentSchema = z.object({

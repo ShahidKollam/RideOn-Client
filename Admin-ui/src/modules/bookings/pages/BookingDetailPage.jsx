@@ -29,6 +29,8 @@ const money = (n) =>
     ? '—'
     : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
 const dateTime = (v) =>
   v
     ? new Date(v).toLocaleString([], {
@@ -93,6 +95,9 @@ export default function BookingDetailPage() {
   const [odometer, setOdometer] = useState('');
   const [applyLateFee, setApplyLateFee] = useState(false);
   const [applyDisruption, setApplyDisruption] = useState(false);
+  const [adjustedOutstanding, setAdjustedOutstanding] = useState('');
+  const [outstandingEdited, setOutstandingEdited] = useState(false);
+  const [returnAdjustmentReason, setReturnAdjustmentReason] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [reference, setReference] = useState('');
   const [applyCancellationFee, setApplyCancellationFee] = useState(true);
@@ -141,17 +146,23 @@ export default function BookingDetailPage() {
   });
 
   const returnMut = useMutation({
-    mutationFn: ({ value, applyLateFee, applyDisruptionPenalty }) =>
+    mutationFn: ({ value, applyLateFee, applyDisruptionPenalty, adjustedOutstandingAmount, adjustmentReason }) =>
       api.patch(`/bookings/${id}/return`, {
         returnOdometer: Number(value),
         applyLateFee: !!applyLateFee,
         applyDisruptionPenalty: !!applyDisruptionPenalty,
+        ...(adjustedOutstandingAmount !== undefined
+          ? { adjustedOutstandingAmount, adjustmentReason }
+          : {}),
       }),
     onSuccess: () => {
       toast.success('Return recorded');
       setReturnOpen(false);
       setApplyLateFee(false);
       setApplyDisruption(false);
+      setAdjustedOutstanding('');
+      setOutstandingEdited(false);
+      setReturnAdjustmentReason('');
       refresh();
     },
     onError: (e) => toast.error(e.message),
@@ -241,6 +252,34 @@ export default function BookingDetailPage() {
     booking.pickupOdometer ??
     booking.bike?.odometer ??
     null;
+  const returnOdometer = Number(odometer);
+  const returnOdometerValid =
+    odometer !== '' &&
+    Number.isFinite(returnOdometer) &&
+    returnOdometer >= Number(booking.pickupOdometer ?? 0);
+  const actualKm = returnOdometerValid ? returnOdometer - Number(booking.pickupOdometer || 0) : 0;
+  const extraKm = Math.max(0, actualKm - Number(booking.includedKm || 0));
+  const extraKmCharge = roundMoney(extraKm * Number(booking.extraKmRate || 0));
+  const lateFee = applyLateFee ? Number(latePreview?.calculatedLateRental || 0) : 0;
+  const disruptionPenalty = applyDisruption ? Number(latePreview?.disruptionPenaltyAmount || 0) : 0;
+  const lateHelmetFee = Number(latePreview?.lateHelmetFee || 0);
+  const additionalSubtotal = roundMoney(extraKmCharge + lateFee + disruptionPenalty + lateHelmetFee);
+  const additionalGst = latePreview?.gstEnabled
+    ? roundMoney((additionalSubtotal * Number(latePreview.gstRate || 0)) / 100)
+    : 0;
+  const systemFinalTotal = roundMoney(Number(booking.totalAmount || 0) + additionalSubtotal + additionalGst);
+  const systemOutstanding = roundMoney(Math.max(0, systemFinalTotal - paidAmount));
+  const outstandingInput = outstandingEdited ? adjustedOutstanding : String(systemOutstanding);
+  const outstandingValue = Number(outstandingInput);
+  const isOutstandingOverride =
+    outstandingEdited &&
+    Number.isFinite(outstandingValue) &&
+    outstandingValue >= 0 &&
+    Math.abs(outstandingValue - systemOutstanding) > 0.0001;
+  const returnAdjustmentInvalid =
+    outstandingEdited &&
+    (!Number.isFinite(outstandingValue) || outstandingValue < 0 ||
+      (isOutstandingOverride && !returnAdjustmentReason.trim()));
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-28 sm:pb-8">
@@ -287,6 +326,9 @@ export default function BookingDetailPage() {
                 setOdometer(booking.pickupOdometer != null ? String(booking.pickupOdometer) : '');
                 setApplyLateFee(false);
                 setApplyDisruption(false);
+                setAdjustedOutstanding('');
+                setOutstandingEdited(false);
+                setReturnAdjustmentReason('');
                 setReturnOpen(true);
               }}
             >
@@ -687,14 +729,19 @@ export default function BookingDetailPage() {
               Cancel
             </Button>
             <Button
-              disabled={returnMut.isPending || odometer === ''}
-              onClick={() =>
-                returnMut.mutate({
+              disabled={returnMut.isPending || !returnOdometerValid || returnAdjustmentInvalid}
+              onClick={() => {
+                const body = {
                   value: odometer,
                   applyLateFee,
                   applyDisruptionPenalty: applyDisruption,
-                })
-              }
+                };
+                if (isOutstandingOverride) {
+                  body.adjustedOutstandingAmount = outstandingValue;
+                  body.adjustmentReason = returnAdjustmentReason.trim();
+                }
+                returnMut.mutate(body);
+              }}
             >
               {returnMut.isPending ? 'Saving…' : 'Confirm return'}
             </Button>
@@ -719,6 +766,11 @@ export default function BookingDetailPage() {
               onChange={(e) => setOdometer(e.target.value)}
               placeholder="Current km reading"
             />
+            {!returnOdometerValid && odometer !== '' && (
+              <p className="mt-1 text-xs text-danger">
+                Return odometer must be at least the pickup odometer.
+              </p>
+            )}
           </div>
 
           {(latePreview?.isLate || isLate) && (
@@ -759,6 +811,48 @@ export default function BookingDetailPage() {
               </label>
             </div>
           )}
+
+          <div className="rounded-lg border border-token bg-[var(--color-bg)]/50 p-3 text-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-medium text-primary-token">Final bill</p>
+              {lateLoading && <span className="text-xs text-muted">Updating late charges…</span>}
+            </div>
+            <div className="space-y-2 text-secondary">
+              <div className="flex justify-between gap-3"><span>Original amount</span><strong className="text-primary-token">{money(booking.totalAmount)}</strong></div>
+              <div className="flex justify-between gap-3"><span>Extra km</span><strong className="text-primary-token">{money(extraKmCharge)}</strong></div>
+              <div className="flex justify-between gap-3"><span>Late fee</span><strong className="text-primary-token">{money(lateFee)}</strong></div>
+              <div className="flex justify-between gap-3"><span>Disruption</span><strong className="text-primary-token">{money(disruptionPenalty)}</strong></div>
+              {lateHelmetFee > 0 && <div className="flex justify-between gap-3"><span>Late helmet</span><strong className="text-primary-token">{money(lateHelmetFee)}</strong></div>}
+              <div className="flex justify-between gap-3"><span>GST on extras</span><strong className="text-primary-token">{money(additionalGst)}</strong></div>
+              <div className="flex justify-between gap-3 border-t border-token pt-2 font-medium"><span>System final total</span><strong className="text-primary-token">{money(systemFinalTotal)}</strong></div>
+              <div className="flex justify-between gap-3"><span>Already paid</span><strong className="text-primary-token">{money(paidAmount)}</strong></div>
+            </div>
+            <div className="mt-3 border-t border-token pt-3">
+              <label className="block text-sm font-medium text-primary-token mb-1.5">Outstanding (amount due)</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={outstandingInput}
+                onChange={(e) => {
+                  setOutstandingEdited(true);
+                  setAdjustedOutstanding(e.target.value);
+                }}
+              />
+              <p className="mt-1 text-xs text-muted">Edit only for an approved adjustment. The system calculation remains in the bill above.</p>
+            </div>
+            {isOutstandingOverride && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-primary-token mb-1.5">Adjustment reason</label>
+                <Input
+                  value={returnAdjustmentReason}
+                  onChange={(e) => setReturnAdjustmentReason(e.target.value)}
+                  placeholder="Required when outstanding differs from the system amount"
+                />
+                {!returnAdjustmentReason.trim() && <p className="mt-1 text-xs text-danger">A reason is required for this adjustment.</p>}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 
