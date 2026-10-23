@@ -1,10 +1,4 @@
-import {
-    createOrder,
-    verifyPayment,
-    markPaymentFailed,
-    getPaymentById,
-    getUserPayments,
-} from './payment.service.js'
+import { createOrder, verifyPayment, markPaymentFailed, getPaymentById, getUserPayments } from './payment.service.js'
 import { processWebhook } from './webhook.service.js'
 import asyncHandler from '../../utils/asyncHandler.js'
 import ApiResponse from '../../utils/ApiResponse.js'
@@ -16,14 +10,9 @@ import ApiResponse from '../../utils/ApiResponse.js'
 export const createOrderController = asyncHandler(async (req, res) => {
     const { campusId, pickupAt, returnAt, notes, helmetCount = 0 } = req.body
 
-    const order = await createOrder(
-        { campusId, pickupAt, returnAt, notes, helmetCount },
-        req.user.id
-    )
+    const order = await createOrder({ campusId, pickupAt, returnAt, notes, helmetCount }, req.user.id)
 
-    res.status(201).json(
-        new ApiResponse(201, 'Order created successfully', order)
-    )
+    res.status(201).json(new ApiResponse(201, 'Order created successfully', order))
 })
 
 /**
@@ -33,10 +22,7 @@ export const createOrderController = asyncHandler(async (req, res) => {
 export const verifyPaymentController = asyncHandler(async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
 
-    const result = await verifyPayment(
-        { razorpay_order_id, razorpay_payment_id, razorpay_signature },
-        req.user.id
-    )
+    const result = await verifyPayment({ razorpay_order_id, razorpay_payment_id, razorpay_signature }, req.user.id)
 
     const message = result.alreadyProcessed
         ? 'Payment already verified'
