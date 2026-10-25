@@ -347,11 +347,11 @@ export default function PoliciesPage() {
                 </div>
 
                 <FieldWithSuffix
-                  label="Platform Fee ($)"
+                  label="Platform Fee (₹)"
                   value={form.platformFee}
                   onChange={(v) => handleChange('platformFee', v)}
                   disabled={!canUpdate || !form.platformFeeEnabled}
-                  suffix="$"
+                  suffix="₹"
                   helper="This fee will be added to each booking as a platform service charge"
                 />
               </Card>
@@ -373,27 +373,27 @@ export default function PoliciesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FieldWithSuffix
-                  label="First helmet fee ($)"
+                  label="First helmet fee (₹)"
                   value={form.helmetFirstPrice}
                   onChange={(v) => handleChange('helmetFirstPrice', v)}
                   disabled={!canUpdate}
-                  suffix="$"
+                  suffix="₹"
                   helper="Fee for the first helmet"
                 />
                 <FieldWithSuffix
-                  label="Second helmet fee ($)"
+                  label="Second helmet fee (₹)"
                   value={form.helmetSecondPrice}
                   onChange={(v) => handleChange('helmetSecondPrice', v)}
                   disabled={!canUpdate}
-                  suffix="$"
+                  suffix="₹"
                   helper="Fee for the second helmet"
                 />
                 <FieldWithSuffix
-                  label="Late helmet fee ($)"
+                  label="Late helmet fee (₹)"
                   value={form.lateHelmetFee}
                   onChange={(v) => handleChange('lateHelmetFee', v)}
                   disabled={!canUpdate}
-                  suffix="$"
+                  suffix="₹"
                   helper="Additional fee for late returns"
                 />
               </div>
@@ -418,27 +418,27 @@ export default function PoliciesPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <FieldWithSuffix
-                label="First helmet fee ($)"
+                label="First helmet fee (₹)"
                 value={form.helmetFirstPrice}
                 onChange={(v) => handleChange('helmetFirstPrice', v)}
                 disabled={!canUpdate}
-                suffix="$"
+                suffix="₹"
                 helper="Fee for the first helmet"
               />
               <FieldWithSuffix
-                label="Second helmet fee ($)"
+                label="Second helmet fee (₹)"
                 value={form.helmetSecondPrice}
                 onChange={(v) => handleChange('helmetSecondPrice', v)}
                 disabled={!canUpdate}
-                suffix="$"
+                suffix="₹"
                 helper="Fee for the second helmet"
               />
               <FieldWithSuffix
-                label="Late helmet fee ($)"
+                label="Late helmet fee (₹)"
                 value={form.lateHelmetFee}
                 onChange={(v) => handleChange('lateHelmetFee', v)}
                 disabled={!canUpdate}
-                suffix="$"
+                suffix="₹"
                 helper="Additional fee for late returns"
               />
             </div>

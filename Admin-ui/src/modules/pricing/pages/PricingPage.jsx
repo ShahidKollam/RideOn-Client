@@ -520,7 +520,7 @@ export default function PricingPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-secondary mb-1.5">
-                Price ($) <span className="text-danger">*</span>
+                Price (₹) <span className="text-danger">*</span>
               </label>
               <Input
                 type="number"
@@ -556,7 +556,7 @@ export default function PricingPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-secondary mb-1.5">
-                Extra Km Rate ($)
+                Extra Km Rate (₹)
               </label>
               <Input
                 type="number"
@@ -576,7 +576,7 @@ export default function PricingPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-secondary mb-1.5">
-                Deposit Amount ($)
+                Deposit Amount (₹)
               </label>
               <Input
                 type="number"
