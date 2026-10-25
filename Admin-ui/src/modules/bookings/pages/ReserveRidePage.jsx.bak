@@ -1,0 +1,695 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import {
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Bike,
+  User,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Gauge,
+} from 'lucide-react'
+import { api } from '../../../lib/api'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { Button } from '../../../components/ui/Button'
+import { Input, Select } from '../../../components/ui/Input'
+import { Card } from '../../../components/ui/Card'
+import { useAuth } from '../../../context/AuthContext'
+import { useToast } from '../../../components/ui/Toast'
+import { cn } from '../../../utils/cn'
+
+const STEPS = [
+  { id: 1, label: 'Availability', short: 'Slot' },
+  { id: 2, label: 'Guest', short: 'Guest' },
+  { id: 3, label: 'Bike', short: 'Bike' },
+  { id: 4, label: 'Confirm', short: 'Confirm' },
+]
+
+const money = (n) =>
+  `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const toLocalInputValue = (d) => {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const defaultPickup = () => {
+  const d = new Date()
+  d.setMinutes(0, 0, 0)
+  d.setHours(d.getHours() + 1)
+  return toLocalInputValue(d)
+}
+
+const defaultReturn = () => {
+  const d = new Date()
+  d.setMinutes(0, 0, 0)
+  d.setHours(d.getHours() + 3)
+  return toLocalInputValue(d)
+}
+
+const localToISO = (local) => {
+  if (!local) return null
+  const d = new Date(local)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+const formatSlot = (iso) => {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+function StepBar({ step }) {
+  return (
+    <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      {STEPS.map((s, i) => {
+        const done = step > s.id
+        const active = step === s.id
+        return (
+          <div key={s.id} className="flex items-center gap-1 sm:gap-2 min-w-0">
+            {i > 0 && (
+              <div
+                className={cn(
+                  'h-px w-4 sm:w-8 shrink-0',
+                  done || active ? 'bg-[var(--color-primary)]' : 'bg-token'
+                )}
+              />
+            )}
+            <div
+              className={cn(
+                'flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
+                active && 'bg-[var(--color-primary)] text-white shadow-sm',
+                done && !active && 'bg-[var(--color-primary)]/15 text-primary-token',
+                !active && !done && 'bg-surface border border-token text-muted'
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
+                  active ? 'bg-white/20' : done ? 'bg-[var(--color-primary)]/20' : 'bg-token'
+                )}
+              >
+                {done ? '✓' : s.id}
+              </span>
+              <span className="hidden xs:inline sm:inline">{s.label}</span>
+              <span className="sm:hidden">{s.short}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function ReserveRidePage() {
+  const navigate = useNavigate()
+  const toast = useToast()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('bookings.create') || hasPermission('*')
+
+  const [step, setStep] = useState(1)
+  const [campusId, setCampusId] = useState('')
+  const [pickupLocal, setPickupLocal] = useState(defaultPickup)
+  const [returnLocal, setReturnLocal] = useState(defaultReturn)
+  const [helmetCount, setHelmetCount] = useState(0)
+  const [availability, setAvailability] = useState(null)
+  const [selectedSlot, setSelectedSlot] = useState(null) // { pickupAt, returnAt, availableCount?, isOriginal? }
+  const [guest, setGuest] = useState({ name: '', email: '', phone: '', notes: '' })
+  const [bikes, setBikes] = useState([])
+  const [selectedBikeId, setSelectedBikeId] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [loadingBikes, setLoadingBikes] = useState(false)
+
+  // Campuses from bikes list (admin API already supports this)
+  const { data: bikesRes } = useQuery({
+    queryKey: ['bikes-for-campus'],
+    queryFn: () => api.get('/bikes?limit=200&isActive=true'),
+    staleTime: 60_000,
+  })
+
+  const campuses = useMemo(() => {
+    const rows = bikesRes?.data?.bikes || bikesRes?.bikes || bikesRes?.data || []
+    const map = new Map()
+    for (const b of Array.isArray(rows) ? rows : []) {
+      const id = b.campusId || b.campus?.id
+      const name = b.campus?.name || b.campusName
+      if (id && !map.has(id)) map.set(id, { id, name: name || id })
+    }
+    return Array.from(map.values())
+  }, [bikesRes])
+
+  // Auto-select single campus
+  useEffect(() => {
+    if (!campusId && campuses.length === 1) setCampusId(campuses[0].id)
+  }, [campuses, campusId])
+
+  const createMut = useMutation({
+    mutationFn: (body) => api.post('/bookings/desk', body),
+    onSuccess: (res) => {
+      const booking = res?.data || res
+      toast.success(`Booking ${booking?.bookingNumber || ''} created`)
+      navigate(`/bookings/${booking?.id || ''}`)
+    },
+    onError: (e) => toast.error(e.message || 'Failed to create booking'),
+  })
+
+  const runCheck = async () => {
+    if (!campusId) {
+      toast.error('Select a campus')
+      return
+    }
+    const pickupAt = localToISO(pickupLocal)
+    const returnAt = localToISO(returnLocal)
+    if (!pickupAt || !returnAt) {
+      toast.error('Invalid pickup or return time')
+      return
+    }
+    if (new Date(returnAt) <= new Date(pickupAt)) {
+      toast.error('Return must be after pickup')
+      return
+    }
+    setChecking(true)
+    setAvailability(null)
+    setSelectedSlot(null)
+    try {
+      const res = await api.post('/bookings/check-availability', {
+        campusId,
+        pickupAt,
+        returnAt,
+        helmetCount: Number(helmetCount) || 0,
+      })
+      const data = res?.data || res
+      setAvailability(data)
+      if (data?.available && data?.availableCount > 0) {
+        setSelectedSlot({
+          pickupAt,
+          returnAt,
+          availableCount: data.availableCount,
+          isOriginal: true,
+        })
+      }
+    } catch (e) {
+      toast.error(e.message || 'Availability check failed')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const loadBikes = async (slot) => {
+    setLoadingBikes(true)
+    setBikes([])
+    setSelectedBikeId('')
+    try {
+      const res = await api.post('/bookings/available-bikes', {
+        campusId,
+        pickupAt: slot.pickupAt,
+        returnAt: slot.returnAt,
+      })
+      const data = res?.data || res
+      const list = data?.bikes || []
+      setBikes(list)
+      if (list.length === 1) setSelectedBikeId(list[0].id)
+    } catch (e) {
+      toast.error(e.message || 'Could not load bikes')
+    } finally {
+      setLoadingBikes(false)
+    }
+  }
+
+  const goGuest = () => {
+    if (!selectedSlot) {
+      toast.error('Select a time slot')
+      return
+    }
+    setStep(2)
+  }
+
+  const goBike = async () => {
+    if (!guest.name.trim()) {
+      toast.error('Guest name is required')
+      return
+    }
+    if (!guest.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email.trim())) {
+      toast.error('Valid guest email is required')
+      return
+    }
+    setStep(3)
+    await loadBikes(selectedSlot)
+  }
+
+  const goConfirm = () => {
+    if (!selectedBikeId) {
+      toast.error('Select a bike')
+      return
+    }
+    setStep(4)
+  }
+
+  const submit = () => {
+    if (!canCreate) {
+      toast.error('You do not have permission to create bookings')
+      return
+    }
+    const pricingId = availability?.pricing?.id
+    if (!pricingId) {
+      toast.error('Pricing missing — re-check availability')
+      return
+    }
+    createMut.mutate({
+      campusId,
+      pricingId,
+      pickupAt: selectedSlot.pickupAt,
+      returnAt: selectedSlot.returnAt,
+      bikeId: selectedBikeId,
+      guestName: guest.name.trim(),
+      guestEmail: guest.email.trim().toLowerCase(),
+      guestPhone: guest.phone.trim() || null,
+      helmetCount: Number(helmetCount) || 0,
+      notes: guest.notes.trim() || null,
+    })
+  }
+
+  const selectedBike = bikes.find((b) => b.id === selectedBikeId)
+
+  if (!canCreate) {
+    return (
+      <div className="p-4 sm:p-6 max-w-lg">
+        <PageHeader title="Reserve a Ride" description="Desk / walk-in booking" />
+        <Card className="p-6 text-center">
+          <AlertCircle className="mx-auto mb-3 text-danger" size={28} />
+          <p className="text-sm text-secondary">You need the bookings.create permission.</p>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-3 sm:p-6 max-w-3xl mx-auto pb-24 sm:pb-8">
+      <PageHeader
+        title="Reserve a Ride"
+        description="Desk booking — no customer account required"
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => navigate('/bookings')}>
+            <ChevronLeft size={16} />
+            All Bookings
+          </Button>
+        }
+      />
+
+      <div className="mb-5 sm:mb-6">
+        <StepBar step={step} />
+      </div>
+
+      {/* Step 1 — Availability */}
+      {step === 1 && (
+        <div className="space-y-4">
+          <Card className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary-token">
+              <CalendarCheck size={18} className="text-[var(--color-primary)]" />
+              Check availability
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted mb-1.5">Campus</label>
+                <Select
+                  value={campusId}
+                  onChange={(e) => {
+                    setCampusId(e.target.value)
+                    setAvailability(null)
+                    setSelectedSlot(null)
+                  }}
+                >
+                  <option value="">Select campus</option>
+                  {campuses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">Pickup</label>
+                <Input
+                  type="datetime-local"
+                  value={pickupLocal}
+                  onChange={(e) => {
+                    setPickupLocal(e.target.value)
+                    setAvailability(null)
+                    setSelectedSlot(null)
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">Return</label>
+                <Input
+                  type="datetime-local"
+                  value={returnLocal}
+                  onChange={(e) => {
+                    setReturnLocal(e.target.value)
+                    setAvailability(null)
+                    setSelectedSlot(null)
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">Helmets</label>
+                <Select value={String(helmetCount)} onChange={(e) => setHelmetCount(Number(e.target.value))}>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </Select>
+              </div>
+            </div>
+
+            <Button className="w-full sm:w-auto" onClick={runCheck} loading={checking} disabled={checking}>
+              {checking ? 'Checking…' : 'Check availability'}
+            </Button>
+          </Card>
+
+          {availability && (
+            <Card className="p-4 sm:p-5 space-y-3">
+              {availability.available && availability.availableCount > 0 ? (
+                <>
+                  <div className="flex items-start gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3.5">
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <p className="text-sm font-semibold text-primary-token">
+                        {availability.availableCount} bike
+                        {availability.availableCount === 1 ? '' : 's'} available
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {formatSlot(selectedSlot?.pickupAt)} → {formatSlot(selectedSlot?.returnAt)}
+                        {availability.pricing?.packageName
+                          ? ` · ${availability.pricing.packageName}`
+                          : ''}
+                        {availability.totalAmount != null ? ` · ${money(availability.totalAmount)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <Button className="w-full sm:w-auto" onClick={goGuest}>
+                    Continue with this slot
+                    <ChevronRight size={16} />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5">
+                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <p className="text-sm font-semibold text-primary-token">No bikes for this time</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {availability.reason || 'Try an alternative slot below.'}
+                      </p>
+                    </div>
+                  </div>
+                  {(availability.alternatives || []).length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted uppercase tracking-wide">Alternatives</p>
+                      {availability.alternatives.map((alt, i) => {
+                        const active =
+                          selectedSlot &&
+                          selectedSlot.pickupAt === alt.pickupAt &&
+                          selectedSlot.returnAt === alt.returnAt
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() =>
+                              setSelectedSlot({
+                                pickupAt: alt.pickupAt,
+                                returnAt: alt.returnAt,
+                                availableCount: alt.availableCount,
+                                isOriginal: false,
+                              })
+                            }
+                            className={cn(
+                              'w-full text-left rounded-xl border p-3.5 transition-colors',
+                              active
+                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10'
+                                : 'border-token bg-surface hover:border-[var(--color-primary)]/40'
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium text-primary-token">
+                                  {formatSlot(alt.pickupAt)} → {formatSlot(alt.returnAt)}
+                                </p>
+                                <p className="text-xs text-muted mt-0.5">
+                                  {alt.availableCount} available
+                                </p>
+                              </div>
+                              {active && (
+                                <CheckCircle2 size={18} className="text-[var(--color-primary)] shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+                      <Button className="w-full sm:w-auto" onClick={goGuest} disabled={!selectedSlot}>
+                        Continue with selected slot
+                        <ChevronRight size={16} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">No alternative slots found. Try different times.</p>
+                  )}
+                </>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Step 2 — Guest */}
+      {step === 2 && (
+        <div className="space-y-4">
+          <Card className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary-token">
+              <User size={18} className="text-[var(--color-primary)]" />
+              Guest details
+            </div>
+            <p className="text-xs text-muted -mt-2">
+              No customer account will be created. Confirmation is sent to the guest email.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Full name <span className="text-danger">*</span>
+                </label>
+                <Input
+                  value={guest.name}
+                  onChange={(e) => setGuest((g) => ({ ...g, name: e.target.value }))}
+                  placeholder="Customer name"
+                  autoComplete="name"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Email <span className="text-danger">*</span>
+                </label>
+                <Input
+                  type="email"
+                  value={guest.email}
+                  onChange={(e) => setGuest((g) => ({ ...g, email: e.target.value }))}
+                  placeholder="guest@email.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">Mobile (optional)</label>
+                <Input
+                  type="tel"
+                  value={guest.phone}
+                  onChange={(e) => setGuest((g) => ({ ...g, phone: e.target.value }))}
+                  placeholder="+91 …"
+                  autoComplete="tel"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted mb-1.5">Notes</label>
+                <Input
+                  value={guest.notes}
+                  onChange={(e) => setGuest((g) => ({ ...g, notes: e.target.value }))}
+                  placeholder="Cash collected, ID verified…"
+                />
+              </div>
+            </div>
+          </Card>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            <Button variant="secondary" onClick={() => setStep(1)}>
+              <ChevronLeft size={16} />
+              Back
+            </Button>
+            <Button onClick={goBike}>
+              Continue
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 — Bike */}
+      {step === 3 && (
+        <div className="space-y-4">
+          <Card className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary-token">
+              <Bike size={18} className="text-[var(--color-primary)]" />
+              Select bike
+            </div>
+            <p className="text-xs text-muted -mt-2">Ordered by lowest odometer first.</p>
+
+            {loadingBikes ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-muted text-sm">
+                <Loader2 className="animate-spin" size={18} />
+                Loading available bikes…
+              </div>
+            ) : bikes.length === 0 ? (
+              <div className="rounded-xl border border-token bg-surface p-6 text-center">
+                <p className="text-sm text-secondary">No bikes free for this slot.</p>
+                <Button variant="secondary" className="mt-3" onClick={() => setStep(1)}>
+                  Change slot
+                </Button>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {bikes.map((b) => {
+                  const active = selectedBikeId === b.id
+                  return (
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBikeId(b.id)}
+                        className={cn(
+                          'w-full text-left rounded-xl border p-3.5 transition-colors',
+                          active
+                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10'
+                            : 'border-token bg-surface hover:border-[var(--color-primary)]/40'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-primary-token truncate">
+                              {b.name || 'Bike'}
+                              {b.bikeNumber ? (
+                                <span className="ml-2 font-normal text-muted">#{b.bikeNumber}</span>
+                              ) : null}
+                            </p>
+                            <p className="text-xs text-muted mt-0.5 flex items-center gap-1.5">
+                              <Gauge size={12} />
+                              {Number(b.currentOdometer || 0).toLocaleString('en-IN')} km
+                              {b.registrationNumber ? ` · ${b.registrationNumber}` : ''}
+                            </p>
+                          </div>
+                          {active && (
+                            <CheckCircle2 size={18} className="text-[var(--color-primary)] shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            <Button variant="secondary" onClick={() => setStep(2)}>
+              <ChevronLeft size={16} />
+              Back
+            </Button>
+            <Button onClick={goConfirm} disabled={!selectedBikeId || loadingBikes}>
+              Continue
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4 — Confirm */}
+      {step === 4 && (
+        <div className="space-y-4">
+          <Card className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary-token">
+              <CheckCircle2 size={18} className="text-[var(--color-primary)]" />
+              Confirm booking
+            </div>
+
+            <div className="rounded-xl border border-token divide-y divide-token text-sm">
+              <Row label="Guest" value={guest.name} />
+              <Row label="Email" value={guest.email} />
+              {guest.phone ? <Row label="Mobile" value={guest.phone} /> : null}
+              <Row
+                label="Slot"
+                value={`${formatSlot(selectedSlot?.pickupAt)} → ${formatSlot(selectedSlot?.returnAt)}`}
+              />
+              <Row
+                label="Bike"
+                value={
+                  selectedBike
+                    ? `${selectedBike.name || 'Bike'}${
+                        selectedBike.bikeNumber ? ` #${selectedBike.bikeNumber}` : ''
+                      }`
+                    : '—'
+                }
+              />
+              <Row label="Package" value={availability?.pricing?.packageName || '—'} />
+              <Row label="Helmets" value={String(helmetCount)} />
+              {availability?.baseAmount != null && (
+                <Row label="Base" value={money(availability.baseAmount)} />
+              )}
+              {availability?.helmetAmount > 0 && (
+                <Row label="Helmet fee" value={money(availability.helmetAmount)} />
+              )}
+              {availability?.platformFee > 0 && (
+                <Row label="Platform fee" value={money(availability.platformFee)} />
+              )}
+              {availability?.gstAmount > 0 && (
+                <Row label="GST" value={money(availability.gstAmount)} />
+              )}
+              {availability?.depositAmount != null && (
+                <Row label="Deposit" value={money(availability.depositAmount)} />
+              )}
+              <div className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--color-primary)]/5">
+                <span className="font-semibold text-primary-token">Total</span>
+                <span className="font-bold text-primary-token">
+                  {money(availability?.totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted">
+              Creates a confirmed desk booking (marked paid). Confirmation email goes to the guest.
+              Availability is rechecked on submit.
+            </p>
+          </Card>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            <Button variant="secondary" onClick={() => setStep(3)} disabled={createMut.isPending}>
+              <ChevronLeft size={16} />
+              Back
+            </Button>
+            <Button onClick={submit} loading={createMut.isPending} disabled={createMut.isPending}>
+              {createMut.isPending ? 'Creating…' : 'Confirm booking'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-4 py-2.5">
+      <span className="text-muted shrink-0">{label}</span>
+      <span className="text-right font-medium text-primary-token break-all">{value}</span>
+    </div>
+  )
+}

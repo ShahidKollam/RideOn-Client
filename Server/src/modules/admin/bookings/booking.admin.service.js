@@ -8,6 +8,12 @@ import { randomUUID } from 'crypto'
 import { calculateHelmetAmount } from '../../settings/settings.service.js'
 import { findPricingByDuration } from '../../booking/pricing.service.js'
 import { getBookingBufferMinutes } from '../../settings/settings.service.js'
+import { getBookingAvailability } from '../../booking/availability.service.js'
+import { checkBikeAvailability, listAvailableBikes } from '../../bike/bike.service.js'
+import { sendBookingConfirmationEmail, sendGuestSignupInvitationEmail } from '../../../lib/mailer.js'
+
+/** Shared system user for all admin desk / walk-in bookings (seed once). */
+export const WALKIN_USER_EMAIL = 'walkin@rideon.internal'
 
 const ADMIN_CANCELLABLE = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'NO_SHOW']
 const BOOKING_INCLUDE = {
@@ -168,11 +174,6 @@ export const computeLateCharges = async (booking, settings, asOf = new Date()) =
         }
     }
 
-    const lateHelmetFee =
-        lateDurationMinutes > 0 && (booking.helmetCount || 0) > 0
-            ? Number(settings?.lateHelmetFee) || 0
-            : 0
-
     return {
         lateDurationMinutes,
         calculatedLateRental: Number(calculatedLateRental.toFixed(2)),
@@ -180,9 +181,6 @@ export const computeLateCharges = async (booking, settings, asOf = new Date()) =
         disruptionPenaltyAmount: Number(disruptionPenaltyAmount.toFixed(2)),
         affectedBooking,
         isLate: lateDurationMinutes > 0,
-        lateHelmetFee,
-        gstEnabled: Boolean(settings?.gstEnabled),
-        gstRate: Number(settings?.gstRate) || 0,
     }
 }
 
@@ -355,6 +353,166 @@ export const createBooking = async (data) => {
     })
 }
 
+/**
+ * Resolve the single shared walk-in user. Must be seeded first.
+ */
+export const resolveWalkinUserId = async () => {
+    const user = await prisma.user.findUnique({
+        where: { email: WALKIN_USER_EMAIL },
+        select: { id: true },
+    })
+    if (!user) {
+        throw new ApiError(
+            500,
+            `Walk-in user not found (${WALKIN_USER_EMAIL}). Run: node prisma/seed/seed-walkin-user.js`
+        )
+    }
+    return user.id
+}
+
+/** Admin check-availability — same rules as customer; admin-auth only. */
+export const adminCheckAvailability = async (data) => getBookingAvailability(data)
+
+/** Admin list bikes for slot, lowest odometer first. */
+export const adminListAvailableBikes = async ({ campusId, pickupAt, returnAt }) => {
+    const campus = await prisma.campus.findUnique({ where: { id: campusId } })
+    if (!campus || !campus.isActive) throw new ApiError(400, 'Invalid or inactive campus')
+
+    const pickup = new Date(pickupAt)
+    const ret = new Date(returnAt)
+    if (Number.isNaN(pickup.getTime()) || Number.isNaN(ret.getTime()) || pickup >= ret) {
+        throw new ApiError(400, 'Pickup must be before return')
+    }
+
+    const bikes = await listAvailableBikes(pickup, ret, campusId)
+    return {
+        availableCount: bikes.length,
+        bikes,
+    }
+}
+
+/**
+ * Desk / walk-in booking: no new customer User.
+ * Attaches to shared walk-in userId; stores guestName/Email/Phone on booking.
+ * Rechecks availability + bike slot on submit. Sends confirmation + signup invitation to guestEmail only (no user create).
+ */
+export const createDeskBooking = async (data) => {
+    const {
+        campusId,
+        pricingId,
+        pickupAt,
+        returnAt,
+        bikeId,
+        guestName,
+        guestEmail,
+        guestPhone = null,
+        helmetCount = 0,
+        notes = null,
+    } = data
+
+    const walkinUserId = await resolveWalkinUserId()
+
+    const campus = await prisma.campus.findUnique({ where: { id: campusId } })
+    if (!campus || !campus.isActive) throw new ApiError(400, 'Invalid or inactive campus')
+
+    const pricing = await prisma.pricing.findUnique({ where: { id: pricingId } })
+    if (!pricing || !pricing.isActive) throw new ApiError(400, 'Invalid or inactive pricing')
+
+    const pickup = new Date(pickupAt)
+    const ret = new Date(returnAt)
+    if (Number.isNaN(pickup.getTime()) || Number.isNaN(ret.getTime()) || ret <= pickup) {
+        throw new ApiError(400, 'returnAt must be after pickupAt')
+    }
+
+    // Same past-pickup rule as availability (5 min grace inside getBookingAvailability)
+    const availability = await getBookingAvailability({
+        campusId,
+        pickupAt: pickup.toISOString(),
+        returnAt: ret.toISOString(),
+        helmetCount,
+    })
+    if (!availability.available || availability.availableCount < 1) {
+        throw new ApiError(400, availability.reason || 'No available bikes for the selected time')
+    }
+
+    const bikeCheck = await checkBikeAvailability(bikeId, pickup, ret)
+    if (!bikeCheck.available) {
+        throw new ApiError(400, bikeCheck.reason || 'Selected bike is not available for this slot')
+    }
+
+    const bike = await prisma.bike.findUnique({ where: { id: bikeId } })
+    if (!bike || !bike.isActive || bike.campusId !== campusId) {
+        throw new ApiError(400, 'Invalid bike for this campus')
+    }
+
+    const durationHours = Math.ceil((ret - pickup) / (1000 * 60 * 60))
+    const settings = await prisma.systemSetting.findFirst()
+    const { helmetAmount } = calculateHelmetAmount(settings || {}, helmetCount, durationHours)
+
+    const baseAmount = Number(pricing.price)
+    const depositAmount = Number(pricing.depositAmount)
+    const platformFee = settings?.platformFeeEnabled ? Number(settings.platformFee) || 0 : 0
+    const subtotal = Number((baseAmount + platformFee + helmetAmount).toFixed(2))
+    const gstAmount = settings?.gstEnabled
+        ? Number(((subtotal * Number(settings.gstRate)) / 100).toFixed(2))
+        : 0
+    const totalAmount = Number((subtotal + gstAmount + depositAmount).toFixed(2))
+
+    const booking = await prisma.booking.create({
+        data: {
+            bookingNumber: bookingNumber(),
+            userId: walkinUserId,
+            campusId,
+            pricingId,
+            bikeId,
+            pickupAt: pickup,
+            returnAt: ret,
+            durationHours,
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID',
+            baseAmount,
+            depositAmount,
+            discountAmount: 0,
+            totalAmount,
+            includedKm: pricing.includedKm,
+            extraKmRate: pricing.extraKmRate,
+            helmetCount,
+            helmetAmount,
+            notes: notes || null,
+            guestName: guestName.trim(),
+            guestEmail: guestEmail.trim().toLowerCase(),
+            guestPhone: guestPhone ? String(guestPhone).trim() : null,
+        },
+        include: BOOKING_INCLUDE,
+    })
+
+    // Guest-only emails: confirmation + signup invitation (no user create, no magic link)
+    try {
+        await sendBookingConfirmationEmail({ booking, payment: null })
+    } catch (err) {
+        console.error(
+            `Desk booking confirmation email failed for ${booking.bookingNumber}:`,
+            err?.message || err
+        )
+    }
+    try {
+        if (booking.guestEmail) {
+            await sendGuestSignupInvitationEmail({
+                guestEmail: booking.guestEmail,
+                guestName: booking.guestName,
+                bookingNumber: booking.bookingNumber,
+            })
+        }
+    } catch (err) {
+        console.error(
+            `Desk booking signup invitation failed for ${booking.bookingNumber}:`,
+            err?.message || err
+        )
+    }
+
+    return booking
+}
+
 export const pickupBooking = async (id, pickupOdometer) => {
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -403,12 +561,7 @@ export const pickupBooking = async (id, pickupOdometer) => {
 }
 
 export const returnBooking = async (id, returnOdometer, options = {}) => {
-    const {
-        applyLateFee = false,
-        applyDisruptionPenalty = false,
-        adjustedOutstandingAmount,
-        adjustmentReason,
-    } = options
+    const { applyLateFee = false, applyDisruptionPenalty = false } = options
 
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -434,7 +587,10 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
 
     const lateInfo = await computeLateCharges(booking, settings, now)
 
-    const lateHelmetFee = lateInfo.lateHelmetFee
+    let lateHelmetFee = 0
+    if (lateInfo.isLate && (booking.helmetCount || 0) > 0) {
+        lateHelmetFee = Number(settings?.lateHelmetFee) || 0
+    }
 
     // Admin-controlled application of charges
     const lateFee = applyLateFee ? lateInfo.calculatedLateRental : 0
@@ -448,37 +604,11 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
         ? Number(((additionalSubtotal * Number(settings.gstRate)) / 100).toFixed(2))
         : 0
 
-    const systemFinalTotal = Number(
+    const finalTotal = Number(
         (booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2)
     )
 
     return prisma.$transaction(async (tx) => {
-        const paidAmount = (
-            await tx.payment.findMany({
-                where: { bookingId: id, status: 'PAID' },
-                select: { amount: true },
-            })
-        ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
-
-        const systemOutstanding = Number(Math.max(0, systemFinalTotal - paidAmount).toFixed(2))
-        const hasOutstandingOverride = adjustedOutstandingAmount !== undefined
-        const adjustedOutstanding = hasOutstandingOverride
-            ? Number(adjustedOutstandingAmount)
-            : systemOutstanding
-        const isAdjusted = Math.abs(adjustedOutstanding - systemOutstanding) > 0.0001
-
-        if (!Number.isFinite(adjustedOutstanding) || adjustedOutstanding < 0) {
-            throw new ApiError(400, 'adjustedOutstandingAmount must be greater than or equal to 0')
-        }
-        if (isAdjusted && !adjustmentReason?.trim()) {
-            throw new ApiError(400, 'adjustmentReason is required when outstanding amount is adjusted')
-        }
-
-        const finalTotal = hasOutstandingOverride
-            ? Number((paidAmount + adjustedOutstanding).toFixed(2))
-            : systemFinalTotal
-        const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
-
         if (booking.bikeId) {
             await tx.bike.update({
                 where: { id: booking.bikeId },
@@ -488,6 +618,15 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
                 },
             })
         }
+
+        const paidAmount = (
+            await tx.payment.findMany({
+                where: { bookingId: id, status: 'PAID' },
+                select: { amount: true },
+            })
+        ).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+
+        const paymentStatus = paidAmount + 0.0001 < finalTotal ? 'PARTIALLY_PAID' : 'PAID'
 
         const updated = await tx.booking.update({
             where: { id },
@@ -517,13 +656,6 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
                 appliedLateFee: lateFee,
                 appliedDisruptionPenalty: disruptionPenalty,
                 lateHelmetFee,
-            },
-            returnCalculation: {
-                systemFinalTotal,
-                systemOutstanding,
-                paidAmount: Number(paidAmount.toFixed(2)),
-                adjustedOutstandingAmount: hasOutstandingOverride ? adjustedOutstanding : null,
-                adjustmentReason: isAdjusted ? adjustmentReason.trim() : null,
             },
         }
     })

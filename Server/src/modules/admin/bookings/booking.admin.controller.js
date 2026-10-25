@@ -5,6 +5,9 @@ import {
     listBookings,
     getBookingById,
     createBooking,
+    createDeskBooking,
+    adminCheckAvailability,
+    adminListAvailableBikes,
     pickupBooking,
     returnBooking,
     cancelBooking,
@@ -49,6 +52,27 @@ export const createBookingController = asyncHandler(async (req, res) => {
     res.status(201).json(new ApiResponse(201, 'Booking created', booking))
 })
 
+/** Desk / walk-in: guest fields + shared walk-in user (no customer User create) */
+export const createDeskBookingController = asyncHandler(async (req, res) => {
+    const booking = await createDeskBooking(req.body)
+    await audit(req, 'CREATE', booking.id, {
+        source: 'desk',
+        guestEmail: booking.guestEmail,
+        guestName: booking.guestName,
+    })
+    res.status(201).json(new ApiResponse(201, 'Desk booking created', booking))
+})
+
+export const checkAvailabilityController = asyncHandler(async (req, res) => {
+    const result = await adminCheckAvailability(req.body)
+    res.status(200).json(new ApiResponse(200, 'Availability checked', result))
+})
+
+export const listAvailableBikesController = asyncHandler(async (req, res) => {
+    const result = await adminListAvailableBikes(req.body)
+    res.status(200).json(new ApiResponse(200, 'Available bikes', result))
+})
+
 export const listBookingsController = asyncHandler(async (req, res) => {
     const query = bookingListQuerySchema.parse(req.query)
     const result = await listBookings(query)
@@ -71,36 +95,18 @@ export const pickupBookingController = asyncHandler(async (req, res) => {
 
 export const returnBookingController = asyncHandler(async (req, res) => {
     const { id } = req.params
-    const {
-        returnOdometer,
-        applyLateFee = false,
-        applyDisruptionPenalty = false,
-        adjustedOutstandingAmount,
-        adjustmentReason,
-    } = req.body
+    const { returnOdometer, applyLateFee = false, applyDisruptionPenalty = false } = req.body
     const booking = await returnBooking(id, returnOdometer, {
         applyLateFee,
         applyDisruptionPenalty,
-        adjustedOutstandingAmount,
-        adjustmentReason,
     })
-    const { returnCalculation, ...responseBooking } = booking
     await audit(req, 'UPDATE', id, {
         action: 'return',
         returnOdometer,
         applyLateFee,
         applyDisruptionPenalty,
-        ...(returnCalculation?.adjustedOutstandingAmount != null
-            ? {
-                  systemFinalTotal: returnCalculation.systemFinalTotal,
-                  systemOutstanding: returnCalculation.systemOutstanding,
-                  adjustedOutstanding: returnCalculation.adjustedOutstandingAmount,
-                  adjustmentReason: returnCalculation.adjustmentReason,
-                  adminId: req.admin?.id || null,
-              }
-            : {}),
     })
-    res.status(200).json(new ApiResponse(200, 'Booking returned', responseBooking))
+    res.status(200).json(new ApiResponse(200, 'Booking returned', booking))
 })
 
 export const previewLateChargesController = asyncHandler(async (req, res) => {

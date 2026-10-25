@@ -165,6 +165,10 @@ model Booking {
   pickedUpAt                 DateTime?
   returnedAt                 DateTime?
   notes                      String?
+  /** Desk / walk-in booking guest (no customer User account) */
+  guestName                  String?
+  guestEmail                 String?
+  guestPhone                 String?
   createdAt                  DateTime      @default(now())
   updatedAt                  DateTime      @updatedAt
   pricingId                  String
@@ -201,6 +205,7 @@ model Booking {
   @@index([status])
   @@index([pickupAt])
   @@index([returnAt])
+  @@index([guestEmail])
   @@map("bookings")
 }
 

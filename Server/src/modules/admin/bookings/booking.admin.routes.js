@@ -4,6 +4,9 @@ import { requirePermission } from '../../../middlewares/requirePermission.js'
 import { validate } from '../../../middlewares/validation.middleware.js'
 import {
   adminCreateBookingSchema,
+  adminDeskCreateBookingSchema,
+  adminCheckAvailabilitySchema,
+  adminAvailableBikesSchema,
   pickupSchema,
   returnSchema,
   collectPaymentSchema,
@@ -12,6 +15,9 @@ import {
 } from './booking.admin.validation.js'
 import {
   createBookingController,
+  createDeskBookingController,
+  checkAvailabilityController,
+  listAvailableBikesController,
   listBookingsController,
   getBookingController,
   pickupBookingController,
@@ -27,6 +33,25 @@ const router = express.Router()
 router.use(authenticateAdmin)
 
 router.post('/', requirePermission('bookings.create'), validate(adminCreateBookingSchema), createBookingController)
+/** Desk / walk-in booking (shared walk-in user + guest fields) */
+router.post(
+  '/desk',
+  requirePermission('bookings.create'),
+  validate(adminDeskCreateBookingSchema),
+  createDeskBookingController
+)
+router.post(
+  '/check-availability',
+  requirePermission('bookings.create'),
+  validate(adminCheckAvailabilitySchema),
+  checkAvailabilityController
+)
+router.post(
+  '/available-bikes',
+  requirePermission('bookings.create'),
+  validate(adminAvailableBikesSchema),
+  listAvailableBikesController
+)
 router.get('/', requirePermission('bookings.read'), listBookingsController)
 router.get('/late-returns', requirePermission('bookings.read'), lateReturnStatsController)
 router.get('/:id', requirePermission('bookings.read'), getBookingController)
