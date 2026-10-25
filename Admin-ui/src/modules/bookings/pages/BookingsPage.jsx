@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X } from 'lucide-react'
+import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X, Plus, SlidersHorizontal } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { DataTable } from '../../../components/ui/DataTable'
@@ -19,7 +19,16 @@ import { MobileList, MobileCard } from '../../../components/ui/MobileList'
 import { AlertTriangle } from 'lucide-react'
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const dateTime = (v) => (v ? new Date(v).toLocaleString() : '—')
+const dateTime = (v) => {
+    if (!v) return '—'
+    return new Date(v).toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    })
+}
 
 const todayYmd = () => {
     const n = new Date()
@@ -103,7 +112,13 @@ export default function BookingsPage() {
         [dateFrom, setDateFrom] = useState(''),
         [dateTo, setDateTo] = useState(''),
         [dateMode, setDateMode] = useState('single'), // 'single' | 'range'
-        [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1')
+        [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1'),
+        [campusId, setCampusId] = useState('')
+    // Advanced filter drawer (draft vs applied — close without Apply does not change results)
+    const [filterOpen, setFilterOpen] = useState(false)
+    const [draftStatus, setDraftStatus] = useState('')
+    const [draftLateOnly, setDraftLateOnly] = useState(false)
+    const [draftCampusId, setDraftCampusId] = useState('')
     const [selected, setSelected] = useState(null),
         [pickupTarget, setPickupTarget] = useState(null),
         [returnTarget, setReturnTarget] = useState(null),
@@ -112,13 +127,57 @@ export default function BookingsPage() {
         [odometer, setOdometer] = useState(''),
         [paymentMethod, setPaymentMethod] = useState('UPI'),
         [reference, setReference] = useState('')
+    const { data: campusBikesRes } = useQuery({
+        queryKey: ['bikes-for-campus-filter'],
+        queryFn: () => api.get('/bikes?limit=200&isActive=true'),
+        staleTime: 60_000,
+    })
+    const campusOptions = (() => {
+        const rows = campusBikesRes?.data?.bikes || campusBikesRes?.bikes || campusBikesRes?.data || []
+        const map = new Map()
+        for (const b of Array.isArray(rows) ? rows : []) {
+            const id = b.campusId || b.campus?.id
+            const name = b.campus?.name || b.campusName
+            if (id && !map.has(id)) map.set(id, { id, name: name || id })
+        }
+        return Array.from(map.values())
+    })()
+
+    const advancedFilterCount =
+        (statusFilter ? 1 : 0) + (lateOnly ? 1 : 0) + (campusId ? 1 : 0)
+
+    const openFilters = () => {
+        setDraftStatus(statusFilter)
+        setDraftLateOnly(lateOnly)
+        setDraftCampusId(campusId)
+        setFilterOpen(true)
+    }
+    const applyFilters = () => {
+        setStatusFilter(draftStatus)
+        setLateOnly(draftLateOnly)
+        setCampusId(draftCampusId)
+        setPage(1)
+        setFilterOpen(false)
+    }
+    const resetAdvancedFilters = () => {
+        // Clear advanced only — keep toolbar search + date range
+        setDraftStatus('')
+        setDraftLateOnly(false)
+        setDraftCampusId('')
+        setStatusFilter('')
+        setLateOnly(false)
+        setCampusId('')
+        setPage(1)
+    }
+
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly, dateFrom, dateTo }],
+        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly, dateFrom, dateTo, campusId }],
         queryFn: () => {
             const qs = new URLSearchParams({ page: String(page), limit: String(limit) })
             if (search) qs.set('search', search)
             if (statusFilter) qs.set('status', statusFilter)
             if (lateOnly) qs.set('lateOnly', 'true')
+            if (campusId) qs.set('campusId', campusId)
             // Filter by scheduled pickup: single day or inclusive range
             if (dateFrom && dateTo) {
                 const start = toStartISO(dateFrom)
@@ -205,79 +264,106 @@ export default function BookingsPage() {
             key: 'bookingNumber',
             header: 'Booking',
             render: (r) => (
-                <div>
-                    <p className="font-medium text-primary-token">{r.bookingNumber || '—'}</p>
-                    <p className="text-xs text-muted">{r.user?.name || '—'}</p>
+                <div className="min-w-[8rem]">
+                    <p className="font-semibold text-primary-token tracking-tight">{r.bookingNumber || '—'}</p>
+                    <p className="text-[11px] text-muted mt-0.5">
+                        {r.createdAt
+                            ? new Date(r.createdAt).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                              })
+                            : '—'}
+                    </p>
                 </div>
             ),
         },
-        { key: 'bike', header: 'Bike', render: (r) => (
-            <div>
-                <p className="text-secondary text-sm">{r.bike?.bikeNumber || r.bike?.name || '—'}</p>
-                <p className="text-xs text-muted">{r.bike?.registrationNumber || ''}</p>
-            </div>
-        ) },
         {
-            key: 'late',
-            header: 'Late',
+            key: 'customer',
+            header: 'Customer',
             render: (r) => {
-                const late = r.isLate || (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt))
-                if (!late && !(r.lateDurationMinutes > 0)) return <span className="text-muted">—</span>
+                const name = r.guestName || r.user?.name || '—'
+                const phone = r.guestPhone || r.user?.phone
+                const contact = phone
+                    ? String(phone).startsWith('+')
+                        ? phone
+                        : `+${phone}`
+                    : r.guestEmail || r.user?.email || '—'
+                const isDesk = Boolean(r.guestEmail || r.guestName)
                 return (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
-                        🔴 {r.lateDurationMinutes != null ? `${r.lateDurationMinutes}m` : 'Late'}
-                    </span>
+                    <div className="min-w-[9rem] max-w-[14rem]">
+                        <p className="text-sm font-medium text-primary-token truncate">{name}</p>
+                        <p className="text-[11px] text-muted mt-0.5 truncate">
+                            {contact}
+                            {isDesk ? ' · Desk' : ''}
+                        </p>
+                    </div>
                 )
             },
         },
         {
             key: 'pickupAt',
             header: 'Pickup',
-            render: (r) => <span className="text-secondary text-xs">{dateTime(r.pickupAt)}</span>,
+            render: (r) => (
+                <span className="text-sm text-secondary whitespace-nowrap">{dateTime(r.pickupAt)}</span>
+            ),
         },
         {
             key: 'returnAt',
             header: 'Return',
-            render: (r) => <span className="text-secondary text-xs">{dateTime(r.returnAt)}</span>,
-        },
-        {
-            key: 'paymentStatus',
-            header: 'Payment',
             render: (r) => (
-                <div className="space-y-1">
-                    <StatusBadge status={r.paymentStatus || 'PENDING'} />
-                    {Number(r.paymentSummary?.outstandingAmount || 0) > 0 && (
-                        <p className="text-xs font-medium text-amber-600">Outstanding {money(r.paymentSummary.outstandingAmount)}</p>
-                    )}
-                </div>
+                <span className="text-sm text-secondary whitespace-nowrap">{dateTime(r.returnAt)}</span>
             ),
         },
-        { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status || 'PENDING'} /> },
+        {
+            key: 'status',
+            header: 'Status',
+            render: (r) => {
+                const late =
+                    r.isLate ||
+                    (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt)) ||
+                    (r.lateDurationMinutes != null && r.lateDurationMinutes > 0)
+                return (
+                    <div className="flex flex-col items-start gap-1">
+                        <StatusBadge status={late && r.status === 'ACTIVE' ? 'LATE_RETURN' : r.status || 'PENDING'} />
+                        {late && r.lateDurationMinutes != null && r.lateDurationMinutes > 0 && (
+                            <span className="text-[10px] font-medium text-red-500">{r.lateDurationMinutes}m late</span>
+                        )}
+                    </div>
+                )
+            },
+        },
         {
             key: 'actions',
             header: '',
             cellClassName: 'w-12',
             render: (r) => (
-                <ActionMenu
-                    items={[
-                        { label: 'View', icon: Eye, onClick: () => navigate(`/bookings/${r.id}`) },
-                        hasPermission('bookings.update') &&
-                            r.status === 'CONFIRMED' && {
-                                label: 'Record Pickup',
-                                icon: KeyRound,
-                                onClick: () => pickup(r),
-                            },
-                        hasPermission('bookings.update') &&
-                            r.status === 'ACTIVE' && { label: 'Record Return', icon: Undo2, onClick: () => returning(r) },
-                        hasPermission('bookings.cancel') &&
-                            cancellable(r.status) && {
-                                label: 'Cancel',
-                                icon: CircleX,
-                                danger: true,
-                                onClick: () => setCancelTarget(r),
-                            },
-                    ].filter(Boolean)}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                    <ActionMenu
+                        items={[
+                            { label: 'View', icon: Eye, onClick: () => navigate(`/bookings/${r.id}`) },
+                            hasPermission('bookings.update') &&
+                                r.status === 'CONFIRMED' && {
+                                    label: 'Record Pickup',
+                                    icon: KeyRound,
+                                    onClick: () => pickup(r),
+                                },
+                            hasPermission('bookings.update') &&
+                                r.status === 'ACTIVE' && {
+                                    label: 'Record Return',
+                                    icon: Undo2,
+                                    onClick: () => returning(r),
+                                },
+                            hasPermission('bookings.cancel') &&
+                                cancellable(r.status) && {
+                                    label: 'Cancel',
+                                    icon: CircleX,
+                                    danger: true,
+                                    onClick: () => setCancelTarget(r),
+                                },
+                        ].filter(Boolean)}
+                    />
+                </div>
             ),
         },
     ]
@@ -286,269 +372,332 @@ export default function BookingsPage() {
         outstanding = Number(summary.outstandingAmount || 0)
     return (
         <div>
-            <PageHeader title="Bookings" description="Manage and monitor RideOn bookings" />
+            <PageHeader
+                title="Bookings"
+                description="Manage rentals, pickups and returns"
+                actions={
+                    hasPermission('bookings.create') || hasPermission('*') ? (
+                        <Button onClick={() => navigate('/bookings/reserve')}>
+                            <Plus size={16} />
+                            Reserve a Ride
+                        </Button>
+                    ) : null
+                }
+            />
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 {[
-                    { label: 'Total', value: total },
-                    { label: 'On Page', value: rows.length },
-                    { label: 'Page', value: `${page}/${totalPages}` },
-                    { label: 'Per Page', value: limit },
+                    { label: "Today's list", value: total, hint: 'Filtered total' },
+                    { label: 'On page', value: rows.length, hint: 'Current page' },
+                    { label: 'Page', value: `${page}/${totalPages}`, hint: 'Pagination' },
+                    { label: 'Per page', value: limit, hint: 'Page size' },
                 ].map((s) => (
                     <Card key={s.label} className="p-4">
                         <p className="text-xs text-muted">{s.label}</p>
                         <p className="text-lg font-bold text-primary-token">{s.value}</p>
+                        {s.hint && <p className="text-[10px] text-muted mt-0.5">{s.hint}</p>}
                     </Card>
                 ))}
             </div>
             <Card className="overflow-hidden">
-                <div className="space-y-3 border-b border-token p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {/* Main toolbar — compact, one row on desktop */}
+                <div className="border-b border-token px-3 py-3 sm:px-4">
+                    <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:gap-2">
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault()
                                 setSearch(searchInput.trim())
                                 setPage(1)
                             }}
-                            className="flex flex-1 gap-2"
+                            className="flex min-w-0 flex-1 gap-2"
                         >
-                            <div className="relative max-w-sm flex-1">
-                                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                            <div className="relative min-w-0 flex-1">
+                                <Search
+                                    size={15}
+                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                                />
                                 <Input
-                                    className="pl-9"
-                                    placeholder="Search booking #, name, email…"
+                                    className="h-9 pl-9"
+                                    placeholder="Search booking ID, customer name, phone, email…"
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
                                 />
                             </div>
-                            <Button type="submit" variant="secondary">
+                            <Button type="submit" variant="secondary" className="h-9 shrink-0">
                                 Search
                             </Button>
                         </form>
-                        <Select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value)
-                                setPage(1)
-                            }}
-                        >
-                            <option value="">All statuses</option>
-                            {['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'FAILED'].map((s) => (
-                                <option key={s} value={s}>
-                                    {s.replaceAll('_', ' ')}
-                                </option>
-                            ))}
-                        </Select>
-                        <label className="inline-flex cursor-pointer select-none items-center gap-2 whitespace-nowrap text-sm text-secondary">
-                            <input
-                                type="checkbox"
-                                checked={lateOnly}
-                                onChange={(e) => {
-                                    setLateOnly(e.target.checked)
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex h-9 items-center gap-1 rounded-lg border border-token bg-surface px-2">
+                                <Calendar size={14} className="shrink-0 text-[var(--color-primary)]" />
+                                <Input
+                                    type="date"
+                                    className="h-8 w-[8.25rem] border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                                    value={dateFrom}
+                                    max={dateTo || undefined}
+                                    onChange={(e) => {
+                                        setDateFrom(e.target.value)
+                                        if (!dateTo) setDateTo(e.target.value)
+                                        setDateMode(
+                                            e.target.value && dateTo && e.target.value !== dateTo
+                                                ? 'range'
+                                                : 'single'
+                                        )
+                                        setPage(1)
+                                    }}
+                                    title="From date"
+                                />
+                                <span className="text-xs text-muted">–</span>
+                                <Input
+                                    type="date"
+                                    className="h-8 w-[8.25rem] border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                                    value={dateTo}
+                                    min={dateFrom || undefined}
+                                    onChange={(e) => {
+                                        setDateTo(e.target.value)
+                                        if (!dateFrom) setDateFrom(e.target.value)
+                                        setDateMode(
+                                            dateFrom && e.target.value && dateFrom !== e.target.value
+                                                ? 'range'
+                                                : 'single'
+                                        )
+                                        setPage(1)
+                                    }}
+                                    title="To date"
+                                />
+                                {(dateFrom || dateTo) && (
+                                    <button
+                                        type="button"
+                                        className="rounded p-1 text-muted hover:bg-[var(--color-primary-soft)] hover:text-primary-token"
+                                        title="Clear dates"
+                                        onClick={() => {
+                                            setDateFrom('')
+                                            setDateTo('')
+                                            setPage(1)
+                                        }}
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="h-9"
+                                onClick={() => {
+                                    const t = todayYmd()
+                                    setDateFrom(t)
+                                    setDateTo(t)
+                                    setDateMode('single')
                                     setPage(1)
                                 }}
-                            />
-                            Late returns only
-                        </label>
-                    </div>
+                            >
+                                Today
+                            </Button>
 
-                    {/* Date filter — single day or range (API: from / to on pickupAt) */}
-                    <div className="rounded-xl border border-token bg-[var(--color-primary-soft)]/40 p-3 sm:p-4">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 text-muted">
-                                    <Calendar size={15} className="shrink-0 text-[var(--color-primary)]" />
-                                    <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                                        Filter by pickup date
+                            <Select
+                                value={statusFilter}
+                                className="h-9 w-full min-w-[9.5rem] sm:w-40"
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value)
+                                    setPage(1)
+                                }}
+                            >
+                                <option value="">All statuses</option>
+                                <option value="CONFIRMED">Confirmed</option>
+                                <option value="ACTIVE">Active (Ongoing)</option>
+                                <option value="COMPLETED">Completed</option>
+                                <option value="CANCELLED">Cancelled</option>
+                                <option value="PAYMENT_PENDING">Payment pending</option>
+                                <option value="NO_SHOW">No show</option>
+                                <option value="FAILED">Failed</option>
+                            </Select>
+
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="h-9 shrink-0"
+                                onClick={openFilters}
+                            >
+                                <SlidersHorizontal size={15} />
+                                Filters
+                                {advancedFilterCount > 0 && (
+                                    <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-primary)] px-1.5 text-[10px] font-bold text-white">
+                                        {advancedFilterCount}
                                     </span>
-                                </div>
-                                {/* Mode toggle */}
-                                <div className="inline-flex rounded-lg border border-token bg-surface p-0.5">
-                                    <button
-                                        type="button"
-                                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                                            dateMode === 'single'
-                                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                                                : 'text-muted hover:text-primary-token'
-                                        }`}
-                                        onClick={() => {
-                                            setDateMode('single')
-                                            if (dateFrom) {
-                                                setDateTo(dateFrom)
-                                            } else if (dateTo) {
-                                                setDateFrom(dateTo)
-                                            }
-                                            setPage(1)
-                                        }}
-                                    >
-                                        Single day
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                                            dateMode === 'range'
-                                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                                                : 'text-muted hover:text-primary-token'
-                                        }`}
-                                        onClick={() => {
-                                            setDateMode('range')
-                                            setPage(1)
-                                        }}
-                                    >
-                                        Date range
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                                {dateMode === 'single' ? (
-                                    <label className="block min-w-0 sm:w-48">
-                                        <span className="mb-1 block text-xs text-muted">Day</span>
-                                        <Input
-                                            type="date"
-                                            value={dateFrom || dateTo || ''}
-                                            onChange={(e) => {
-                                                const v = e.target.value
-                                                setDateFrom(v)
-                                                setDateTo(v)
-                                                setPage(1)
-                                            }}
-                                        />
-                                    </label>
-                                ) : (
-                                    <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 sm:max-w-md">
-                                        <label className="block min-w-0">
-                                            <span className="mb-1 block text-xs text-muted">From</span>
-                                            <Input
-                                                type="date"
-                                                value={dateFrom}
-                                                max={dateTo || undefined}
-                                                onChange={(e) => {
-                                                    setDateFrom(e.target.value)
-                                                    setPage(1)
-                                                }}
-                                            />
-                                        </label>
-                                        <label className="block min-w-0">
-                                            <span className="mb-1 block text-xs text-muted">To</span>
-                                            <Input
-                                                type="date"
-                                                value={dateTo}
-                                                min={dateFrom || undefined}
-                                                onChange={(e) => {
-                                                    setDateTo(e.target.value)
-                                                    setPage(1)
-                                                }}
-                                            />
-                                        </label>
-                                    </div>
                                 )}
-
-                                {/* Presets */}
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                    {[
-                                        {
-                                            label: 'Today',
-                                            apply: () => {
-                                                const t = todayYmd()
-                                                setDateFrom(t)
-                                                setDateTo(t)
-                                                setDateMode('single')
-                                            },
-                                        },
-                                        {
-                                            label: 'Yesterday',
-                                            apply: () => {
-                                                const y = addDaysYmd(todayYmd(), -1)
-                                                setDateFrom(y)
-                                                setDateTo(y)
-                                                setDateMode('single')
-                                            },
-                                        },
-                                        {
-                                            label: 'Last 7 days',
-                                            apply: () => {
-                                                const t = todayYmd()
-                                                setDateFrom(addDaysYmd(t, -6))
-                                                setDateTo(t)
-                                                setDateMode('range')
-                                            },
-                                        },
-                                        {
-                                            label: 'This month',
-                                            apply: () => {
-                                                const t = todayYmd()
-                                                setDateFrom(startOfMonthYmd())
-                                                setDateTo(t)
-                                                setDateMode('range')
-                                            },
-                                        },
-                                    ].map((preset) => (
-                                        <Button
-                                            key={preset.label}
-                                            type="button"
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={() => {
-                                                preset.apply()
-                                                setPage(1)
-                                            }}
-                                        >
-                                            {preset.label}
-                                        </Button>
-                                    ))}
-                                    {(dateFrom || dateTo) && (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setDateFrom('')
-                                                setDateTo('')
-                                                setPage(1)
-                                            }}
-                                        >
-                                            <X size={14} />
-                                            Clear
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {(dateFrom || dateTo) && (
-                                <p className="text-xs text-secondary">
-                                    Showing bookings with scheduled pickup{' '}
-                                    {dateFrom && dateTo && dateFrom === dateTo
-                                        ? (
-                                              <>
-                                                  on <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
-                                              </>
-                                          )
-                                        : dateFrom && dateTo
-                                          ? (
-                                                <>
-                                                    from{' '}
-                                                    <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
-                                                    {' '}to{' '}
-                                                    <span className="font-semibold text-primary-token">{formatDisplayDate(dateTo)}</span>
-                                                </>
-                                            )
-                                          : dateFrom
-                                            ? (
-                                                  <>
-                                                      from <span className="font-semibold text-primary-token">{formatDisplayDate(dateFrom)}</span>
-                                                  </>
-                                              )
-                                            : (
-                                                  <>
-                                                      on <span className="font-semibold text-primary-token">{formatDisplayDate(dateTo)}</span>
-                                                  </>
-                                              )}
-                                    .
-                                </p>
-                            )}
+                            </Button>
                         </div>
                     </div>
+
+                    {/* Active filter chips */}
+                    {(search || statusFilter || lateOnly || campusId || dateFrom || dateTo) && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearch('')
+                                        setSearchInput('')
+                                        setPage(1)
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-token bg-surface px-2.5 py-1 text-[11px] text-secondary hover:border-[var(--color-primary)]/40"
+                                >
+                                    Search: {search}
+                                    <X size={12} />
+                                </button>
+                            )}
+                            {(dateFrom || dateTo) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setDateFrom('')
+                                        setDateTo('')
+                                        setPage(1)
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-token bg-surface px-2.5 py-1 text-[11px] text-secondary hover:border-[var(--color-primary)]/40"
+                                >
+                                    {dateFrom && dateTo && dateFrom === dateTo
+                                        ? formatDisplayDate(dateFrom)
+                                        : `${formatDisplayDate(dateFrom) || '…'} – ${formatDisplayDate(dateTo) || '…'}`}
+                                    <X size={12} />
+                                </button>
+                            )}
+                            {statusFilter && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStatusFilter('')
+                                        setPage(1)
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-token bg-surface px-2.5 py-1 text-[11px] text-secondary hover:border-[var(--color-primary)]/40"
+                                >
+                                    {statusFilter.replaceAll('_', ' ')}
+                                    <X size={12} />
+                                </button>
+                            )}
+                            {lateOnly && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setLateOnly(false)
+                                        setPage(1)
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-token bg-surface px-2.5 py-1 text-[11px] text-secondary hover:border-[var(--color-primary)]/40"
+                                >
+                                    Late returns
+                                    <X size={12} />
+                                </button>
+                            )}
+                            {campusId && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setCampusId('')
+                                        setPage(1)
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-token bg-surface px-2.5 py-1 text-[11px] text-secondary hover:border-[var(--color-primary)]/40"
+                                >
+                                    {campusOptions.find((c) => c.id === campusId)?.name || 'Campus'}
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
+
+                <Drawer
+                    open={filterOpen}
+                    onClose={() => setFilterOpen(false)}
+                    title="Filters"
+                    description="Refine your booking results"
+                >
+                    <div className="space-y-6 p-1">
+                        <div>
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                                Booking status
+                            </p>
+                            <div className="space-y-0.5">
+                                {[
+                                    { value: '', label: 'All statuses' },
+                                    { value: 'CONFIRMED', label: 'Confirmed' },
+                                    { value: 'ACTIVE', label: 'Active (Ongoing)' },
+                                    { value: 'COMPLETED', label: 'Completed' },
+                                    { value: 'CANCELLED', label: 'Cancelled' },
+                                    { value: 'PAYMENT_PENDING', label: 'Payment pending' },
+                                    { value: 'NO_SHOW', label: 'No show' },
+                                    { value: 'FAILED', label: 'Failed' },
+                                ].map((opt) => (
+                                    <label
+                                        key={opt.value || 'all'}
+                                        className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--color-primary-soft)]"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="draftStatus"
+                                            className="accent-[var(--color-primary)]"
+                                            checked={draftStatus === opt.value}
+                                            onChange={() => setDraftStatus(opt.value)}
+                                        />
+                                        <span className="text-sm text-primary-token">{opt.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-token pt-5">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-medium text-primary-token">Late returns only</p>
+                                    <p className="mt-0.5 text-xs text-muted">
+                                        Show bookings past their return time
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={draftLateOnly}
+                                    onClick={() => setDraftLateOnly((v) => !v)}
+                                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                                        draftLateOnly ? 'bg-[var(--color-primary)]' : 'bg-token'
+                                    }`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                            draftLateOnly ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-token pt-5">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                                Campus / Location
+                            </p>
+                            <Select value={draftCampusId} onChange={(e) => setDraftCampusId(e.target.value)}>
+                                <option value="">All locations</option>
+                                {campusOptions.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div className="flex gap-2 border-t border-token pt-4">
+                            <Button type="button" variant="secondary" className="flex-1" onClick={resetAdvancedFilters}>
+                                Reset
+                            </Button>
+                            <Button type="button" className="flex-1" onClick={applyFilters}>
+                                Apply Filters
+                            </Button>
+                        </div>
+                    </div>
+                </Drawer>
+
                 {/* Mobile cards */}
                 <MobileList>
                     {rows.map((r) => {
@@ -559,7 +708,7 @@ export default function BookingsPage() {
                                     <span className="font-semibold text-primary-token text-sm">{r.bookingNumber || '—'}</span>
                                     <StatusBadge status={late ? 'LATE_RETURN' : r.status} />
                                 </div>
-                                <p className="text-sm text-secondary truncate">{r.user?.name || '—'}</p>
+                                <p className="text-sm text-secondary truncate">{r.guestName || r.user?.name || '—'}</p>
                                 <p className="text-xs text-muted">
                                     {[r.bike?.bikeNumber, r.bike?.registrationNumber].filter(Boolean).join(' · ') || 'No bike'}
                                 </p>

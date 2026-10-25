@@ -9,6 +9,7 @@ const blockingBookingStatuses = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
 
 export const checkBikeAvailability = async (bikeId, pickupAt, returnAt, client = prisma) => {
     const bike = await client.bike.findUnique({ where: { id: bikeId } })
+    // AVAILABLE or IN_USE can be booked for free future slots; overlap+buffer is the real gate
     if (!bike || !bike.isActive || !['AVAILABLE', 'IN_USE'].includes(bike.status)) {
         return { available: false, reason: 'Bike is not available' }
     }
@@ -92,6 +93,44 @@ export const countAvailableBikes = async (pickupAt, returnAt, campusId, client =
         if (availability.available) count += 1
     }
     return count
+}
+
+/**
+ * List bikes free for the range (buffer-aware), ordered by lowest odometer first.
+ * Admin desk booking only — does not change customer booking behaviour.
+ */
+export const listAvailableBikes = async (pickupAt, returnAt, campusId, client = prisma) => {
+    const bikes = await client.bike.findMany({
+        where: {
+            campusId,
+            status: { in: ['AVAILABLE', 'IN_USE'] },
+            isActive: true,
+        },
+        orderBy: { currentOdometer: 'asc' },
+        select: {
+            id: true,
+            name: true,
+            bikeNumber: true,
+            registrationNumber: true,
+            brand: true,
+            model: true,
+            currentOdometer: true,
+            status: true,
+            campusId: true,
+        },
+    })
+
+    const available = []
+    for (const bike of bikes) {
+        const availability = await checkBikeAvailability(
+            bike.id,
+            new Date(pickupAt),
+            new Date(returnAt),
+            client
+        )
+        if (availability.available) available.push(bike)
+    }
+    return available
 }
 
 export const hasAvailableBike = async (pickupAt, returnAt, campusId, client = prisma) => {

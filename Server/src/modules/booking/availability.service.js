@@ -27,15 +27,19 @@ const PAST_PICKUP_GRACE_MS = 5 * 60 * 1000
  * 6. Never return a slot in the past.
  */
 const findAlternativeSlots = async (pickupAt, returnAt, campusId, client) => {
+    // Same duration rule as getBookingAvailability / pricing: ceil to whole hours, min 1h
     const requestedMs = returnAt.getTime() - pickupAt.getTime()
-    const durationMin = Math.round(requestedMs / (60 * 1000))
-    if (durationMin < MIN_RENTAL_HOURS * 60) return []
+    const durationHours = Math.max(
+        MIN_RENTAL_HOURS,
+        Math.ceil(requestedMs / (1000 * 60 * 60))
+    )
+    if (durationHours > MAX_RENTAL_HOURS) return []
 
     const now = Date.now()
     const earliestStartMs = now - PAST_PICKUP_GRACE_MS
     const maxOffsetMs = ALT_MAX_SEARCH_HOURS * 60 * 60 * 1000
     const stepMs = ALT_STEP_MINUTES * 60 * 1000
-    const durationMs = durationMin * 60 * 1000
+    const durationMs = durationHours * 60 * 60 * 1000
     const requestedStartMs = pickupAt.getTime()
 
     const results = []
@@ -65,7 +69,7 @@ const findAlternativeSlots = async (pickupAt, returnAt, campusId, client) => {
             results.push({
                 pickupAt: altPickup.toISOString(),
                 returnAt: altReturn.toISOString(),
-                durationHours: Math.ceil(durationMin / 60),
+                durationHours,
                 sameDuration: true,
                 availableCount,
             })

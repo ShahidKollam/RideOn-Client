@@ -77,14 +77,18 @@ const emailFooter = ({ includeMapLink = true } = {}) => {
 
 export const sendBookingConfirmationEmail = async ({ booking, payment }) => {
     const user = booking?.user
-    if (!user?.email) return { skipped: true, reason: 'Booking customer has no email' }
+    // Desk / walk-in: prefer guest contact; never email the internal walk-in user
+    const toEmail = (booking?.guestEmail || user?.email || '').trim()
+    if (!toEmail || toEmail.toLowerCase() === 'walkin@rideon.internal') {
+        return { skipped: true, reason: 'Booking customer has no email' }
+    }
 
     const bookingNumber = escapeHtml(booking.bookingNumber)
     const bikeName = escapeHtml(booking.bike?.name || 'Campus bike')
     const registrationNumber = escapeHtml(booking.bike?.registrationNumber || '—')
     const campusName = escapeHtml(booking.campus?.name || '—')
     const packageName = escapeHtml(booking.pricing?.packageName || `${booking.durationHours} Hour Ride`)
-    const customerName = escapeHtml(user.name || 'there')
+    const customerName = escapeHtml(booking?.guestName || user?.name || 'there')
     const pickup = formatDateTime(booking.pickupAt)
     const returnTime = formatDateTime(booking.returnAt)
     const includedKm = booking.includedKm ?? 0
@@ -162,7 +166,77 @@ ${emailFooter({ includeMapLink: true })}
 </body>
 </html>`
 
-    await sendEmail({ to: user.email, subject: `RideOn Booking Confirmed — ${booking.bookingNumber}`, html })
+    await sendEmail({ to: toEmail, subject: `RideOn Booking Confirmed — ${booking.bookingNumber}`, html })
+    return { success: true }
+}
+
+/**
+ * Desk / walk-in guests only: invite them to create a RideOn account.
+ * Does NOT create a user and does NOT send a magic link.
+ * Do not use for existing customer bookings.
+ */
+export const sendGuestSignupInvitationEmail = async ({ guestEmail, guestName, bookingNumber } = {}) => {
+    const toEmail = String(guestEmail || '').trim().toLowerCase()
+    if (!toEmail || toEmail === 'walkin@rideon.internal') {
+        return { skipped: true, reason: 'No guest email' }
+    }
+
+    const name = escapeHtml(guestName || 'there')
+    const bookingRef = bookingNumber ? escapeHtml(bookingNumber) : null
+    const signupUrl = `${config.clientUrl.replace(/\/$/, '')}/signup?email=${encodeURIComponent(toEmail)}`
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join RideOn</title>
+</head>
+<body style="margin:0;background:#f4f7fc;font-family:Arial,Helvetica,sans-serif;color:#14213d;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e3eaf6;">
+${emailLogoHeader()}
+<tr>
+  <td style="padding:8px 36px 28px;background:linear-gradient(135deg,#0a2b67,#1677d2);color:#ffffff;">
+    <p style="margin:0 0 10px;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#bfe0ff;">RideOn</p>
+    <h1 style="margin:0;font-size:26px;line-height:34px;">Create your RideOn account</h1>
+    <p style="margin:12px 0 0;font-size:15px;line-height:23px;color:#e6f2ff;">Manage bookings online anytime</p>
+  </td>
+</tr>
+<tr>
+  <td style="padding:32px 36px;">
+    <p style="margin:0;font-size:16px;line-height:25px;">Hi ${name},</p>
+    <p style="margin:14px 0 0;font-size:15px;line-height:24px;color:#5b6982;">
+      ${bookingRef ? `Your desk booking <strong style="color:#14213d;">${bookingRef}</strong> is confirmed.` : 'Your desk booking is confirmed.'}
+      You can create a free RideOn account with this email to view bookings, manage future rides, and get updates in the app.
+    </p>
+    <p style="margin:22px 0 0;text-align:center;">
+      <a href="${signupUrl}" target="_blank" rel="noopener noreferrer"
+        style="display:inline-block;background:#1677d2;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 28px;border-radius:10px;">
+        Sign up for RideOn
+      </a>
+    </p>
+    <p style="margin:18px 0 0;font-size:13px;line-height:20px;color:#667085;word-break:break-all;">
+      Or open: <a href="${signupUrl}" style="color:#1677d2;text-decoration:none;">${escapeHtml(signupUrl)}</a>
+    </p>
+    <p style="margin:20px 0 0;font-size:13px;line-height:20px;color:#667085;">
+      If you already have an account, you can sign in with this email instead.
+    </p>
+  </td>
+</tr>
+${emailFooter({ includeMapLink: false })}
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+
+    await sendEmail({
+        to: toEmail,
+        subject: 'You are invited to join RideOn',
+        html,
+    })
     return { success: true }
 }
 

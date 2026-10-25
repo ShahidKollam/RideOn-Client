@@ -21,6 +21,7 @@ export const bookingListQuerySchema = z.object({
     .transform((v) => (v === undefined ? undefined : v === 'true')),
 })
 
+/** Legacy admin create: attach to an existing customer userId */
 export const adminCreateBookingSchema = z.object({
   userId: z.string().min(1),
   campusId: z.string().min(1),
@@ -30,6 +31,36 @@ export const adminCreateBookingSchema = z.object({
   bikeId: z.string().optional(),
   helmetCount: z.number().int().min(0).max(2).optional(),
   notes: z.string().optional(),
+})
+
+/**
+ * Desk / walk-in create: no customer User.
+ * Uses shared walk-in userId internally; stores guest on booking.
+ */
+export const adminDeskCreateBookingSchema = z.object({
+  campusId: z.string().min(1),
+  pricingId: z.string().min(1),
+  pickupAt: z.string().datetime(),
+  returnAt: z.string().datetime(),
+  bikeId: z.string().min(1, 'Select a bike'),
+  guestName: z.string().trim().min(1, 'Guest name is required').max(120),
+  guestEmail: z.string().trim().email('Valid guest email is required').max(200),
+  guestPhone: z.string().trim().max(30).optional().nullable(),
+  helmetCount: z.number().int().min(0).max(2).optional().default(0),
+  notes: z.string().trim().max(1000).optional().nullable(),
+})
+
+export const adminCheckAvailabilitySchema = z.object({
+  campusId: z.string().min(1),
+  pickupAt: z.string().datetime(),
+  returnAt: z.string().datetime(),
+  helmetCount: z.number().int().min(0).max(2).optional().default(0),
+})
+
+export const adminAvailableBikesSchema = z.object({
+  campusId: z.string().min(1),
+  pickupAt: z.string().datetime(),
+  returnAt: z.string().datetime(),
 })
 
 export const pickupSchema = z.object({
@@ -42,9 +73,6 @@ export const returnSchema = z.object({
   applyLateFee: z.boolean().optional().default(false),
   /** Admin decides whether configured disruption penalty is applied */
   applyDisruptionPenalty: z.boolean().optional().default(false),
-  /** Optional override of the amount still due after the return is calculated */
-  adjustedOutstandingAmount: z.number().min(0).optional(),
-  adjustmentReason: z.string().trim().max(500).optional(),
 })
 
 export const collectPaymentSchema = z.object({
