@@ -135,59 +135,69 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }) {
                                     if (hasChildren && !collapsed) {
                                         return (
                                             <li key={item.to}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleGroup(groupKey)}
+                                                {/* Parent + submenu as one group: subtle navy when active, no vertical line */}
+                                                <div
                                                     className={cn(
-                                                        'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+                                                        'rounded-xl transition-colors duration-150',
                                                         pathActive
-                                                            ? 'bg-[var(--color-primary)]/15 text-primary-token'
-                                                            : 'text-secondary hover:bg-[var(--color-primary-soft)] hover:text-primary-token'
+                                                            ? 'bg-[var(--color-primary)]/12'
+                                                            : 'hover:bg-[var(--color-primary-soft)]/40'
                                                     )}
                                                 >
-                                                    <item.icon size={18} strokeWidth={2} className="shrink-0" />
-                                                    <span className="truncate flex-1 text-left">{item.label}</span>
-                                                    <ChevronDown
-                                                        size={14}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleGroup(groupKey)}
                                                         className={cn(
-                                                            'shrink-0 text-muted transition-transform duration-200',
-                                                            isOpen && 'rotate-180'
+                                                            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+                                                            pathActive
+                                                                ? 'text-primary-token'
+                                                                : 'text-secondary hover:text-primary-token'
                                                         )}
-                                                    />
-                                                </button>
-                                                {isOpen && (
-                                                    <ul className="mt-0.5 ml-4 pl-3 border-l border-token space-y-0.5">
-                                                        {children.map((child) => (
-                                                            <li key={child.to + child.label}>
-                                                                <NavLink
-                                                                    to={child.to}
-                                                                    end={child.end === true}
-                                                                    onClick={onMobileClose}
-                                                                    className={({ isActive }) =>
-                                                                        cn(
-                                                                            'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
-                                                                            isActive
-                                                                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                                                                                : 'text-secondary hover:bg-[var(--color-primary-soft)] hover:text-primary-token'
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <span
-                                                                        className={cn(
-                                                                            'h-1.5 w-1.5 rounded-full shrink-0',
-                                                                            location.pathname === child.to ||
-                                                                                (child.end &&
-                                                                                    location.pathname === child.to)
-                                                                                ? 'bg-white'
-                                                                                : 'bg-current opacity-50'
-                                                                        )}
-                                                                    />
-                                                                    <span className="truncate">{child.label}</span>
-                                                                </NavLink>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
+                                                    >
+                                                        <item.icon size={18} strokeWidth={2} className="shrink-0" />
+                                                        <span className="truncate flex-1 text-left">{item.label}</span>
+                                                        <ChevronDown
+                                                            size={14}
+                                                            className={cn(
+                                                                'shrink-0 text-muted transition-transform duration-200',
+                                                                isOpen && 'rotate-180'
+                                                            )}
+                                                        />
+                                                    </button>
+                                                    {isOpen && (
+                                                        <ul className="space-y-0.5 px-1.5 pb-1.5 pl-3">
+                                                            {children.map((child) => (
+                                                                <li key={child.to + child.label}>
+                                                                    <NavLink
+                                                                        to={child.to}
+                                                                        end={child.end === true}
+                                                                        onClick={onMobileClose}
+                                                                        className={({ isActive }) =>
+                                                                            cn(
+                                                                                'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors duration-150',
+                                                                                isActive
+                                                                                    ? 'bg-[var(--color-primary)] text-white'
+                                                                                    : 'text-secondary hover:bg-[var(--color-primary-soft)] hover:text-primary-token'
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <span
+                                                                            className={cn(
+                                                                                'h-1 w-1 rounded-full shrink-0',
+                                                                                location.pathname === child.to ||
+                                                                                    (child.end &&
+                                                                                        location.pathname === child.to)
+                                                                                    ? 'bg-white'
+                                                                                    : 'bg-current opacity-40'
+                                                                            )}
+                                                                        />
+                                                                        <span className="truncate">{child.label}</span>
+                                                                    </NavLink>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
                                             </li>
                                         )
                                     }

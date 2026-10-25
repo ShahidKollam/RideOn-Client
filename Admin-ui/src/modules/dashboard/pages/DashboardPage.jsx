@@ -27,7 +27,7 @@ import { cn } from '../../../utils/cn'
 const KPI = [
     {
         title: 'TOTAL REVENUE',
-        value: '$48,240.50',
+        value: '₹48,240.50',
         change: '12.5%',
         up: true,
         label: 'vs last month',
@@ -110,7 +110,7 @@ const RECENT_ACTIVITY = [
         icon: CheckCircle2,
         color: 'text-emerald-400',
         title: 'Payment received',
-        desc: '$850.00 from John Doe',
+        desc: '₹850.00 from John Doe',
         time: '2m ago',
     },
     {
@@ -195,7 +195,7 @@ function RevenueBars({ data }) {
                             />
                             {d.month === 'May' && (
                                 <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-semibold text-white shadow">
-                                    $48,240.50
+                                    ₹48,240.50
                                 </span>
                             )}
                         </div>
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="mb-1 flex justify-between text-[10px] text-muted">
-                            <span>$60K</span>
+                            <span>₹60K</span>
                         </div>
                         <RevenueBars data={REVENUE} />
                         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-token pt-4">
@@ -331,14 +331,14 @@ export default function DashboardPage() {
                                     <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
                                     <span className="text-xs text-muted">This Month</span>
                                 </div>
-                                <p className="font-semibold text-primary-token">$48,240.50</p>
+                                <p className="font-semibold text-primary-token">₹48,240.50</p>
                             </div>
                             <div>
                                 <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="h-2 w-2 rounded-full bg-violet-400" />
                                     <span className="text-xs text-muted">Last Month</span>
                                 </div>
-                                <p className="font-semibold text-primary-token">$42,890.20</p>
+                                <p className="font-semibold text-primary-token">₹42,890.20</p>
                             </div>
                             <div>
                                 <div className="flex items-center gap-1.5 mb-0.5">

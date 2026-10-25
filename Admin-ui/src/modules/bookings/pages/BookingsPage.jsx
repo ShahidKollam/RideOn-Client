@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X, Plus, SlidersHorizontal } from 'lucide-react'
+import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X, Plus, SlidersHorizontal, Filter, CalendarDays, RotateCcw, Bike, AlertCircle } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { DataTable } from '../../../components/ui/DataTable'
@@ -30,13 +30,15 @@ const dateTime = (v) => {
     })
 }
 
+/** Return today's local date in YYYY-MM-DD format for date inputs. */
 const todayYmd = () => {
-    const n = new Date()
-    const y = n.getFullYear()
-    const m = String(n.getMonth() + 1).padStart(2, '0')
-    const d = String(n.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
 }
+
 /** Local calendar day → ISO start (for API `from`) */
 const toStartISO = (ymd) => {
     if (!ymd) return null
@@ -109,14 +111,14 @@ export default function BookingsPage() {
         [search, setSearch] = useState(''),
         [searchInput, setSearchInput] = useState(''),
         [statusFilter, setStatusFilter] = useState(''),
-        [dateFrom, setDateFrom] = useState(''),
-        [dateTo, setDateTo] = useState(''),
-        [dateMode, setDateMode] = useState('single'), // 'single' | 'range'
+        [dateFrom, setDateFrom] = useState(todayYmd()),
+        [dateTo, setDateTo] = useState(todayYmd()),
         [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1'),
         [campusId, setCampusId] = useState('')
     // Advanced filter drawer (draft vs applied — close without Apply does not change results)
     const [filterOpen, setFilterOpen] = useState(false)
-    const [draftStatus, setDraftStatus] = useState('')
+    const [mobileDateOpen, setMobileDateOpen] = useState(false)
+    const [mobileStatusOpen, setMobileStatusOpen] = useState(false)
     const [draftLateOnly, setDraftLateOnly] = useState(false)
     const [draftCampusId, setDraftCampusId] = useState('')
     const [selected, setSelected] = useState(null),
@@ -143,17 +145,14 @@ export default function BookingsPage() {
         return Array.from(map.values())
     })()
 
-    const advancedFilterCount =
-        (statusFilter ? 1 : 0) + (lateOnly ? 1 : 0) + (campusId ? 1 : 0)
+    const advancedFilterCount = (lateOnly ? 1 : 0) + (campusId ? 1 : 0)
 
     const openFilters = () => {
-        setDraftStatus(statusFilter)
         setDraftLateOnly(lateOnly)
         setDraftCampusId(campusId)
         setFilterOpen(true)
     }
     const applyFilters = () => {
-        setStatusFilter(draftStatus)
         setLateOnly(draftLateOnly)
         setCampusId(draftCampusId)
         setPage(1)
@@ -161,10 +160,8 @@ export default function BookingsPage() {
     }
     const resetAdvancedFilters = () => {
         // Clear advanced only — keep toolbar search + date range
-        setDraftStatus('')
         setDraftLateOnly(false)
         setDraftCampusId('')
-        setStatusFilter('')
         setLateOnly(false)
         setCampusId('')
         setPage(1)
@@ -199,6 +196,45 @@ export default function BookingsPage() {
         },
     })
     const { rows, total, totalPages } = parseList(data)
+
+    const todayStr = todayYmd()
+    const { data: overviewData } = useQuery({
+        queryKey: ['dashboard-overview'],
+        queryFn: async () => {
+            const res = await api.get('/dashboard/overview')
+            return res?.data || res
+        },
+        staleTime: 30_000,
+    })
+    const { data: todayPickupData } = useQuery({
+        queryKey: ['bookings-stat-today-pickup', todayStr],
+        queryFn: async () => {
+            const qs = new URLSearchParams({ page: '1', limit: '1' })
+            const start = toStartISO(todayStr)
+            const end = toEndISO(todayStr)
+            if (start) qs.set('from', start)
+            if (end) qs.set('to', end)
+            return api.get(`/bookings?${qs}`)
+        },
+        staleTime: 30_000,
+    })
+    const { data: activeListData } = useQuery({
+        queryKey: ['bookings-stat-active-list'],
+        queryFn: () => api.get('/bookings?page=1&limit=100&status=ACTIVE'),
+        staleTime: 30_000,
+    })
+    const todayPickupsCount = parseList(todayPickupData).total
+    const activeRowsStat = parseList(activeListData).rows
+    const todayReturnsCount = activeRowsStat.filter((b) => {
+        if (!b.returnAt) return false
+        const t = new Date(b.returnAt).getTime()
+        const start = new Date(toStartISO(todayStr)).getTime()
+        const end = new Date(toEndISO(todayStr)).getTime()
+        return t >= start && t <= end
+    }).length
+    const activeRentalsCount = overviewData?.bookings?.active ?? parseList(activeListData).total
+    const lateReturnsCount = overviewData?.bookings?.lateReturns ?? 0
+
     const {
         data: detailRes,
         isLoading: detailLoading,
@@ -212,6 +248,9 @@ export default function BookingsPage() {
     const refresh = (id) => {
         qc.invalidateQueries({ queryKey: ['bookings'] })
         qc.invalidateQueries({ queryKey: ['booking', id] })
+        qc.invalidateQueries({ queryKey: ['dashboard-overview'] })
+        qc.invalidateQueries({ queryKey: ['bookings-stat-today-pickup'] })
+        qc.invalidateQueries({ queryKey: ['bookings-stat-active-list'] })
     }
     const pickupMut = useMutation({
         mutationFn: ({ id, value }) => api.patch(`/bookings/${id}/pickup`, { pickupOdometer: Number(value) }),
@@ -374,93 +413,338 @@ export default function BookingsPage() {
         <div>
             <PageHeader
                 title="Bookings"
-                description="Manage rentals, pickups and returns"
+                description="Manage and monitor all rentals."
                 actions={
                     hasPermission('bookings.create') || hasPermission('*') ? (
-                        <Button onClick={() => navigate('/bookings/reserve')}>
+                        <Button onClick={() => navigate('/bookings/reserve')} className="shadow-sm">
                             <Plus size={16} />
-                            Reserve a Ride
+                            Create booking
                         </Button>
                     ) : null
                 }
             />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 mb-5">
                 {[
-                    { label: "Today's list", value: total, hint: 'Filtered total' },
-                    { label: 'On page', value: rows.length, hint: 'Current page' },
-                    { label: 'Page', value: `${page}/${totalPages}`, hint: 'Pagination' },
-                    { label: 'Per page', value: limit, hint: 'Page size' },
-                ].map((s) => (
-                    <Card key={s.label} className="p-4">
-                        <p className="text-xs text-muted">{s.label}</p>
-                        <p className="text-lg font-bold text-primary-token">{s.value}</p>
-                        {s.hint && <p className="text-[10px] text-muted mt-0.5">{s.hint}</p>}
-                    </Card>
-                ))}
+                    {
+                        label: "Today's Pickups",
+                        value: todayPickupsCount,
+                        hint: 'Scheduled collections',
+                        icon: CalendarDays,
+                        iconWrap: 'bg-blue-500/15 text-blue-400',
+                        valueClass: 'text-primary-token',
+                    },
+                    {
+                        label: "Today's Returns",
+                        value: todayReturnsCount,
+                        hint: 'Expected returns',
+                        icon: RotateCcw,
+                        iconWrap: 'bg-emerald-500/15 text-emerald-400',
+                        valueClass: 'text-primary-token',
+                    },
+                    {
+                        label: 'Active Rentals',
+                        value: activeRentalsCount,
+                        hint: 'Currently rented',
+                        icon: Bike,
+                        iconWrap: 'bg-amber-500/15 text-amber-400',
+                        valueClass: 'text-primary-token',
+                    },
+                    {
+                        label: 'Late Returns',
+                        value: lateReturnsCount,
+                        hint: 'Require attention',
+                        icon: AlertCircle,
+                        iconWrap: 'bg-red-500/15 text-red-400',
+                        valueClass: lateReturnsCount > 0 ? 'text-red-400' : 'text-primary-token',
+                        onClick: () => {
+                            setLateOnly(true)
+                            setPage(1)
+                        },
+                    },
+                ].map((s) => {
+                    const Icon = s.icon
+                    return (
+                        <button
+                            key={s.label}
+                            type="button"
+                            onClick={s.onClick}
+                            aria-label={s.onClick ? `Show ${s.label.toLowerCase()}` : undefined}
+                            className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-3 text-left shadow-card transition-colors sm:p-4 ${
+                                s.onClick
+                                    ? 'cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50'
+                                    : 'cursor-default'
+                            }`}
+                        >
+                            <div className="flex w-full items-center justify-between gap-2 sm:gap-3">
+                                <p className="min-w-0 truncate text-xs font-medium text-secondary sm:text-sm">{s.label}</p>
+                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8 ${s.iconWrap}`}>
+                                    <Icon size={16} strokeWidth={2} />
+                                </div>
+                            </div>
+                            <div className="mt-2 flex w-full flex-col items-start gap-1 sm:mt-3 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+                                <p className={`text-2xl font-bold leading-none tracking-tight tabular-nums ${s.valueClass}`}>
+                                    {String(s.value ?? 0).padStart(2, '0')}
+                                </p>
+                                <p className="text-[11px] leading-4 text-muted sm:max-w-[60%] sm:text-right sm:text-xs">{s.hint}</p>
+                            </div>
+                        </button>
+                    )
+                })}
             </div>
             <Card className="overflow-hidden">
-                {/* Main toolbar — compact, one row on desktop */}
+                {/* Main toolbar */}
                 <div className="border-b border-token px-3 py-3 sm:px-4">
-                    <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:gap-2">
+                    {/* ——— Mobile filter bar (reference layout) ——— */}
+                    <div className="md:hidden space-y-2.5">
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault()
                                 setSearch(searchInput.trim())
                                 setPage(1)
                             }}
-                            className="flex min-w-0 flex-1 gap-2"
+                            className="flex gap-2"
                         >
                             <div className="relative min-w-0 flex-1">
-                                <Search
-                                    size={15}
-                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-                                />
                                 <Input
-                                    className="h-9 pl-9"
-                                    placeholder="Search booking ID, customer name, phone, email…"
+                                    className="h-10 rounded-xl pr-11"
+                                    placeholder="Search bookings, name, email, phone..."
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
                                 />
+                                <button
+                                    type="submit"
+                                    className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted hover:bg-[var(--color-primary-soft)] hover:text-primary-token"
+                                    aria-label="Search"
+                                >
+                                    <Search size={15} />
+                                </button>
                             </div>
-                            <Button type="submit" variant="secondary" className="h-9 shrink-0">
-                                Search
-                            </Button>
+                            <button
+                                type="button"
+                                onClick={openFilters}
+                                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-token bg-surface text-secondary hover:border-[var(--color-primary)]/40"
+                                aria-label="More filters"
+                            >
+                                <SlidersHorizontal size={16} />
+                                {advancedFilterCount > 0 && (
+                                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-white">
+                                        {advancedFilterCount}
+                                    </span>
+                                )}
+                            </button>
                         </form>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex h-9 items-center gap-1 rounded-lg border border-token bg-surface px-2">
-                                <Calendar size={14} className="shrink-0 text-[var(--color-primary)]" />
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileDateOpen((o) => !o)
+                                    setMobileStatusOpen(false)
+                                }}
+                                className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
+                                    mobileDateOpen || dateFrom || dateTo
+                                        ? 'border-[var(--color-primary)]/50 bg-[var(--color-primary-soft)] text-primary-token'
+                                        : 'border-token bg-surface text-secondary'
+                                }`}
+                            >
+                                <Calendar size={16} className="text-[var(--color-primary)]" />
+                                {dateFrom || dateTo
+                                    ? dateFrom && dateTo && dateFrom === dateTo
+                                        ? formatDisplayDate(dateFrom)
+                                        : `${formatDisplayDate(dateFrom) || '…'} – ${formatDisplayDate(dateTo) || '…'}`
+                                    : 'Select date'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileStatusOpen((o) => !o)
+                                    setMobileDateOpen(false)
+                                }}
+                                className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
+                                    mobileStatusOpen || statusFilter
+                                        ? 'border-[var(--color-primary)]/50 bg-[var(--color-primary-soft)] text-primary-token'
+                                        : 'border-token bg-surface text-secondary'
+                                }`}
+                            >
+                                <Filter size={15} className="opacity-70" />
+                                {statusFilter
+                                    ? statusFilter.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+                                    : 'Status'}
+                            </button>
+                        </div>
+
+                        {mobileDateOpen && (
+                            <div className="rounded-xl border border-token bg-surface p-3 space-y-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                                    Pickup date range
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="block space-y-1">
+                                        <span className="text-[11px] text-muted">From</span>
+                                        <Input
+                                            type="date"
+                                            className="h-10 w-full [&::-webkit-calendar-picker-indicator]:hidden"
+                                            value={dateFrom}
+                                            onClick={(e) => e.currentTarget.showPicker?.()}
+                                            onChange={(e) => {
+                                                const v = e.target.value
+                                                setDateFrom(v)
+                                                if (!dateTo || (v && v > dateTo)) setDateTo(v)
+                                                setPage(1)
+                                            }}
+                                        />
+                                    </label>
+                                    <label className="block space-y-1">
+                                        <span className="text-[11px] text-muted">To</span>
+                                        <Input
+                                            type="date"
+                                            className="h-10 w-full [&::-webkit-calendar-picker-indicator]:hidden"
+                                            value={dateTo}
+                                            onClick={(e) => e.currentTarget.showPicker?.()}
+                                            onChange={(e) => {
+                                                const v = e.target.value
+                                                setDateTo(v)
+                                                if (!dateFrom || (v && v < dateFrom)) setDateFrom(v)
+                                                setPage(1)
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                                <p className="text-[11px] text-muted">
+                                    Same From and To = single day. Different dates = range.
+                                </p>
+                                <div className="flex gap-2">
+                                    {(dateFrom || dateTo) && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            className="h-9 flex-1"
+                                            onClick={() => {
+                                                setDateFrom('')
+                                                setDateTo('')
+                                                setPage(1)
+                                            }}
+                                        >
+                                            Clear dates
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {mobileStatusOpen && (
+                            <div className="rounded-xl border border-token bg-surface p-2 space-y-0.5">
+                                {[
+                                    { value: '', label: 'All statuses' },
+                                    { value: 'CONFIRMED', label: 'Confirmed' },
+                                    { value: 'ACTIVE', label: 'Active (Ongoing)' },
+                                    { value: 'COMPLETED', label: 'Completed' },
+                                    { value: 'CANCELLED', label: 'Cancelled' },
+                                    { value: 'PAYMENT_PENDING', label: 'Payment pending' },
+                                    { value: 'NO_SHOW', label: 'No show' },
+                                    { value: 'FAILED', label: 'Failed' },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.value || 'all'}
+                                        type="button"
+                                        onClick={() => {
+                                            setStatusFilter(opt.value)
+                                            setPage(1)
+                                            setMobileStatusOpen(false)
+                                        }}
+                                        className={`flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                                            statusFilter === opt.value
+                                                ? 'bg-[var(--color-primary-soft)] font-semibold text-primary-token'
+                                                : 'text-secondary hover:bg-[var(--color-primary-soft)]/50'
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between px-0.5">
+                            <p className="text-sm text-muted">
+                                {total} booking{total === 1 ? '' : 's'}
+                            </p>
+                            {(search || statusFilter || lateOnly || campusId || dateFrom || dateTo) && (
+                                <button
+                                    type="button"
+                                    className="text-sm font-medium text-[var(--color-primary)]"
+                                    onClick={() => {
+                                        setSearch('')
+                                        setSearchInput('')
+                                        setStatusFilter('')
+                                        setLateOnly(false)
+                                        setCampusId('')
+                                        setDateFrom('')
+                                        setDateTo('')
+                                        setMobileDateOpen(false)
+                                        setMobileStatusOpen(false)
+                                        setPage(1)
+                                    }}
+                                >
+                                    Clear filters
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ——— Desktop toolbar (unchanged behaviour) ——— */}
+                    <div className="hidden md:block">
+                    <div className="flex w-full items-center gap-2.5">
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                setSearch(searchInput.trim())
+                                setPage(1)
+                            }}
+                            className="flex min-w-[16rem] flex-1 gap-2"
+                        >
+                            <div className="relative min-w-0 flex-1">
+                                <Input
+                                    className="h-10 rounded-xl pr-11"
+                                    placeholder="Search bookings, name, email, phone..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                />
+                                <button
+                                    type="submit"
+                                    className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted hover:bg-[var(--color-primary-soft)] hover:text-primary-token"
+                                    aria-label="Search"
+                                >
+                                    <Search size={15} />
+                                </button>
+                            </div>
+                        </form>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex h-10 w-[18.5rem] shrink-0 items-center gap-2 rounded-xl border border-token bg-surface px-2.5 transition-colors focus-within:border-[var(--color-primary)]/60">
                                 <Input
                                     type="date"
-                                    className="h-8 w-[8.25rem] border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                                    className="h-8 min-w-0 flex-1 rounded-md border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 [&::-webkit-calendar-picker-indicator]:hidden"
                                     value={dateFrom}
-                                    max={dateTo || undefined}
+                                    onClick={(e) => e.currentTarget.showPicker?.()}
                                     onChange={(e) => {
-                                        setDateFrom(e.target.value)
-                                        if (!dateTo) setDateTo(e.target.value)
-                                        setDateMode(
-                                            e.target.value && dateTo && e.target.value !== dateTo
-                                                ? 'range'
-                                                : 'single'
-                                        )
+                                        const value = e.target.value
+                                        setDateFrom(value)
+                                        if (!dateTo || (value && value > dateTo)) setDateTo(value)
                                         setPage(1)
                                     }}
                                     title="From date"
                                 />
-                                <span className="text-xs text-muted">–</span>
+                                <span className="shrink-0 text-xs text-muted">–</span>
                                 <Input
                                     type="date"
-                                    className="h-8 w-[8.25rem] border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                                    className="h-8 min-w-0 flex-1 rounded-md border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-[var(--color-primary)]/40 [&::-webkit-calendar-picker-indicator]:hidden"
                                     value={dateTo}
-                                    min={dateFrom || undefined}
+                                    onClick={(e) => e.currentTarget.showPicker?.()}
                                     onChange={(e) => {
-                                        setDateTo(e.target.value)
-                                        if (!dateFrom) setDateFrom(e.target.value)
-                                        setDateMode(
-                                            dateFrom && e.target.value && dateFrom !== e.target.value
-                                                ? 'range'
-                                                : 'single'
-                                        )
+                                        const value = e.target.value
+                                        setDateTo(value)
+                                        if (!dateFrom || (value && value < dateFrom)) setDateFrom(value)
                                         setPage(1)
                                     }}
                                     title="To date"
@@ -468,7 +752,7 @@ export default function BookingsPage() {
                                 {(dateFrom || dateTo) && (
                                     <button
                                         type="button"
-                                        className="rounded p-1 text-muted hover:bg-[var(--color-primary-soft)] hover:text-primary-token"
+                                        className="shrink-0 rounded-md p-1.5 text-muted hover:bg-[var(--color-primary-soft)] hover:text-primary-token"
                                         title="Clear dates"
                                         onClick={() => {
                                             setDateFrom('')
@@ -481,25 +765,9 @@ export default function BookingsPage() {
                                 )}
                             </div>
 
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                className="h-9"
-                                onClick={() => {
-                                    const t = todayYmd()
-                                    setDateFrom(t)
-                                    setDateTo(t)
-                                    setDateMode('single')
-                                    setPage(1)
-                                }}
-                            >
-                                Today
-                            </Button>
-
                             <Select
                                 value={statusFilter}
-                                className="h-9 w-full min-w-[9.5rem] sm:w-40"
+                                className="h-10 w-[10rem] shrink-0"
                                 onChange={(e) => {
                                     setStatusFilter(e.target.value)
                                     setPage(1)
@@ -518,7 +786,7 @@ export default function BookingsPage() {
                             <Button
                                 type="button"
                                 variant="secondary"
-                                className="h-9 shrink-0"
+                                className="h-10 shrink-0 whitespace-nowrap"
                                 onClick={openFilters}
                             >
                                 <SlidersHorizontal size={15} />
@@ -532,7 +800,6 @@ export default function BookingsPage() {
                         </div>
                     </div>
 
-                    {/* Active filter chips */}
                     {(search || statusFilter || lateOnly || campusId || dateFrom || dateTo) && (
                         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                             {search && (
@@ -606,6 +873,7 @@ export default function BookingsPage() {
                             )}
                         </div>
                     )}
+                    </div>
                 </div>
 
                 <Drawer
@@ -615,38 +883,6 @@ export default function BookingsPage() {
                     description="Refine your booking results"
                 >
                     <div className="space-y-6 p-1">
-                        <div>
-                            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                                Booking status
-                            </p>
-                            <div className="space-y-0.5">
-                                {[
-                                    { value: '', label: 'All statuses' },
-                                    { value: 'CONFIRMED', label: 'Confirmed' },
-                                    { value: 'ACTIVE', label: 'Active (Ongoing)' },
-                                    { value: 'COMPLETED', label: 'Completed' },
-                                    { value: 'CANCELLED', label: 'Cancelled' },
-                                    { value: 'PAYMENT_PENDING', label: 'Payment pending' },
-                                    { value: 'NO_SHOW', label: 'No show' },
-                                    { value: 'FAILED', label: 'Failed' },
-                                ].map((opt) => (
-                                    <label
-                                        key={opt.value || 'all'}
-                                        className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--color-primary-soft)]"
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="draftStatus"
-                                            className="accent-[var(--color-primary)]"
-                                            checked={draftStatus === opt.value}
-                                            onChange={() => setDraftStatus(opt.value)}
-                                        />
-                                        <span className="text-sm text-primary-token">{opt.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
                         <div className="border-t border-token pt-5">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
