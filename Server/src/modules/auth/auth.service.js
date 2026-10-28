@@ -15,7 +15,7 @@ export const signup = async (data) => {
     const user = await prisma.user.create({
         data: {
             name: data.name,
-            studentId: data.studentId,
+            studentId: data.studentId || null,
             email: data.email.toLowerCase(),
             campusId: data.campusId,
             isVerified: false,
@@ -109,23 +109,34 @@ export const completeProfile = async (userId, data) => {
     if (!user) throw new ApiError(404, 'User not found')
     if (user.onboardingStatus === 'PROFILE_COMPLETED') throw new ApiError(400, 'Profile already completed')
 
-    const existingLicense = await prisma.user.findUnique({
-        where: { drivingLicenseNumber: data.drivingLicenseNumber },
+    const licenseNumber = String(data.drivingLicenseNumber || '').trim().toUpperCase()
+    const existingLicense = await prisma.user.findFirst({
+        where: {
+            drivingLicenseNumber: licenseNumber,
+            id: { not: userId },
+        },
     })
     if (existingLicense) throw new ApiError(400, 'Driving license number already exists')
 
+    const updateData = {
+        phone: data.phone,
+        drivingLicenseNumber: licenseNumber,
+        acceptedTerms: true,
+        acceptedTermsAt: new Date(),
+        onboardingStatus: 'PROFILE_COMPLETED',
+    }
+    // Optional student-oriented fields — only set when provided
+    if (data.hostel != null && data.hostel !== '') updateData.hostel = data.hostel
+    if (data.department != null && data.department !== '') updateData.department = data.department
+    if (data.yearOfStudy != null && data.yearOfStudy !== '') {
+        const y = Number(data.yearOfStudy)
+        if (!Number.isNaN(y)) updateData.yearOfStudy = y
+    }
+    if (data.studentId != null && data.studentId !== '') updateData.studentId = data.studentId
+
     const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: {
-            phone: data.phone,
-            hostel: data.hostel,
-            department: data.department,
-            yearOfStudy: data.yearOfStudy,
-            drivingLicenseNumber: data.drivingLicenseNumber,
-            acceptedTerms: true,
-            acceptedTermsAt: new Date(),
-            onboardingStatus: 'PROFILE_COMPLETED',
-        },
+        data: updateData,
         include: { campus: true },
     })
 

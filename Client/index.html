@@ -83,11 +83,135 @@
                 ]
             }
         </script>
+
+        <style id="rideon-splash-style">
+            #rideon-splash {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 55%, #f8fbff 100%);
+                transition: opacity 0.28s ease, visibility 0.28s ease;
+            }
+            #rideon-splash.rideon-splash-hide {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+            #rideon-splash .rs-inner {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 1.5rem;
+            }
+            #rideon-splash .rs-glow {
+                position: absolute;
+                left: 50%;
+                top: 48%;
+                width: 16rem;
+                height: 16rem;
+                transform: translate(-50%, -50%);
+                border-radius: 9999px;
+                background: rgba(33, 139, 250, 0.07);
+                filter: blur(48px);
+                pointer-events: none;
+            }
+            #rideon-splash .rs-logo {
+                height: 2.5rem;
+                width: auto;
+                max-width: 10rem;
+                object-fit: contain;
+            }
+            #rideon-splash .rs-wordmark {
+                margin-top: 1rem;
+                font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                font-size: 1.35rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                color: #17395b;
+            }
+            #rideon-splash .rs-wordmark span { color: #218bfa; }
+            #rideon-splash .rs-spinner {
+                position: relative;
+                margin-top: 1.75rem;
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+            #rideon-splash .rs-spinner-ring {
+                position: absolute;
+                inset: 0;
+                border-radius: 9999px;
+                border: 3px solid transparent;
+                border-top-color: #218bfa;
+                border-right-color: rgba(112, 191, 65, 0.85);
+                animation: rideon-splash-spin 1.05s linear infinite;
+            }
+            #rideon-splash .rs-tag {
+                margin-top: 1.25rem;
+                font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: #218bfa;
+            }
+            #rideon-splash .rs-sub {
+                margin-top: 0.4rem;
+                font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                font-size: 0.875rem;
+                color: #53677d;
+            }
+            @keyframes rideon-splash-spin {
+                to { transform: rotate(360deg); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #rideon-splash .rs-spinner-ring { animation: none; border-top-color: #218bfa; border-right-color: #70bf41; }
+                #rideon-splash { transition: none; }
+            }
+        </style>
+
     </head>
 
     <body>
+
+        <div id="rideon-splash" role="status" aria-live="polite" aria-busy="true" aria-label="Loading RideOn">
+            <div class="rs-glow" aria-hidden="true"></div>
+            <div class="rs-inner">
+                <img class="rs-logo" src="/logo.png" alt="RideOn" width="160" height="40" />
+                <div class="rs-wordmark">Ride<span>On</span></div>
+                <div class="rs-spinner" aria-hidden="true"><div class="rs-spinner-ring"></div></div>
+                <p class="rs-tag">Your next ride starts here</p>
+                <p class="rs-sub">Starting RideOn…</p>
+            </div>
+        </div>
+
         <div id="root"></div>
 
         <script type="module" src="/src/main.jsx"></script>
+        <script>
+            /* Safety: never leave splash forever if startup hangs */
+            (function () {
+                window.__RIDEON_HIDE_SPLASH__ = function () {
+                    var el = document.getElementById('rideon-splash');
+                    if (!el || el.dataset.hidden === '1') return;
+                    el.dataset.hidden = '1';
+                    el.classList.add('rideon-splash-hide');
+                    el.setAttribute('aria-busy', 'false');
+                    window.setTimeout(function () {
+                        if (el && el.parentNode) el.parentNode.removeChild(el);
+                        var st = document.getElementById('rideon-splash-style');
+                        if (st && st.parentNode) st.parentNode.removeChild(st);
+                    }, 320);
+                };
+                window.setTimeout(function () {
+                    if (typeof window.__RIDEON_HIDE_SPLASH__ === 'function') {
+                        window.__RIDEON_HIDE_SPLASH__();
+                    }
+                }, 12000);
+            })();
+        </script>
     </body>
 </html>

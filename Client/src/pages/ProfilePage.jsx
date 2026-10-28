@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+import SignupProgress from '@/components/signup/SignupProgress'
 import SignupStepTwo from '@/components/signup/SignupStepTwo'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -20,6 +21,27 @@ const initialValues = {
 const mobilePattern = /^[6-9]\d{9}$/
 // const licensePattern = /^[A-Z]{2}[0-9]{2}[\s-]?[0-9A-Z]{4,13}$/i
 
+function normalizeLicense(raw) {
+    return String(raw || '').trim().toUpperCase()
+}
+
+function isPlausibleIndianDl(raw) {
+    const compact = normalizeLicense(raw).replace(/[\s-]+/g, '')
+    if (!compact) return 'Driving licence number is required.'
+    if (!/^[A-Z0-9]+$/.test(compact)) {
+        return 'Use only letters and numbers (spaces and hyphens are fine).'
+    }
+    if (compact.length < 8 || compact.length > 20) {
+        return 'This does not look like a valid Indian driving licence number. Please check and try again.'
+    }
+    const modern = /^[A-Z]{2}[0-9]{2}[0-9A-Z]{4,16}$/.test(compact)
+    if (modern || (compact.length >= 10 && /[A-Z]/.test(compact) && /\d/.test(compact))) {
+        return null
+    }
+    if (compact.length >= 10) return null
+    return 'This does not look like a common Indian driving licence format. Please double-check the number.'
+}
+
 function validateProfile(values) {
     const errors = {}
 
@@ -29,21 +51,12 @@ function validateProfile(values) {
         errors.mobileNumber = 'Enter a valid 10-digit Indian mobile number.'
     }
 
-    if (!values.hostel) {
-        errors.hostel = 'Hostel is required.'
-    }
+    // Hostel, department, year of study — optional for general customers
 
-    if (!values.department) {
-        errors.department = 'Department is required.'
+    const licenseError = isPlausibleIndianDl(values.licenseNumber)
+    if (licenseError) {
+        errors.licenseNumber = licenseError
     }
-
-    if (!values.yearOfStudy) {
-        errors.yearOfStudy = 'Year of study is required.'
-    }
-
-if (!values.licenseNumber.trim()) {
-    errors.licenseNumber = 'Driving license number is required.'
-}
 
     if (!values.acceptedTerms) {
         errors.acceptedTerms = 'You must accept the terms to continue.'
@@ -108,14 +121,19 @@ export default function ProfilePage() {
         setLoading(true)
 
         try {
-            const response = await completeProfile({
+            const payload = {
                 phone: values.mobileNumber.trim(),
-                hostel: values.hostel,
-                department: values.department,
-                yearOfStudy: Number.parseInt(values.yearOfStudy, 10),
-                drivingLicenseNumber: values.licenseNumber.trim().toUpperCase(),
+                drivingLicenseNumber: normalizeLicense(values.licenseNumber),
                 acceptedTerms: values.acceptedTerms,
-            })
+            }
+            if (values.hostel) payload.hostel = values.hostel
+            if (values.department) payload.department = values.department
+            if (values.yearOfStudy) {
+                const y = Number.parseInt(values.yearOfStudy, 10)
+                if (!Number.isNaN(y)) payload.yearOfStudy = y
+            }
+
+            const response = await completeProfile(payload)
 
             updateUser({
                 ...user,
@@ -154,11 +172,14 @@ export default function ProfilePage() {
                         </h1>
 
                         <p className="mt-5 text-base leading-relaxed text-slate-500 sm:text-lg">
-                            Add your ride-ready details to start booking on campus.
+                            Add your ride-ready details to start booking.
                         </p>
                     </div>
 
                     <div className="mx-auto mt-10 max-w-5xl sm:mt-12">
+                        <div className="mx-auto mb-8 max-w-xl sm:mb-10">
+                            <SignupProgress current={3} />
+                        </div>
                         <div className="space-y-3 sm:space-y-4">
                             <SignupStepTwo
                                 values={values}
@@ -178,10 +199,10 @@ export default function ProfilePage() {
 
                                     <div>
                                         <h2 className="text-sm font-extrabold text-rideon-dark">
-                                            Verified students only
+                                            Secure booking profile
                                         </h2>
                                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                                            Profile completion keeps RideOn safe for NIT Calicut students.
+                                            Phone and driving licence details help us verify riders at pickup.
                                         </p>
                                     </div>
                                 </div>

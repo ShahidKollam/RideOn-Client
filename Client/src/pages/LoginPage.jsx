@@ -64,7 +64,7 @@ export default function LoginPage() {
                     </p>
 
                     <p className="mt-1 text-xs font-medium text-rideon-blue">
-                        Exclusive for NIT students only
+                        Exclusive for students 
                     </p>
                 </div>
 

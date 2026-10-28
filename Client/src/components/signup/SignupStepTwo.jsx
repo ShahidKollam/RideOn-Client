@@ -3,7 +3,6 @@ import { ChevronDown, Lock } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import SignupProgress from '@/components/signup/SignupProgress'
 import departments from '@/data/departments.json'
 
 const hostels = [
@@ -57,15 +56,17 @@ export default function SignupStepTwo({
                 !unlocked && 'opacity-65',
             )}
         >
-            <SignupProgress
-                step={2}
-                title="Complete Your Profile"
-                description="Fill in the remaining details to complete your account setup."
-                active={unlocked}
-                locked={!unlocked}
-            />
+            <div className="hidden lg:block">
+                <p className="text-sm font-bold text-rideon-blue">Step 3</p>
+                <h2 className="mt-2 text-lg font-extrabold text-rideon-dark sm:text-xl">
+                    Complete Your Profile
+                </h2>
+                <p className="mt-3 max-w-[14rem] text-sm leading-6 text-slate-500">
+                    Phone and driving licence are required. Student details are optional.
+                </p>
+            </div>
 
-            <form onSubmit={onSubmit} className="mt-8 space-y-5 lg:mt-0">
+            <form onSubmit={onSubmit} className="mt-2 space-y-5 lg:mt-0">
                 <fieldset
                     disabled={!unlocked}
                     className="space-y-5 disabled:pointer-events-none"
@@ -75,7 +76,7 @@ export default function SignupStepTwo({
                             htmlFor="mobileNumber"
                             className="block text-sm font-bold text-rideon-dark"
                         >
-                            Mobile Number
+                            Mobile Number <span className="text-red-500">*</span>
                         </label>
 
                         <div
@@ -129,7 +130,7 @@ export default function SignupStepTwo({
                             htmlFor="hostel"
                             className="block text-sm font-bold text-rideon-dark"
                         >
-                            Hostel
+                            Hostel <span className="font-normal text-slate-400">(optional)</span>
                         </label>
 
                         <select
@@ -174,7 +175,7 @@ export default function SignupStepTwo({
                             htmlFor="department"
                             className="block text-sm font-bold text-rideon-dark"
                         >
-                            Department
+                            Department <span className="font-normal text-slate-400">(optional)</span>
                         </label>
 
                         {/* Desktop: native select */}
@@ -260,7 +261,7 @@ export default function SignupStepTwo({
                             htmlFor="yearOfStudy"
                             className="block text-sm font-bold text-rideon-dark"
                         >
-                            Year of Study
+                            Year of Study <span className="font-normal text-slate-400">(optional)</span>
                         </label>
 
                         <select
@@ -310,7 +311,7 @@ export default function SignupStepTwo({
                             htmlFor="licenseNumber"
                             className="block text-sm font-bold text-rideon-dark"
                         >
-                            Driving License Number
+                            Driving Licence Number <span className="text-red-500">*</span>
                         </label>
 
                         <input
@@ -348,6 +349,9 @@ export default function SignupStepTwo({
                                 {errors.licenseNumber}
                             </p>
                         )}
+                        <p className="mt-1.5 text-xs text-slate-500">
+                            Format check only — this does not verify that the licence is genuine or valid for two-wheelers.
+                        </p>
                     </div>
 
                     <div className="flex items-start gap-3 pt-1">

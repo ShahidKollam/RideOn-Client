@@ -1,70 +1,71 @@
-import { Check, FileText, User } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-export default function SignupProgress({ step, title, description, active, complete, locked }) {
-    const Icon = step === 1 ? User : FileText
+/**
+ * Horizontal 3-step onboarding indicator.
+ * current: 1 = Create Account | 2 = Verify Email | 3 = Complete Profile
+ * Informational only — not clickable.
+ */
+const STEPS = [
+    { id: 1, short: 'Account', full: 'Create Account' },
+    { id: 2, short: 'Verify', full: 'Verify Email' },
+    { id: 3, short: 'Profile', full: 'Complete Profile' },
+]
 
+export default function SignupProgress({ current = 1 }) {
     return (
-        <div className="relative flex gap-4 sm:block">
-            <div className="flex flex-col items-center sm:absolute sm:top-0 sm:left-0">
-                <div
-                    className={cn(
-                        'flex size-14 shrink-0 items-center justify-center rounded-full transition-colors duration-300 sm:size-16',
-                        complete
-                            ? 'bg-rideon-green/15 text-rideon-green'
-                            : active
-                                ? 'bg-rideon-blue/15 text-rideon-blue'
-                                : 'bg-slate-100 text-slate-400',
-                    )}
-                >
-                    {complete ? (
-                        <Check className="size-6" strokeWidth={2.5} />
-                    ) : (
-                        <Icon className="size-6" strokeWidth={2.25} />
-                    )}
-                </div>
+        <nav aria-label="Signup progress" className="w-full">
+            <ol className="flex items-start justify-between gap-1 sm:gap-2">
+                {STEPS.map((step, index) => {
+                    const done = current > step.id
+                    const active = current === step.id
+                    const isLast = index === STEPS.length - 1
 
-                <div
-                    className={cn(
-                        'mt-3 hidden h-32 w-px sm:block',
-                        complete || active ? 'bg-rideon-blue/25' : 'bg-slate-200',
-                    )}
-                />
-            </div>
+                    return (
+                        <li
+                            key={step.id}
+                            className={cn('relative flex min-w-0 flex-1 flex-col items-center', !isLast && 'pr-1 sm:pr-2')}
+                        >
+                            {/* Connector line to next step */}
+                            {!isLast && (
+                                <div
+                                    className={cn(
+                                        'absolute left-[calc(50%+14px)] right-[-50%] top-[15px] h-0.5 sm:left-[calc(50%+18px)] sm:top-[17px]',
+                                        done || active ? 'bg-rideon-blue/40' : 'bg-slate-200',
+                                        done && 'bg-rideon-green/50',
+                                    )}
+                                    aria-hidden
+                                />
+                            )}
 
-            <div className="min-w-0 sm:pl-24">
-                <p
-                    className={cn(
-                        'text-sm font-bold',
-                        complete
-                            ? 'text-rideon-green'
-                            : active
-                                ? 'text-rideon-blue'
-                                : 'text-slate-400',
-                    )}
-                >
-                    Step {step}
-                </p>
+                            <div
+                                className={cn(
+                                    'relative z-10 flex size-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors sm:size-9 sm:text-sm',
+                                    done && 'border-rideon-green bg-rideon-green text-white',
+                                    active && !done && 'border-rideon-blue bg-rideon-blue text-white shadow-md shadow-rideon-blue/25',
+                                    !active && !done && 'border-slate-200 bg-white text-slate-400',
+                                )}
+                                aria-current={active ? 'step' : undefined}
+                            >
+                                {done ? <Check className="size-4" strokeWidth={2.5} /> : step.id}
+                            </div>
 
-                <h2
-                    className={cn(
-                        'mt-2 text-lg font-extrabold text-rideon-dark sm:text-xl',
-                        locked && 'text-slate-400',
-                    )}
-                >
-                    {title}
-                </h2>
-
-                <p
-                    className={cn(
-                        'mt-4 max-w-[13rem] text-sm leading-7 text-slate-500',
-                        locked && 'text-slate-400',
-                    )}
-                >
-                    {description}
-                </p>
-            </div>
-        </div>
+                            <span
+                                className={cn(
+                                    'mt-2 max-w-full truncate text-center text-[10px] font-semibold leading-tight sm:text-xs',
+                                    active && 'text-rideon-blue',
+                                    done && 'text-rideon-green',
+                                    !active && !done && 'text-slate-400',
+                                )}
+                            >
+                                <span className="sm:hidden">{step.short}</span>
+                                <span className="hidden sm:inline">{step.full}</span>
+                            </span>
+                        </li>
+                    )
+                })}
+            </ol>
+        </nav>
     )
 }

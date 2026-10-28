@@ -16,3 +16,12 @@ createRoot(document.getElementById('root')).render(
     </>
     //  </StrictMode>
 )
+
+// If the tree fails to mount, still clear the HTML splash so the page is not stuck
+if (typeof window !== 'undefined') {
+    window.addEventListener('error', () => {
+        if (typeof window.__RIDEON_HIDE_SPLASH__ === 'function') {
+            window.__RIDEON_HIDE_SPLASH__()
+        }
+    })
+}
