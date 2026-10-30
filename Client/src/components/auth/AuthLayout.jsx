@@ -119,7 +119,7 @@ function AuthVisualPanel() {
             {/* NIT-only badge */}
             <div className="absolute top-8 right-10 z-30 flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/60 backdrop-blur">
                 <GraduationCap className="size-4 text-rideon-blue" strokeWidth={2.25} />
-                <span className="text-[11px] font-bold text-rideon-dark">NIT Students Only</span>
+                <span className="text-[11px] font-bold text-rideon-dark">Login fast , Ride slow</span>
             </div>
         </div>
     )

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import FullPageLoader from '@/components/ui/FullPageLoader'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,7 @@ export default function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const [isScrolled, setIsScrolled] = useState(false)
     const [profileOpen, setProfileOpen] = useState(false)
+    const [loggingOut, setLoggingOut] = useState(false)
 
     const profileMenuRef = useRef(null)
 
@@ -148,21 +150,27 @@ export default function Navbar() {
        LOGOUT
     ============================================================ */
 
+    const [logoutComplete, setLogoutComplete] = useState(false)
+
     const handleLogout = async () => {
+        if (loggingOut) return
+        setLogoutComplete(false)
+        setLoggingOut(true)
+        setMobileOpen(false)
+        setProfileOpen(false)
+
         try {
             await logout()
-
-            setMobileOpen(false)
-            setProfileOpen(false)
-
             showToast({
                 type: 'success',
                 title: 'Logged out',
                 description: 'Your RideOn session has ended.',
             })
-
-            navigate('/')
+            // Keep overlay until 100% animation finishes
+            setLogoutComplete(true)
         } catch {
+            setLoggingOut(false)
+            setLogoutComplete(false)
             showToast({
                 type: 'error',
                 title: 'Logout failed',
@@ -171,8 +179,21 @@ export default function Navbar() {
         }
     }
 
+    const handleLogoutLoaderComplete = () => {
+        setLoggingOut(false)
+        setLogoutComplete(false)
+        navigate('/')
+    }
+
     return (
         <>
+            <FullPageLoader
+                open={loggingOut}
+                complete={logoutComplete}
+                message="Signing you out…"
+                subMessage="Ending your secure session. This only takes a moment."
+                onComplete={handleLogoutLoaderComplete}
+            />
             {/* ========================================================
                 NAVBAR
             ========================================================= */}
@@ -578,6 +599,7 @@ export default function Navbar() {
                                         <button
                                             type="button"
                                             onClick={handleLogout}
+                                        disabled={loggingOut}
                                             className="
                                                 group
                                                 flex
@@ -1068,6 +1090,7 @@ export default function Navbar() {
                                     <Button
                                         type="button"
                                         onClick={handleLogout}
+                                        disabled={loggingOut}
                                         variant="outline"
                                         className="
                                             col-span-2

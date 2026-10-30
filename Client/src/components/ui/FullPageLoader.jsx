@@ -1,18 +1,23 @@
 import { createPortal } from 'react-dom'
 import { useEffect } from 'react'
 
+import RideOnLoader from '@/components/ui/RideOnLoader'
+
 /**
- * Full-viewport loading overlay for major async actions
- * (availability check, payment, verification, cancellation).
- * Uses a light backdrop + blur so the page remains visible but blocked.
- *
- * Body scroll lock is applied only while open. Cleanup always restores
- * overflow so navigation away mid-load cannot leave the page unscrollable.
+ * Full-viewport loading overlay for major async actions.
+ * Parent owns open + complete lifecycle:
+ * 1) open=true, complete=false while request runs
+ * 2) on API success: complete=true (keep open=true)
+ * 3) onComplete: close (open=false) and run next action
+ * 4) on API failure: open=false immediately
  */
 export default function FullPageLoader({
     open = false,
-    message = 'Please wait…',
+    message = '',
     subMessage = '',
+    progress = null,
+    complete = false,
+    onComplete,
 }) {
     useEffect(() => {
         if (!open) return
@@ -30,28 +35,25 @@ export default function FullPageLoader({
 
     if (!open || typeof document === 'undefined') return null
 
+    const status = message || subMessage || undefined
+
     return createPortal(
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center px-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4 sm:px-6"
             role="status"
             aria-live="polite"
-            aria-busy="true"
+            aria-busy={!complete}
         >
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-slate-900/25 backdrop-blur-[3px]" />
+            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px]" />
 
-            {/* Card */}
-            <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/60 bg-white/95 px-6 py-8 text-center shadow-xl shadow-slate-900/10">
-                <div
-                    className="mx-auto size-12 animate-spin rounded-full border-[3px] border-rideon-blue/20 border-t-rideon-blue"
-                    aria-hidden
+            <div className="relative z-10 w-full max-w-[340px] rounded-2xl border border-white/70 bg-white/95 px-5 py-7 shadow-xl shadow-slate-900/10 sm:max-w-[380px] sm:px-8 sm:py-8">
+                <RideOnLoader
+                    variant="card"
+                    message={status}
+                    progress={progress}
+                    complete={complete}
+                    onComplete={onComplete}
                 />
-                <p className="mt-5 text-base font-bold text-rideon-dark">{message}</p>
-                {subMessage ? (
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{subMessage}</p>
-                ) : (
-                    <p className="mt-2 text-sm leading-6 text-slate-500">This may take a moment. Please don’t close this page.</p>
-                )}
             </div>
         </div>,
         document.body

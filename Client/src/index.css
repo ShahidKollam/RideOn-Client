@@ -173,3 +173,49 @@
     transform: translateY(0) scale(1);
   }
 }
+
+
+/* ——— RideOn universal loader (speedometer) ——— */
+@keyframes rideon-needle-sweep {
+  0% { transform: rotate(-70deg); }
+  50% { transform: rotate(70deg); }
+  100% { transform: rotate(-70deg); }
+}
+@keyframes rideon-bar-indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@keyframes rideon-loader-msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rideon-helmet-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.rideon-loader-needle {
+  transform-box: fill-box;
+  transform-origin: 60px 62px;
+  animation: rideon-needle-sweep 2.4s ease-in-out infinite;
+}
+.rideon-loader-bar {
+  animation: rideon-bar-indeterminate 1.35s ease-in-out infinite;
+}
+.rideon-loader-msg {
+  animation: rideon-loader-msg-in 0.45s ease-out both;
+}
+.rideon-loader-helmet {
+  animation: rideon-helmet-bob 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rideon-loader-needle,
+  .rideon-loader-bar,
+  .rideon-loader-helmet {
+    animation: none;
+  }
+  .rideon-loader-msg {
+    animation: none;
+  }
+}

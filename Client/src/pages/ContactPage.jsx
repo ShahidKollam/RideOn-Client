@@ -16,25 +16,36 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/context/ToastContext'
 
+/** Support phones — same numbers as footer */
+const SUPPORT_PHONES = [
+    { display: '+91 80780 42682', tel: '+918078042682' },
+    { display: '+91 81388 53500', tel: '+918138853500' },
+    { display: '+91 98951 70317', tel: '+919895170317' },
+]
+
 const contactItems = [
     {
         icon: Mail,
         title: 'Email us',
         value: 'support@rideon.in',
+        href: 'mailto:support@rideon.in',
         description: 'For questions, support and general enquiries.',
         tone: 'blue',
     },
     {
         icon: Phone,
         title: 'Call us',
-        value: '+91 98765 43210',
+        value: SUPPORT_PHONES[0].display,
+        href: `tel:${SUPPORT_PHONES[0].tel}`,
         description: 'Talk to the RideOn support team directly.',
         tone: 'green',
+        phones: SUPPORT_PHONES,
     },
     {
         icon: MapPin,
         title: 'Campus location',
-        value: 'Student Activity Centre, Campus',
+        value: 'NIT Calicut Campus',
+        href: 'https://maps.app.goo.gl/zTgfhvZ2WgUUoqjs6?g_st=ac',
         description: 'Visit us at our designated campus location.',
         tone: 'blue',
     },
@@ -116,6 +127,8 @@ export default function ContactPage() {
                                 value,
                                 description,
                                 tone,
+                                href,
+                                phones,
                             }) => {
                                 const isGreen = tone === 'green'
 
@@ -161,16 +174,49 @@ export default function ContactPage() {
                                                     {title}
                                                 </p>
 
-                                                <p
-                                                    className={[
-                                                        'mt-0.5 truncate text-sm font-extrabold',
-                                                        isGreen
-                                                            ? 'text-rideon-green'
-                                                            : 'text-rideon-blue',
-                                                    ].join(' ')}
-                                                >
-                                                    {value}
-                                                </p>
+                                                {phones?.length ? (
+                                                    <div className="mt-1 space-y-1">
+                                                        {phones.map((p) => (
+                                                            <a
+                                                                key={p.tel}
+                                                                href={`tel:${p.tel}`}
+                                                                className={[
+                                                                    'block text-sm font-extrabold transition-colors hover:underline',
+                                                                    isGreen
+                                                                        ? 'text-rideon-green'
+                                                                        : 'text-rideon-blue',
+                                                                ].join(' ')}
+                                                            >
+                                                                {p.display}
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                ) : href ? (
+                                                    <a
+                                                        href={href}
+                                                        target={href.startsWith('http') ? '_blank' : undefined}
+                                                        rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                                        className={[
+                                                            'mt-0.5 block truncate text-sm font-extrabold transition-colors hover:underline',
+                                                            isGreen
+                                                                ? 'text-rideon-green'
+                                                                : 'text-rideon-blue',
+                                                        ].join(' ')}
+                                                    >
+                                                        {value}
+                                                    </a>
+                                                ) : (
+                                                    <p
+                                                        className={[
+                                                            'mt-0.5 truncate text-sm font-extrabold',
+                                                            isGreen
+                                                                ? 'text-rideon-green'
+                                                                : 'text-rideon-blue',
+                                                        ].join(' ')}
+                                                    >
+                                                        {value}
+                                                    </p>
+                                                )}
 
                                                 <p className="mt-1 text-[11px] leading-5 text-[#7181a1]">
                                                     {description}
@@ -244,20 +290,22 @@ export default function ContactPage() {
 
                                 {/* Contact number */}
 
-                                <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3">
-                                    <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 text-rideon-green">
-                                        <Phone className="size-4" />
-                                    </span>
-
-                                    <div>
-                                        <p className="text-[10px] text-white/45">
-                                            Call us
-                                        </p>
-
-                                        <p className="mt-0.5 text-xs font-bold text-white">
-                                            +91 98765 43210
-                                        </p>
-                                    </div>
+                                <div className="mt-6 space-y-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
+                                        Call us
+                                    </p>
+                                    {SUPPORT_PHONES.map((p) => (
+                                        <a
+                                            key={p.tel}
+                                            href={`tel:${p.tel}`}
+                                            className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2.5 transition-colors hover:bg-white/[0.09]"
+                                        >
+                                            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 text-rideon-green">
+                                                <Phone className="size-4" />
+                                            </span>
+                                            <span className="text-xs font-bold text-white">{p.display}</span>
+                                        </a>
+                                    ))}
                                 </div>
                             </div>
                         </div>

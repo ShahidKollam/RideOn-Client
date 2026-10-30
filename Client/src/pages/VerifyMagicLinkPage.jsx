@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 import AuthLayout from '@/components/auth/AuthLayout'
+import SignupProgress from '@/components/signup/SignupProgress'
 import LoadingScreen from '@/components/ui/LoadingScreen'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
@@ -49,7 +50,7 @@ export default function VerifyMagicLinkPage() {
                 showToast({
                     type: 'success',
                     title: 'Login successful',
-                    description: 'Your NITC email has been verified.',
+                    description: 'Your email has been verified.',
                 })
 
                 const destination = data.user.onboardingStatus === 'PROFILE_COMPLETED'
@@ -87,6 +88,9 @@ export default function VerifyMagicLinkPage() {
     return (
         <AuthLayout showTabs={false} showTerms={false}>
             <div className="text-center">
+                <div className="mb-8">
+                    <SignupProgress current={2} />
+                </div>
                 <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-rideon-blue/10 text-rideon-blue">
                     {verified ? (
                         <CheckCircle2 className="size-7 text-rideon-green" strokeWidth={2.25} />

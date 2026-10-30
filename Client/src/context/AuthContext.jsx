@@ -91,6 +91,10 @@ export function AuthProvider({ children }) {
                 if (active) {
                     setInitializing(false)
                 }
+                // Drop HTML splash once mandatory auth restore finished (success or fail)
+                if (typeof window !== 'undefined' && typeof window.__RIDEON_HIDE_SPLASH__ === 'function') {
+                    window.__RIDEON_HIDE_SPLASH__()
+                }
             }
         }
 

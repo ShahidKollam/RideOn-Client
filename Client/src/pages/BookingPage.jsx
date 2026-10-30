@@ -20,7 +20,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import BookingSummary from '@/components/bookings/BookingSummary'
 import { Button } from '@/components/ui/button'
 import FullPageLoader from '@/components/ui/FullPageLoader'
-import { ErrorState } from '@/components/ui/PageStates'
+import { ErrorState, SkeletonCard } from '@/components/ui/PageStates'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -141,6 +141,9 @@ export default function BookingPage() {
     const [availability, setAvailability] = useState(null)
     const [orderPricing, setOrderPricing] = useState(null)
     const [checkingAvailability, setCheckingAvailability] = useState(false)
+    const [availabilityComplete, setAvailabilityComplete] = useState(false)
+    const [paymentComplete, setPaymentComplete] = useState(false)
+    const [pendingSuccessNav, setPendingSuccessNav] = useState(null)
     useDocumentTitle('Book a ride')
     const resultRef = useRef(null)
     const initialPickup = useMemo(() => {
@@ -221,6 +224,7 @@ export default function BookingPage() {
 
     const runAvailabilityCheck = async (pickupDateObj, returnDateObj, helmet) => {
         if (!vehicle?.campusId) return
+        setAvailabilityComplete(false)
         setCheckingAvailability(true)
         setOrderPricing(null)
         try {
@@ -238,27 +242,44 @@ export default function BookingPage() {
                 returnTime: values.returnTime,
                 helmetCount: helmet,
             })
-            // Smooth scroll result into view (mobile-friendly, not aggressive)
-            requestAnimationFrame(() => {
-                const el = resultRef.current
-                if (!el) return
-                const rect = el.getBoundingClientRect()
-                const alreadyVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.55
-                if (!alreadyVisible) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                }
-            })
+            // Keep loader open until progress hits 100% (onComplete closes + scrolls)
+            setAvailabilityComplete(true)
             return summary
         } catch (requestError) {
+            setCheckingAvailability(false)
+            setAvailabilityComplete(false)
             showToast({
                 type: 'error',
                 title: 'Could not check availability',
                 description: getApiErrorMessage(requestError),
             })
             throw requestError
-        } finally {
-            setCheckingAvailability(false)
         }
+    }
+
+    const handlePaymentLoaderComplete = () => {
+        const nav = pendingSuccessNav
+        setPendingSuccessNav(null)
+        setPaymentComplete(false)
+        setSubmitting(false)
+        setPaymentPhase(null)
+        if (nav?.path) {
+            navigate(nav.path, { state: nav.state })
+        }
+    }
+
+    const handleAvailabilityLoaderComplete = () => {
+        setCheckingAvailability(false)
+        setAvailabilityComplete(false)
+        requestAnimationFrame(() => {
+            const el = resultRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            const alreadyVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.55
+            if (!alreadyVisible) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+            }
+        })
     }
 
     // One-shot: restored draft inputs → re-fetch availability once vehicle is ready
@@ -352,6 +373,8 @@ export default function BookingPage() {
 
     const submitBooking = async () => {
         if (!availability?.available) return
+        setPaymentComplete(false)
+        setPendingSuccessNav(null)
         setSubmitting(true)
         setPaymentPhase('order')
         try {
@@ -369,6 +392,8 @@ export default function BookingPage() {
             const failPayment = (message) => {
                 if (paymentFlowEnded) return
                 paymentFlowEnded = true
+                setPaymentComplete(false)
+                setPendingSuccessNav(null)
                 setSubmitting(false)
                 setPaymentPhase(null)
                 markPaymentFailed(order.orderId).catch(() => {})
@@ -385,6 +410,7 @@ export default function BookingPage() {
                 prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
                 theme: { color: '#0764f5' },
                 handler: async (response) => {
+                    setPaymentComplete(false)
                     setSubmitting(true)
                     setPaymentPhase('verify')
                     try {
@@ -395,10 +421,12 @@ export default function BookingPage() {
                         })
                         paymentFlowEnded = true
                         clearBookingDraft()
-                        // Keep loader visible until navigation completes
-                        navigate(`/booking-success/${result.booking.id}`, {
+                        // Keep loader open at 100% until onComplete navigates
+                        setPendingSuccessNav({
+                            path: `/booking-success/${result.booking.id}`,
                             state: { booking: result.booking, payment: result.payment },
                         })
+                        setPaymentComplete(true)
                     } catch (requestError) {
                         failPayment(
                             getApiErrorMessage(
@@ -433,25 +461,37 @@ export default function BookingPage() {
                 <ErrorState message={error} />
             </div>
         )
-    const image = vehicle?.imageUrls?.[0]
-    const vehicleName = vehicle?.name || `${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim() || 'Honda Activa'
+    if (!vehicle)
+        return (
+            <div className="mx-auto max-w-7xl px-4 pt-28">
+                <SkeletonCard className="h-[43rem]" />
+            </div>
+        )
+
+    const image = vehicle.imageUrls?.[0]
+    const vehicleName = vehicle.name || `${vehicle.brand || ''} ${vehicle.model || ''}`.trim()
 
     return (
         <div className="min-h-screen bg-[#fcfdff] pb-28 pt-24 text-[#081440] md:pb-12 sm:pt-28">
             <FullPageLoader
                 open={checkingAvailability}
+                complete={availabilityComplete}
                 message="Checking availability…"
                 subMessage="Finding an available bike for your selected time."
+                onComplete={handleAvailabilityLoaderComplete}
             />
             <FullPageLoader
                 open={submitting && paymentPhase === 'order'}
+                complete={false}
                 message="Preparing payment…"
                 subMessage="Creating your order. Razorpay will open next."
             />
             <FullPageLoader
                 open={submitting && paymentPhase === 'verify'}
+                complete={paymentComplete}
                 message="Confirming your payment…"
                 subMessage="Verifying with the payment gateway. You’ll be redirected shortly."
+                onComplete={handlePaymentLoaderComplete}
             />
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_495px] xl:items-start">
@@ -554,7 +594,7 @@ export default function BookingPage() {
                             </div>
                             <Button
                                 type="submit"
-                                disabled={submitting || checkingAvailability || !vehicle?.campusId}
+                                disabled={submitting || checkingAvailability}
                                 className="mt-5 h-[43px] w-full rounded-md bg-[#0764f5] text-[15px] font-semibold text-white shadow-none hover:bg-[#075be0]"
                             >
                                 {checkingAvailability ? (

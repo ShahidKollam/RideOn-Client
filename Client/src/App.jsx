@@ -28,30 +28,99 @@ const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
 const FaqPage = lazy(() => import('@/pages/FaqPage'))
 const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'))
 
+/** Shared Suspense boundary for lazy route modules */
+function LazyPage({ children }) {
+    return <Suspense fallback={<LoadingScreen />}>{children}</Suspense>
+}
+
 export default function App() {
     return (
         <BrowserRouter>
             <ScrollToTop />
             <Routes>
                 <Route element={<AppLayout />}>
-
                     <Route path="/" element={<Home />} />
-                    <Route path="/vehicles" element={<Suspense fallback={<LoadingScreen />}><VehiclesPage /></Suspense>} />
-                    <Route path="/vehicles/:id" element={<Suspense fallback={<LoadingScreen />}><VehicleDetailsPage /></Suspense>} />
-                    <Route path="/pricing" element={<Suspense fallback={<LoadingScreen />}><PricingPage /></Suspense>} />
-                    <Route path="/booking" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/booking/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/booking-success/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingSuccessPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/payment-failed" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><PaymentFailedPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/bookings" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/profile" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><UserProfilePage /></Suspense></ProtectedRoute>} />
-                    <Route path="/bookings/:id" element={<ProtectedRoute><Suspense fallback={<LoadingScreen />}><BookingsPage /></Suspense></ProtectedRoute>} />
-                    <Route path="/about" element={<Suspense fallback={<LoadingScreen />}><AboutPage /></Suspense>} />
-                    <Route path="/contact" element={<Suspense fallback={<LoadingScreen />}><ContactPage /></Suspense>} />
-                    <Route path="/cancellation-policy" element={<Suspense fallback={<LoadingScreen />}><CancellationPolicyPage /></Suspense>} />
-                    <Route path="/terms" element={<Suspense fallback={<LoadingScreen />}><TermsPage /></Suspense>} />
-                    <Route path="/privacy" element={<Suspense fallback={<LoadingScreen />}><PrivacyPage /></Suspense>} />
-                    <Route path="/faq" element={<Suspense fallback={<LoadingScreen />}><FaqPage /></Suspense>} />
+
+                    <Route path="/vehicles" element={<LazyPage><VehiclesPage /></LazyPage>} />
+                    <Route path="/vehicles/:id" element={<LazyPage><VehicleDetailsPage /></LazyPage>} />
+                    <Route path="/pricing" element={<LazyPage><PricingPage /></LazyPage>} />
+                    <Route
+                        path="/booking"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <BookingPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/booking/:id"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <BookingPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/booking-success/:id"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <BookingSuccessPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/payment-failed"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <PaymentFailedPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/bookings"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <BookingsPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/bookings/:id"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <BookingsPage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <LazyPage>
+                                    <UserProfilePage />
+                                </LazyPage>
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route path="/about" element={<LazyPage><AboutPage /></LazyPage>} />
+                    <Route path="/contact" element={<LazyPage><ContactPage /></LazyPage>} />
+                    <Route path="/cancellation-policy" element={<LazyPage><CancellationPolicyPage /></LazyPage>} />
+                    <Route path="/terms" element={<LazyPage><TermsPage /></LazyPage>} />
+                    <Route path="/privacy" element={<LazyPage><PrivacyPage /></LazyPage>} />
+                    <Route path="/faq" element={<LazyPage><FaqPage /></LazyPage>} />
 
                     <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                     <Route
@@ -62,7 +131,6 @@ export default function App() {
                             </PublicRoute>
                         }
                     />
-
                     <Route
                         path="/auth/signup"
                         element={
