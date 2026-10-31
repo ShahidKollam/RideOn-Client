@@ -475,6 +475,7 @@ export default function BookingPage() {
         <div className="min-h-screen bg-[#fcfdff] pb-28 pt-24 text-[#081440] md:pb-12 sm:pt-28">
             <FullPageLoader
                 open={checkingAvailability}
+                // open={true}
                 complete={availabilityComplete}
                 message="Checking availability…"
                 subMessage="Finding an available bike for your selected time."
