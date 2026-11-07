@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../components/ui/Toast';
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { Pagination } from '../../../components/ui/Pagination';
 
 function parseList(data) {
   const rows = data?.bikes || data?.items || data?.data || (Array.isArray(data) ? data : []);
@@ -357,6 +358,19 @@ export default function BikesPage() {
           <p className="text-sm text-muted text-center py-8">No bikes found</p>
         )}
       </MobileList>
+      <div className="md:hidden">
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
+      </div>
       <div className="hidden md:block">
       <DataTable
           columns={columns}

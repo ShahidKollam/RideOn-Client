@@ -1,4 +1,5 @@
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { Pagination } from '../../../components/ui/Pagination';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -325,6 +326,19 @@ export default function PricingPage() {
           </MobileCard>
         ))}
       </MobileList>
+      <div className="md:hidden">
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
+      </div>
       <div className="hidden md:block">
       <DataTable
           columns={columns}

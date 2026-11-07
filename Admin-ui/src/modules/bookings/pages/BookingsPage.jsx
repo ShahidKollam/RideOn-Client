@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
 import { MobileList, MobileCard } from '../../../components/ui/MobileList'
+import { Pagination } from '../../../components/ui/Pagination'
 import { AlertTriangle } from 'lucide-react'
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -423,7 +424,7 @@ export default function BookingsPage() {
                     ) : null
                 }
             />
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
                 {[
                     {
                         label: "Today's Pickups",
@@ -469,23 +470,23 @@ export default function BookingsPage() {
                             type="button"
                             onClick={s.onClick}
                             aria-label={s.onClick ? `Show ${s.label.toLowerCase()}` : undefined}
-                            className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-3 text-left shadow-card transition-colors sm:p-4 ${
+                            className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-4 text-left shadow-card transition-colors ${
                                 s.onClick
                                     ? 'cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50'
                                     : 'cursor-default'
                             }`}
                         >
-                            <div className="flex w-full items-center justify-between gap-2 sm:gap-3">
-                                <p className="min-w-0 truncate text-xs font-medium text-secondary sm:text-sm">{s.label}</p>
-                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8 ${s.iconWrap}`}>
-                                    <Icon size={16} strokeWidth={2} />
+                            <div className="flex w-full items-center justify-between gap-3">
+                                <p className="min-w-0 truncate text-sm font-medium text-secondary">{s.label}</p>
+                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.iconWrap}`}>
+                                    <Icon size={18} strokeWidth={2} />
                                 </div>
                             </div>
-                            <div className="mt-2 flex w-full flex-col items-start gap-1 sm:mt-3 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+                            <div className="mt-3 flex w-full items-end justify-between gap-3">
                                 <p className={`text-2xl font-bold leading-none tracking-tight tabular-nums ${s.valueClass}`}>
                                     {String(s.value ?? 0).padStart(2, '0')}
                                 </p>
-                                <p className="text-[11px] leading-4 text-muted sm:max-w-[60%] sm:text-right sm:text-xs">{s.hint}</p>
+                                <p className="max-w-[60%] text-right text-xs leading-4 text-muted">{s.hint}</p>
                             </div>
                         </button>
                     )
@@ -962,6 +963,19 @@ export default function BookingsPage() {
                         <p className="text-sm text-muted text-center py-8">No bookings found</p>
                     )}
                 </MobileList>
+                <div className="md:hidden">
+                    <Pagination
+                        page={page}
+                        limit={limit}
+                        total={total}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        onLimitChange={(l) => {
+                            setLimit(l)
+                            setPage(1)
+                        }}
+                    />
+                </div>
                 <div className="hidden md:block">
                 <DataTable
                     columns={columns}

@@ -58,17 +58,24 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    overflow: hidden;
   }
 
   body {
     margin: 0;
+    height: 100%;
+    overflow: hidden;
     background-color: var(--color-bg);
     color: var(--color-text);
     transition: background-color 0.2s ease, color 0.2s ease;
+    /* Prevent mobile browser chrome from shifting the app shell */
+    overscroll-behavior: none;
   }
 
   #root {
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
   }
 }
 

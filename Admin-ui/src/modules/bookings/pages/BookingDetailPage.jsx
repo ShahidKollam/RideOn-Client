@@ -426,6 +426,16 @@ export default function BookingDetailPage() {
               (booking.durationHours != null ? `${booking.durationHours} Hours` : null)
             }
           />
+          <Row
+            label="Included km"
+            value={
+              booking.pricing?.includedKm != null
+                ? `${Number(booking.pricing.includedKm).toLocaleString()} km`
+                : booking.includedKm != null
+                  ? `${Number(booking.includedKm).toLocaleString()} km`
+                  : null
+            }
+          />
         </Panel>
 
         <Panel title="Actual Timeline" icon={Clock}>
@@ -445,6 +455,16 @@ export default function BookingDetailPage() {
               booking.returnOdometer != null
                 ? `${Number(booking.returnOdometer).toLocaleString()} km`
                 : null
+            }
+          />
+          <Row
+            label="Included km"
+            value={
+              booking.pricing?.includedKm != null
+                ? `${Number(booking.pricing.includedKm).toLocaleString()} km`
+                : booking.includedKm != null
+                  ? `${Number(booking.includedKm).toLocaleString()} km`
+                  : null
             }
           />
           <Row
