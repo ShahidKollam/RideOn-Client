@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Users as UsersIcon, Eye, Pencil, UserCheck, UserX } from 'lucide-react';
+import {
+  Search,
+  Users as UsersIcon,
+  Eye,
+  Pencil,
+  MailCheck,
+  ClipboardCheck,
+  BadgeCheck,
+} from 'lucide-react';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { MobileListSkeleton } from '../../../components/ui/Skeleton';
 import { DataTable } from '../../../components/ui/DataTable';
+import { Pagination } from '../../../components/ui/Pagination';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Button } from '../../../components/ui/Button';
 import { Input, Select } from '../../../components/ui/Input';
@@ -40,6 +50,17 @@ function parseList(data) {
   };
 }
 
+async function fetchUserTotal(params = {}) {
+  const qs = new URLSearchParams({ page: '1', limit: '1' });
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== '' && v != null) qs.set(k, v);
+  });
+  const res = await api.get(`/users?${qs.toString()}`);
+  const data = res.data || res;
+  const pagination = data?.pagination || data?.meta || {};
+  return pagination.total ?? data?.total ?? 0;
+}
+
 export default function UsersPage() {
   const { hasPermission } = useAuth();
   const toast = useToast();
@@ -58,6 +79,74 @@ export default function UsersPage() {
   });
 
   const { rows, total, totalPages } = parseList(data || {});
+
+  const { data: totalUsers = 0 } = useQuery({
+    queryKey: ['users-stats', 'ALL'],
+    queryFn: () => fetchUserTotal(),
+    staleTime: 30_000,
+  });
+  const { data: verifiedUsers = 0 } = useQuery({
+    queryKey: ['users-stats', 'VERIFIED'],
+    queryFn: () => fetchUserTotal({ isVerified: true }),
+    staleTime: 30_000,
+  });
+  const { data: profileSubmitted = 0 } = useQuery({
+    queryKey: ['users-stats', 'PROFILE_COMPLETED'],
+    queryFn: () => fetchUserTotal({ onboardingStatus: 'PROFILE_COMPLETED' }),
+    staleTime: 30_000,
+  });
+  const { data: emailVerified = 0 } = useQuery({
+    queryKey: ['users-stats', 'EMAIL_VERIFIED'],
+    queryFn: () => fetchUserTotal({ onboardingStatus: 'EMAIL_VERIFIED' }),
+    staleTime: 30_000,
+  });
+
+  const userStats = [
+    {
+      label: 'Total Users',
+      value: totalUsers,
+      hint: 'All registered',
+      icon: UsersIcon,
+      iconWrap: 'bg-blue-500/15 text-blue-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('');
+        setPage(1);
+      },
+    },
+    {
+      label: 'Verified Users',
+      value: verifiedUsers,
+      hint: 'Identity verified',
+      icon: BadgeCheck,
+      iconWrap: 'bg-emerald-500/15 text-emerald-400',
+      valueClass: 'text-primary-token',
+    },
+    {
+      label: 'Profile Submitted',
+      value: profileSubmitted,
+      hint: 'Onboarding complete',
+      icon: ClipboardCheck,
+      iconWrap: 'bg-violet-500/15 text-violet-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('PROFILE_COMPLETED');
+        setPage(1);
+      },
+    },
+    {
+      label: 'Email Verified',
+      value: emailVerified,
+      hint: 'Awaiting profile',
+      icon: MailCheck,
+      iconWrap: 'bg-amber-500/15 text-amber-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('EMAIL_VERIFIED');
+        setPage(1);
+      },
+    },
+  ];
 
   const columns = [
     {
@@ -132,24 +221,37 @@ export default function UsersPage() {
         description="Manage and monitor platform users"
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Total Users', value: total, icon: UsersIcon, color: 'text-blue-400' },
-          { label: 'This Page', value: rows.length, icon: UserCheck, color: 'text-emerald-400' },
-          { label: 'Page', value: `${page} / ${totalPages}`, icon: UserCheck, color: 'text-violet-400' },
-          { label: 'Per Page', value: limit, icon: UserX, color: 'text-amber-400' },
-        ].map((s) => (
-          <Card key={s.label} className="p-4 flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] ${s.color}`}>
-              <s.icon size={18} />
-            </div>
-            <div>
-              <p className="text-xs text-muted">{s.label}</p>
-              <p className="text-lg font-bold text-primary-token">{s.value}</p>
-            </div>
-          </Card>
-        ))}
+      {/* KPI cards — bookings-style */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        {userStats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={s.onClick}
+              aria-label={s.onClick ? `Show ${s.label.toLowerCase()}` : undefined}
+              className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-4 text-left shadow-card transition-colors ${
+                s.onClick
+                  ? 'cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50'
+                  : 'cursor-default'
+              }`}
+            >
+              <div className="flex w-full items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-medium text-secondary">{s.label}</p>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.iconWrap}`}>
+                  <Icon size={18} strokeWidth={2} />
+                </div>
+              </div>
+              <div className="mt-3 flex w-full items-end justify-between gap-3">
+                <p className={`text-2xl font-bold leading-none tracking-tight tabular-nums ${s.valueClass}`}>
+                  {String(s.value ?? 0).padStart(2, '0')}
+                </p>
+                <p className="max-w-[60%] text-right text-xs leading-4 text-muted">{s.hint}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <Card className="overflow-hidden">
@@ -187,6 +289,7 @@ export default function UsersPage() {
           </Select>
         </div>
 
+        {isLoading ? <MobileListSkeleton /> : null}
         <MobileList>
         {(rows || []).map((r) => (
           <MobileCard key={r.id} onClick={() => typeof setSelected === 'function' ? setSelected(r) : undefined}>
@@ -200,6 +303,19 @@ export default function UsersPage() {
           </MobileCard>
         ))}
       </MobileList>
+      <div className="md:hidden">
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
+      </div>
       <div className="hidden md:block">
       <DataTable
           columns={columns}

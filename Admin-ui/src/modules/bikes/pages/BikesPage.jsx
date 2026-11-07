@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Bike, Eye, Pencil, Trash2, Wrench, Plus } from 'lucide-react';
+import { Search, Bike, Eye, Pencil, Trash2, Wrench, Plus, CircleCheck, CircleDot, AlertTriangle } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { DataTable } from '../../../components/ui/DataTable';
@@ -15,6 +15,8 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../components/ui/Toast';
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { MobileListSkeleton } from '../../../components/ui/Skeleton';
+import { Pagination } from '../../../components/ui/Pagination';
 
 function parseList(data) {
   const rows = data?.bikes || data?.items || data?.data || (Array.isArray(data) ? data : []);
@@ -27,6 +29,15 @@ function parseList(data) {
       data?.totalPages ??
       Math.max(1, Math.ceil((pagination.total ?? rows.length) / (pagination.limit || 10))),
   };
+}
+
+async function fetchBikeTotal(status) {
+  const qs = new URLSearchParams({ page: '1', limit: '1' });
+  if (status) qs.set('status', status);
+  const res = await api.get(`/bikes?${qs}`);
+  const data = res.data || res;
+  const pagination = data?.pagination || data?.meta || {};
+  return pagination.total ?? data?.total ?? 0;
 }
 
 const EMPTY_FORM = {
@@ -76,6 +87,78 @@ export default function BikesPage() {
   });
 
   const { rows, total, totalPages } = parseList(data || {});
+
+  const { data: totalBikes = 0 } = useQuery({
+    queryKey: ['bikes-stats', 'ALL'],
+    queryFn: () => fetchBikeTotal(''),
+    staleTime: 30_000,
+  });
+  const { data: availableBikes = 0 } = useQuery({
+    queryKey: ['bikes-stats', 'AVAILABLE'],
+    queryFn: () => fetchBikeTotal('AVAILABLE'),
+    staleTime: 30_000,
+  });
+  const { data: inUseBikes = 0 } = useQuery({
+    queryKey: ['bikes-stats', 'IN_USE'],
+    queryFn: () => fetchBikeTotal('IN_USE'),
+    staleTime: 30_000,
+  });
+  const { data: maintenanceBikes = 0 } = useQuery({
+    queryKey: ['bikes-stats', 'MAINTENANCE'],
+    queryFn: () => fetchBikeTotal('MAINTENANCE'),
+    staleTime: 30_000,
+  });
+
+  const bikeStats = [
+    {
+      label: 'Total Bikes',
+      value: totalBikes,
+      hint: 'Fleet size',
+      icon: Bike,
+      iconWrap: 'bg-blue-500/15 text-blue-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('');
+        setPage(1);
+      },
+    },
+    {
+      label: 'Available',
+      value: availableBikes,
+      hint: 'Ready to rent',
+      icon: CircleCheck,
+      iconWrap: 'bg-emerald-500/15 text-emerald-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('AVAILABLE');
+        setPage(1);
+      },
+    },
+    {
+      label: 'In Use',
+      value: inUseBikes,
+      hint: 'On active rides',
+      icon: CircleDot,
+      iconWrap: 'bg-amber-500/15 text-amber-400',
+      valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('IN_USE');
+        setPage(1);
+      },
+    },
+    {
+      label: 'Maintenance',
+      value: maintenanceBikes,
+      hint: 'Needs attention',
+      icon: AlertTriangle,
+      iconWrap: 'bg-red-500/15 text-red-400',
+      valueClass: maintenanceBikes > 0 ? 'text-red-400' : 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('MAINTENANCE');
+        setPage(1);
+      },
+    },
+  ];
 
   const saveMut = useMutation({
     mutationFn: (payload) => {
@@ -286,18 +369,32 @@ export default function BikesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Total Bikes', value: total },
-          { label: 'On Page', value: rows.length },
-          { label: 'Page', value: `${page} / ${totalPages}` },
-          { label: 'Per Page', value: limit },
-        ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <p className="text-xs text-muted">{s.label}</p>
-            <p className="text-lg font-bold text-primary-token mt-0.5">{s.value}</p>
-          </Card>
-        ))}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        {bikeStats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={s.onClick}
+              aria-label={`Show ${s.label.toLowerCase()}`}
+              className="group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-4 text-left shadow-card transition-colors cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50"
+            >
+              <div className="flex w-full items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-medium text-secondary">{s.label}</p>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.iconWrap}`}>
+                  <Icon size={18} strokeWidth={2} />
+                </div>
+              </div>
+              <div className="mt-3 flex w-full items-end justify-between gap-3">
+                <p className={`text-2xl font-bold leading-none tracking-tight tabular-nums ${s.valueClass}`}>
+                  {String(s.value ?? 0).padStart(2, '0')}
+                </p>
+                <p className="max-w-[60%] text-right text-xs leading-4 text-muted">{s.hint}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <Card className="overflow-hidden">
@@ -342,6 +439,7 @@ export default function BikesPage() {
           </Select>
         </div>
 
+        {isLoading ? <MobileListSkeleton /> : null}
         <MobileList>
         {rows.map((r) => (
           <MobileCard key={r.id} onClick={() => setSelected(r)}>
@@ -357,6 +455,19 @@ export default function BikesPage() {
           <p className="text-sm text-muted text-center py-8">No bikes found</p>
         )}
       </MobileList>
+      <div className="md:hidden">
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
+      </div>
       <div className="hidden md:block">
       <DataTable
           columns={columns}

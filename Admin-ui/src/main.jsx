@@ -22,3 +22,12 @@ createRoot(document.getElementById('root')).render(
     </QueryClientProvider>
   </StrictMode>
 );
+
+// Register service worker for PWA install + offline shell
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Install still works via manifest even if SW registration fails
+    });
+  });
+}

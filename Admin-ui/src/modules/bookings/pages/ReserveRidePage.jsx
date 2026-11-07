@@ -358,7 +358,7 @@ export default function ReserveRidePage() {
 
     if (!canCreate) {
         return (
-            <div className="mx-auto max-w-lg p-4 sm:p-6">
+            <div className="space-y-5">
                 <PageHeader title="Reserve a Ride" description="Desk / walk-in booking" />
                 <Card className="p-6 text-center">
                     <AlertCircle className="mx-auto mb-3 text-danger" size={28} />
@@ -369,7 +369,7 @@ export default function ReserveRidePage() {
     }
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-5 px-3 pb-24 pt-4 sm:space-y-6 sm:px-6 sm:pb-10 lg:px-8">
+        <div className="w-full space-y-5 sm:space-y-6">
             <PageHeader
                 title="Reserve a Ride"
                 description="Check availability first, then complete the desk booking form"
@@ -382,12 +382,12 @@ export default function ReserveRidePage() {
                 }
             />
 
-            <div className="rounded-2xl border border-token bg-surface/60 p-4 sm:p-5">
+            <div className="rounded-xl border border-token bg-surface p-3 sm:p-4">
                 <StepPills phase={phase} />
             </div>
 
-            <Card className="overflow-hidden rounded-2xl border-token shadow-lg shadow-black/10">
-                <div className="border-b border-token bg-surface/70 px-4 py-4 sm:px-6">
+            <Card className="overflow-hidden">
+                <div className="border-b border-token px-4 py-4 sm:px-5">
                     <div className="flex items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
                             <CalendarCheck size={16} />
@@ -399,7 +399,7 @@ export default function ReserveRidePage() {
                     </div>
                 </div>
 
-                <div className="space-y-5 p-4 sm:p-6 lg:p-7">
+                <div className="space-y-5 p-4 sm:p-5">
                     <div className="space-y-5">
                         <Field label="Campus" required>
                             <div className="relative">
@@ -668,8 +668,8 @@ export default function ReserveRidePage() {
 
             {formOpen && (
                 <div id="desk-booking-form" className="space-y-4">
-                    <Card className="overflow-hidden rounded-2xl border-token shadow-lg shadow-black/10">
-                        <div className="border-b border-token bg-surface/70 px-4 py-4 sm:px-6">
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-token px-4 py-4 sm:px-5">
                             <div className="flex items-center gap-2">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
                                     <User size={16} />
@@ -738,8 +738,8 @@ export default function ReserveRidePage() {
                         </div>
                     </Card>
 
-                    <Card className="overflow-hidden rounded-2xl border-token shadow-lg shadow-black/10">
-                        <div className="border-b border-token bg-surface/70 px-4 py-4 sm:px-6">
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-token px-4 py-4 sm:px-5">
                             <div className="flex items-center gap-2">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
                                     <Bike size={16} />
@@ -828,8 +828,8 @@ export default function ReserveRidePage() {
 
             {formOpen && showConfirm && (
                 <div id="desk-booking-confirm" className="space-y-4">
-                    <Card className="overflow-hidden rounded-2xl border-token shadow-lg shadow-black/10">
-                        <div className="border-b border-token bg-surface/70 px-4 py-4 sm:px-6">
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-token px-4 py-4 sm:px-5">
                             <div className="flex items-center gap-2">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
                                     <CheckCircle2 size={16} />

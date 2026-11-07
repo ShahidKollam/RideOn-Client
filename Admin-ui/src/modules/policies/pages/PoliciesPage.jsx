@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Ban,
 } from 'lucide-react';
+import { PageLoader } from '../../../components/ui/LoadingSpinner';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
@@ -223,11 +224,7 @@ export default function PoliciesPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="animate-spin text-brand" size={28} />
-      </div>
-    );
+    return <PageLoader label="Loading policies…" />;
   }
 
   return (

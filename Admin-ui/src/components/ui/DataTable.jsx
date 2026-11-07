@@ -1,5 +1,5 @@
 import { cn } from '../../utils/cn';
-import { Skeleton } from './Skeleton';
+import { TableSkeleton } from './Skeleton';
 import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { Pagination } from './Pagination';
@@ -24,13 +24,7 @@ export function DataTable({
   onRowClick,
 }) {
   if (loading) {
-    return (
-      <div className="space-y-2 p-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    );
+    return <TableSkeleton rows={6} />;
   }
 
   if (error) {

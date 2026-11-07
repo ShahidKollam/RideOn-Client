@@ -17,18 +17,23 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-app transition-theme">
+    // h-dvh follows the real mobile viewport when the browser chrome shows/hides
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-app transition-theme">
       <Sidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
 
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={handleMenuClick} />
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Always visible — outside the scrolling main */}
+        <div className="z-30 shrink-0 border-b border-token bg-surface">
+          <Topbar onMenuClick={handleMenuClick} />
+        </div>
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        {/* Only this region scrolls */}
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>

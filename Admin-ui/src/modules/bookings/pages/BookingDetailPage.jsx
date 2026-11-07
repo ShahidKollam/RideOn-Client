@@ -14,6 +14,7 @@ import {
   FileText,
   Bike,
 } from 'lucide-react';
+import { PageLoader } from '../../../components/ui/LoadingSpinner';
 import { api } from '../../../lib/api';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Button } from '../../../components/ui/Button';
@@ -196,12 +197,7 @@ export default function BookingDetailPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 className="animate-spin text-[var(--color-primary)]" size={28} />
-        <p className="text-sm text-muted">Loading booking…</p>
-      </div>
-    );
+    return <PageLoader label="Loading booking…" />;
   }
 
   if (error || !booking) {
@@ -426,6 +422,16 @@ export default function BookingDetailPage() {
               (booking.durationHours != null ? `${booking.durationHours} Hours` : null)
             }
           />
+          <Row
+            label="Included km"
+            value={
+              booking.pricing?.includedKm != null
+                ? `${Number(booking.pricing.includedKm).toLocaleString()} km`
+                : booking.includedKm != null
+                  ? `${Number(booking.includedKm).toLocaleString()} km`
+                  : null
+            }
+          />
         </Panel>
 
         <Panel title="Actual Timeline" icon={Clock}>
@@ -445,6 +451,16 @@ export default function BookingDetailPage() {
               booking.returnOdometer != null
                 ? `${Number(booking.returnOdometer).toLocaleString()} km`
                 : null
+            }
+          />
+          <Row
+            label="Included km"
+            value={
+              booking.pricing?.includedKm != null
+                ? `${Number(booking.pricing.includedKm).toLocaleString()} km`
+                : booking.includedKm != null
+                  ? `${Number(booking.includedKm).toLocaleString()} km`
+                  : null
             }
           />
           <Row

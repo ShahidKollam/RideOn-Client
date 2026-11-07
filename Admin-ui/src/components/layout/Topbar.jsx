@@ -28,7 +28,7 @@ export function Topbar({ onMenuClick }) {
   }, [profileOpen]);
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-token bg-surface/80 backdrop-blur-md px-4 sm:px-6 transition-theme">
+    <header className="flex h-14 sm:h-16 shrink-0 items-center gap-3 bg-surface px-4 sm:px-6 transition-theme">
       <button
         onClick={onMenuClick}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-secondary hover:bg-[var(--color-primary-soft)] transition-colors shrink-0"
