@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
+import { PageLoader } from '../../../components/ui/LoadingSpinner';
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
@@ -157,11 +158,7 @@ export default function SettingsPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="animate-spin text-[var(--color-primary)]" size={28} />
-      </div>
-    );
+    return <PageLoader label="Loading settings…" />;
   }
 
   return (

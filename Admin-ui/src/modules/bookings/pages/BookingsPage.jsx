@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
 import { MobileList, MobileCard } from '../../../components/ui/MobileList'
+import { MobileListSkeleton } from '../../../components/ui/Skeleton'
 import { Pagination } from '../../../components/ui/Pagination'
 import { AlertTriangle } from 'lucide-react'
 
@@ -424,7 +425,7 @@ export default function BookingsPage() {
                     ) : null
                 }
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
                 {[
                     {
                         label: "Today's Pickups",
@@ -936,6 +937,7 @@ export default function BookingsPage() {
                 </Drawer>
 
                 {/* Mobile cards */}
+                {isLoading ? <MobileListSkeleton /> : null}
                 <MobileList>
                     {rows.map((r) => {
                         const late = r.isLate || (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt))

@@ -12,6 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { MobileListSkeleton } from '../../../components/ui/Skeleton';
 import { DataTable } from '../../../components/ui/DataTable';
 import { Pagination } from '../../../components/ui/Pagination';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -221,7 +222,7 @@ export default function UsersPage() {
       />
 
       {/* KPI cards — bookings-style */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         {userStats.map((s) => {
           const Icon = s.icon;
           return (
@@ -288,6 +289,7 @@ export default function UsersPage() {
           </Select>
         </div>
 
+        {isLoading ? <MobileListSkeleton /> : null}
         <MobileList>
         {(rows || []).map((r) => (
           <MobileCard key={r.id} onClick={() => typeof setSelected === 'function' ? setSelected(r) : undefined}>

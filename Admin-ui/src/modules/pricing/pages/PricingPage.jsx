@@ -1,4 +1,5 @@
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { MobileListSkeleton } from '../../../components/ui/Skeleton';
 import { Pagination } from '../../../components/ui/Pagination';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -315,6 +316,7 @@ export default function PricingPage() {
             </Button>
           </form>
         </div>
+        {isLoading ? <MobileListSkeleton /> : null}
         <MobileList>
         {(rows || []).map((r) => (
           <MobileCard key={r.id} onClick={() => typeof setSelected === 'function' ? setSelected(r) : undefined}>

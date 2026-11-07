@@ -1,4 +1,5 @@
 import { MobileList, MobileCard } from '../../../components/ui/MobileList';
+import { MobileListSkeleton } from '../../../components/ui/Skeleton';
 import { Pagination } from '../../../components/ui/Pagination';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -162,7 +163,7 @@ export default function PaymentsPage() {
   return (
     <div>
       <PageHeader title="Payments" description="Track and review platform payments" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -207,6 +208,7 @@ export default function PaymentsPage() {
             <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
           </Select>
         </div>
+        {isLoading ? <MobileListSkeleton /> : null}
         <MobileList>
           {(rows || data?.items || []).map((r) => (
             <MobileCard key={r.id} onClick={() => openPayment(r)} chevron>
