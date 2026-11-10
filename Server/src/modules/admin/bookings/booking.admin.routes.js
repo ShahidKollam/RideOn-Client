@@ -12,6 +12,8 @@ import {
   collectPaymentSchema,
   adminCancelBookingSchema,
   recordCashRefundSchema,
+  changeBikeSchema,
+  extendBookingSchema,
 } from './booking.admin.validation.js'
 import {
   createBookingController,
@@ -27,6 +29,10 @@ import {
   collectAdditionalPaymentController,
   previewLateChargesController,
   lateReturnStatsController,
+  changeBikeOptionsController,
+  changeBikeController,
+  previewExtendController,
+  extendBookingController,
 } from './booking.admin.controller.js'
 
 const router = express.Router()
@@ -56,6 +62,10 @@ router.get('/', requirePermission('bookings.read'), listBookingsController)
 router.get('/late-returns', requirePermission('bookings.read'), lateReturnStatsController)
 router.get('/:id', requirePermission('bookings.read'), getBookingController)
 router.get('/:id/late-charges', requirePermission('bookings.read'), previewLateChargesController)
+router.get('/:id/change-bike-options', requirePermission('bookings.update'), changeBikeOptionsController)
+router.patch('/:id/change-bike', requirePermission('bookings.update'), validate(changeBikeSchema), changeBikeController)
+router.get('/:id/extend-preview', requirePermission('bookings.update'), previewExtendController)
+router.patch('/:id/extend', requirePermission('bookings.update'), validate(extendBookingSchema), extendBookingController)
 router.patch('/:id/pickup', requirePermission('bookings.update'), validate(pickupSchema), pickupBookingController)
 router.patch('/:id/return', requirePermission('bookings.update'), validate(returnSchema), returnBookingController)
 router.post('/:id/payments', requirePermission('bookings.update'), validate(collectPaymentSchema), collectAdditionalPaymentController)

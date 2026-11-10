@@ -33,6 +33,15 @@ const dateTime = (v) => {
 }
 
 /** Return today's local date in YYYY-MM-DD format for date inputs. */
+
+/** Active booking past scheduled return (or server-flagged late). */
+const isBookingLate = (r) =>
+    Boolean(
+        r?.isLate ||
+            (r?.status === 'ACTIVE' && r?.returnAt && new Date() > new Date(r.returnAt)) ||
+            (r?.lateDurationMinutes != null && Number(r.lateDurationMinutes) > 0)
+    )
+
 const todayYmd = () => {
     const now = new Date()
     const year = now.getFullYear()
@@ -304,20 +313,33 @@ export default function BookingsPage() {
         {
             key: 'bookingNumber',
             header: 'Booking',
-            render: (r) => (
-                <div className="min-w-[8rem]">
-                    <p className="font-semibold text-primary-token tracking-tight">{r.bookingNumber || '—'}</p>
-                    <p className="text-[11px] text-muted mt-0.5">
-                        {r.createdAt
-                            ? new Date(r.createdAt).toLocaleDateString('en-IN', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                              })
-                            : '—'}
-                    </p>
-                </div>
-            ),
+            render: (r) => {
+                const late = isBookingLate(r)
+                return (
+                    <div className="min-w-[8rem]">
+                        <div className="flex items-center gap-2">
+                            {late && (
+                                <span
+                                    className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+                                    title="Late return"
+                                />
+                            )}
+                            <p className="font-semibold text-primary-token tracking-tight">
+                                {r.bookingNumber || '—'}
+                            </p>
+                        </div>
+                        <p className="text-[11px] text-muted mt-0.5">
+                            {r.createdAt
+                                ? new Date(r.createdAt).toLocaleDateString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                  })
+                                : '—'}
+                        </p>
+                    </div>
+                )
+            },
         },
         {
             key: 'customer',
@@ -352,23 +374,39 @@ export default function BookingsPage() {
         {
             key: 'returnAt',
             header: 'Return',
-            render: (r) => (
-                <span className="text-sm text-secondary whitespace-nowrap">{dateTime(r.returnAt)}</span>
-            ),
+            render: (r) => {
+                const late = isBookingLate(r)
+                return (
+                    <span
+                        className={
+                            late
+                                ? 'text-sm font-mediumium textmed text-red-600 dark:text-red-400 whitespace-nowrap'
+                                : 'text-sm text-secondary whitespace-nowrap'
+                        }
+                    >
+                        {dateTime(r.returnAt)}
+                    </span>
+                )
+            },
         },
         {
             key: 'status',
             header: 'Status',
             render: (r) => {
-                const late =
-                    r.isLate ||
-                    (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt)) ||
-                    (r.lateDurationMinutes != null && r.lateDurationMinutes > 0)
+                const late = isBookingLate(r)
                 return (
                     <div className="flex flex-col items-start gap-1">
-                        <StatusBadge status={late && r.status === 'ACTIVE' ? 'LATE_RETURN' : r.status || 'PENDING'} />
-                        {late && r.lateDurationMinutes != null && r.lateDurationMinutes > 0 && (
-                            <span className="text-[10px] font-medium text-red-500">{r.lateDurationMinutes}m late</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <StatusBadge status={r.status || 'PENDING'} />
+                            {late && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500 animate-pulse" />
+                                    Late
+                                </span>
+                            )}
+                        </div>
+                        {late && r.lateDurationMinutes != null && Number(r.lateDurationMinutes) > 0 && (
+                            <span className="text-[10px] font-medium text-red-500">{r.lateDurationMinutes}m overdue</span>
                         )}
                     </div>
                 )
@@ -940,23 +978,48 @@ export default function BookingsPage() {
                 {isLoading ? <MobileListSkeleton /> : null}
                 <MobileList>
                     {rows.map((r) => {
-                        const late = r.isLate || (r.status === 'ACTIVE' && r.returnAt && new Date() > new Date(r.returnAt))
+                        const late = isBookingLate(r)
                         return (
-                            <MobileCard key={r.id} onClick={() => navigate(`/bookings/${r.id}`)}>
+                            <MobileCard
+                                key={r.id}
+                                onClick={() => navigate(`/bookings/${r.id}`)}
+                                className={late ? 'border-red-500/35 bg-red-500/[0.04]' : undefined}
+                            >
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="font-semibold text-primary-token text-sm">{r.bookingNumber || '—'}</span>
-                                    <StatusBadge status={late ? 'LATE_RETURN' : r.status} />
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        {late && (
+                                            <span
+                                                className="h-2 w-2 shrink-0 rounded-full bg-red-500 animate-pulse"
+                                                title="Late return"
+                                            />
+                                        )}
+                                        <span className="font-semibold text-primary-token text-sm truncate">
+                                            {r.bookingNumber || '—'}
+                                        </span>
+                                    </span>
+                                    <div className="flex flex-wrap items-center justify-end gap-1">
+                                        <StatusBadge status={r.status} />
+                                        {late && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                                                Late
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <p className="text-sm text-secondary truncate">{r.guestName || r.user?.name || '—'}</p>
                                 <p className="text-xs text-muted">
                                     {[r.bike?.bikeNumber, r.bike?.registrationNumber].filter(Boolean).join(' · ') || 'No bike'}
                                 </p>
-                                <div className="flex items-center justify-between text-xs text-muted pt-1">
-                                    <span>{r.pickupAt ? new Date(r.pickupAt).toLocaleString() : '—'}</span>
+                                <div className="flex items-center justify-between text-xs pt-1">
+                                    <span className="text-muted">
+                                        Return {r.returnAt ? new Date(r.returnAt).toLocaleString() : '—'}
+                                    </span>
                                     <span className="font-medium text-primary-token">{money(r.totalAmount)}</span>
                                 </div>
-                                {late && (
-                                    <p className="text-xs font-medium text-red-600">🔴 Late{r.lateDurationMinutes != null ? ` · ${r.lateDurationMinutes}m` : ''}</p>
+                                {late && r.lateDurationMinutes != null && Number(r.lateDurationMinutes) > 0 && (
+                                    <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                                        {r.lateDurationMinutes}m overdue
+                                    </p>
                                 )}
                             </MobileCard>
                         )
@@ -980,6 +1043,11 @@ export default function BookingsPage() {
                 </div>
                 <div className="hidden md:block">
                 <DataTable
+                        getRowClassName={(r) =>
+                            isBookingLate(r)
+                                ? 'bg-red-500/[0.04]'
+                                : undefined
+                        }
                     columns={columns}
                     rows={rows}
                     loading={isLoading}

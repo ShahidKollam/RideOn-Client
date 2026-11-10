@@ -13,6 +13,8 @@ import {
   Copy,
   FileText,
   Bike,
+  RefreshCw,
+  Timer,
 } from 'lucide-react';
 import { PageLoader } from '../../../components/ui/LoadingSpinner';
 import { api } from '../../../lib/api';
@@ -40,6 +42,20 @@ const dateTime = (v) =>
         minute: '2-digit',
       })
     : '—';
+
+const toLocalInputValue = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const localInputToISO = (local) => {
+  if (!local) return null;
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
 
 function Row({ label, value, copy }) {
   if (value === undefined || value === null || value === '') return null;
@@ -101,6 +117,10 @@ export default function BookingDetailPage() {
   const [adjustmentReason, setAdjustmentReason] = useState('');
   const [cashRefundOpen, setCashRefundOpen] = useState(false);
   const [cashRef, setCashRef] = useState('');
+  const [changeBikeOpen, setChangeBikeOpen] = useState(false);
+  const [selectedBikeId, setSelectedBikeId] = useState('');
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendReturnLocal, setExtendReturnLocal] = useState('');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['booking', id],
@@ -123,12 +143,52 @@ export default function BookingDetailPage() {
     retry: false,
   });
 
+  const canChangeBike =
+    !!booking &&
+    !['COMPLETED', 'CANCELLED'].includes(booking.status) &&
+    hasPermission('bookings.update');
+
+  const canExtend =
+    !!booking &&
+    ['CONFIRMED', 'ACTIVE'].includes(booking.status) &&
+    hasPermission('bookings.update');
+
+  const { data: changeBikeData, isLoading: changeBikeLoading } = useQuery({
+    queryKey: ['booking-change-bike-options', id],
+    queryFn: async () => {
+      const res = await api.get(`/bookings/${id}/change-bike-options`);
+      return res.data || res;
+    },
+    enabled: !!id && changeBikeOpen && canChangeBike,
+    retry: false,
+  });
+
+  const changeBikeOptions = changeBikeData?.options || [];
+  const selectedOption =
+    changeBikeOptions.find((o) => o.id === selectedBikeId) || null;
+
+  const extendReturnISO = localInputToISO(extendReturnLocal);
+  const { data: extendPreview, isFetching: extendPreviewLoading } = useQuery({
+    queryKey: ['booking-extend-preview', id, extendReturnISO],
+    queryFn: async () => {
+      const res = await api.get(
+        `/bookings/${id}/extend-preview?returnAt=${encodeURIComponent(extendReturnISO)}`
+      );
+      return res.data || res;
+    },
+    enabled: !!id && extendOpen && canExtend && !!extendReturnISO,
+    retry: false,
+  });
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['booking', id] });
     qc.invalidateQueries({ queryKey: ['bookings'] });
     qc.invalidateQueries({ queryKey: ['booking-late-charges', id] });
+    qc.invalidateQueries({ queryKey: ['booking-change-bike-options', id] });
+    qc.invalidateQueries({ queryKey: ['booking-extend-preview', id] });
     qc.invalidateQueries({ queryKey: ['late-returns'] });
     qc.invalidateQueries({ queryKey: ['dashboard'] });
+    qc.invalidateQueries({ queryKey: ['bikes'] });
   };
 
   const pickupMut = useMutation({
@@ -194,6 +254,32 @@ export default function BookingDetailPage() {
       refresh();
     },
     onError: (e) => toast.error(e.message),
+  });
+
+  const extendMut = useMutation({
+    mutationFn: (returnAt) => api.patch(`/bookings/${id}/extend`, { returnAt }),
+    onSuccess: () => {
+      toast.success('Booking extended');
+      setExtendOpen(false);
+      setExtendReturnLocal('');
+      refresh();
+    },
+    onError: (e) => toast.error(e.message || 'Failed to extend booking'),
+  });
+
+  const changeBikeMut = useMutation({
+    mutationFn: ({ bikeId, confirmNonAvailable }) =>
+      api.patch(`/bookings/${id}/change-bike`, {
+        bikeId,
+        confirmNonAvailable: !!confirmNonAvailable,
+      }),
+    onSuccess: () => {
+      toast.success('Bike changed');
+      setChangeBikeOpen(false);
+      setSelectedBikeId('');
+      refresh();
+    },
+    onError: (e) => toast.error(e.message || 'Failed to change bike'),
   });
 
   if (isLoading) {
@@ -267,6 +353,33 @@ export default function BookingDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {canChangeBike && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSelectedBikeId('');
+                setChangeBikeOpen(true);
+              }}
+            >
+              <RefreshCw size={14} /> Change bike
+            </Button>
+          )}
+          {canExtend && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const base = booking.returnAt
+                  ? new Date(booking.returnAt)
+                  : new Date();
+                // default +1 hour from current scheduled return
+                base.setHours(base.getHours() + 1);
+                setExtendReturnLocal(toLocalInputValue(base.toISOString()));
+                setExtendOpen(true);
+              }}
+            >
+              <Timer size={14} /> Extend
+            </Button>
+          )}
           {hasPermission('bookings.update') && booking.status === 'CONFIRMED' && (
             <Button
               onClick={() => {
@@ -646,6 +759,220 @@ export default function BookingDetailPage() {
           )}
         </Panel>
       )}
+
+      {/* Extend return time */}
+      <Modal
+        open={extendOpen}
+        onClose={() => !extendMut.isPending && setExtendOpen(false)}
+        title="Extend ride"
+        description={
+          booking?.returnAt
+            ? `Current return: ${dateTime(booking.returnAt)}`
+            : undefined
+        }
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={extendMut.isPending}
+              onClick={() => setExtendOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                extendMut.isPending ||
+                !extendReturnISO ||
+                !!extendPreview?.hasConflict ||
+                extendPreviewLoading
+              }
+              onClick={() => extendMut.mutate(extendReturnISO)}
+            >
+              {extendMut.isPending ? 'Saving…' : 'Confirm extension'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-secondary mb-1.5">New return time</label>
+            <Input
+              type="datetime-local"
+              value={extendReturnLocal}
+              min={toLocalInputValue(booking?.returnAt)}
+              onChange={(e) => setExtendReturnLocal(e.target.value)}
+            />
+            <p className="mt-1.5 text-xs text-muted">
+              Must be after the current scheduled return. This updates the schedule so the ride is not treated as late until the new time.
+            </p>
+          </div>
+
+          {extendPreviewLoading && (
+            <p className="text-sm text-muted">Checking bike conflicts…</p>
+          )}
+
+          {extendPreview && (
+            <div className="space-y-2">
+              <div className="rounded-lg border border-token bg-[var(--color-bg)]/40 px-3 py-2.5 text-xs text-secondary">
+                New duration:{' '}
+                <span className="font-semibold text-primary-token">
+                  {extendPreview.proposed?.durationHours ?? '—'}h
+                </span>
+                {extendPreview.proposed?.matchedPricing?.packageName && (
+                  <>
+                    {' '}
+                    · Package hint:{' '}
+                    <span className="font-medium text-primary-token">
+                      {extendPreview.proposed.matchedPricing.packageName}
+                    </span>
+                  </>
+                )}
+              </div>
+              {(extendPreview.warnings || []).map((w) => (
+                <div
+                  key={w.code + w.message}
+                  className={
+                    w.level === 'error'
+                      ? 'rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-600 dark:text-red-400'
+                      : w.level === 'warning'
+                        ? 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400'
+                        : 'rounded-lg border border-token bg-[var(--color-bg)]/50 px-3 py-2.5 text-xs text-muted'
+                  }
+                >
+                  {w.message}
+                </div>
+              ))}
+              {!extendPreview.hasConflict &&
+                !(extendPreview.warnings || []).some((w) => w.level === 'error') && (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-700 dark:text-emerald-400">
+                    Schedule can be extended. No overlapping booking on this bike.
+                  </div>
+                )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Change bike — single modal with inline warnings */}
+      <Modal
+        open={changeBikeOpen}
+        onClose={() => !changeBikeMut.isPending && setChangeBikeOpen(false)}
+        title="Change bike"
+        description={
+          booking?.bike?.bikeNumber
+            ? `Current: ${booking.bike.bikeNumber}${booking.bike.name ? ` · ${booking.bike.name}` : ''}`
+            : 'No bike assigned yet'
+        }
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={changeBikeMut.isPending}
+              onClick={() => setChangeBikeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                changeBikeMut.isPending ||
+                !selectedOption ||
+                selectedOption.isCurrent ||
+                selectedOption.hasConflict
+              }
+              onClick={() =>
+                changeBikeMut.mutate({
+                  bikeId: selectedOption.id,
+                  confirmNonAvailable: selectedOption.status !== 'AVAILABLE',
+                })
+              }
+            >
+              {changeBikeMut.isPending
+                ? 'Changing…'
+                : selectedOption && selectedOption.status !== 'AVAILABLE'
+                  ? 'Change bike anyway'
+                  : 'Change bike'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {booking?.status === 'ACTIVE' && (
+            <p className="text-xs text-muted rounded-lg border border-token bg-[var(--color-bg)]/40 px-3 py-2">
+              Km was started on the previous bike. Check odometer at return if charges look wrong.
+            </p>
+          )}
+
+          {changeBikeLoading ? (
+            <p className="text-sm text-muted py-6 text-center">Loading bikes…</p>
+          ) : changeBikeOptions.length === 0 ? (
+            <p className="text-sm text-muted py-6 text-center">No bikes found for this campus.</p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
+              {changeBikeOptions.map((opt) => {
+                const active = selectedBikeId === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={opt.isCurrent}
+                    onClick={() => setSelectedBikeId(opt.id)}
+                    className={cn(
+                      'w-full text-left rounded-xl border px-3.5 py-3 transition-colors',
+                      active
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]/40'
+                        : 'border-token bg-surface hover:border-[var(--color-primary)]/40',
+                      opt.isCurrent && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-primary-token">
+                        {opt.bikeNumber || '—'}
+                      </span>
+                      <StatusBadge status={opt.status || 'AVAILABLE'} />
+                    </div>
+                    {(opt.name || opt.isCurrent) && (
+                      <p className="text-xs text-muted mt-1 truncate">
+                        {opt.name || ''}
+                        {opt.isCurrent ? ' · Current bike' : ''}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedOption && (
+            <div className="space-y-2">
+              {selectedOption.warnings?.map((w) => (
+                <div
+                  key={w.code}
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5 text-xs',
+                    w.level === 'error' &&
+                      'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400',
+                    w.level === 'warning' &&
+                      'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                    w.level === 'info' &&
+                      'border-token bg-[var(--color-bg)]/50 text-muted'
+                  )}
+                >
+                  {w.message}
+                </div>
+              ))}
+              {!selectedOption.hasConflict &&
+                selectedOption.status === 'AVAILABLE' &&
+                !selectedOption.isCurrent &&
+                !(selectedOption.warnings || []).some((w) => w.code === 'NEXT') && (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-700 dark:text-emerald-400">
+                    Safe to assign. No overlapping bookings on this bike.
+                  </div>
+                )}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Pickup modal */}
       <Modal

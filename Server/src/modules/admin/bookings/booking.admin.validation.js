@@ -90,3 +90,14 @@ export const adminCancelBookingSchema = z.object({
 export const recordCashRefundSchema = z.object({
   reference: z.string().trim().max(120).optional(),
 })
+
+
+export const changeBikeSchema = z.object({
+  bikeId: z.string().min(1, 'Select a bike'),
+  confirmNonAvailable: z.boolean().optional().default(false),
+})
+
+
+export const extendBookingSchema = z.object({
+  returnAt: z.string().datetime(),
+})

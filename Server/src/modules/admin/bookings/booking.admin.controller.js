@@ -15,6 +15,10 @@ import {
     collectAdditionalPayment,
     getLateReturnStats,
     computeLateCharges,
+    getChangeBikeOptions,
+    changeBookingBike,
+    previewExtendBooking,
+    extendBooking,
 } from './booking.admin.service.js'
 import prisma from '../../../config/prisma.js'
 
@@ -170,4 +174,50 @@ export const collectAdditionalPaymentController = asyncHandler(async (req, res) 
     const payment = await collectAdditionalPayment(id, { paymentMethod, reference })
     await audit(req, 'UPDATE', id, { action: 'collect_payment', paymentMethod })
     res.status(200).json(new ApiResponse(200, 'Payment collected', payment))
+})
+
+export const changeBikeOptionsController = asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const data = await getChangeBikeOptions(id)
+    res.status(200).json(new ApiResponse(200, 'Change bike options', data))
+})
+
+export const changeBikeController = asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const { bikeId, confirmNonAvailable = false } = req.body || {}
+    const result = await changeBookingBike(id, bikeId, { confirmNonAvailable })
+    await audit(req, 'UPDATE', id, {
+        action: 'change_bike',
+        fromBikeId: result.fromBike?.id || null,
+        fromBikeNumber: result.fromBike?.bikeNumber || null,
+        toBikeId: result.toBike?.id,
+        toBikeNumber: result.toBike?.bikeNumber,
+        confirmNonAvailable: Boolean(confirmNonAvailable),
+    })
+    res.status(200).json(new ApiResponse(200, 'Bike changed', result.booking))
+})
+
+
+export const previewExtendController = asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const returnAt = req.query.returnAt || req.body?.returnAt
+    if (!returnAt) {
+        return res.status(400).json(new ApiResponse(400, 'returnAt is required', null))
+    }
+    const data = await previewExtendBooking(id, returnAt)
+    res.status(200).json(new ApiResponse(200, 'Extend preview', data))
+})
+
+export const extendBookingController = asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const { returnAt } = req.body || {}
+    const result = await extendBooking(id, returnAt)
+    await audit(req, 'UPDATE', id, {
+        action: 'extend',
+        previousReturnAt: result.previousReturnAt,
+        newReturnAt: returnAt,
+        previousDurationHours: result.previousDurationHours,
+        newDurationHours: result.booking?.durationHours,
+    })
+    res.status(200).json(new ApiResponse(200, 'Booking extended', result.booking))
 })
