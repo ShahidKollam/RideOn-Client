@@ -4,7 +4,6 @@ import { useMutation } from '@tanstack/react-query'
 import {
     CalendarCheck,
     CalendarDays,
-    Clock3,
     MapPin,
     ChevronLeft,
     ChevronRight,
@@ -71,6 +70,156 @@ const formatSlot = (iso) => {
         minute: '2-digit',
         hour12: true,
     })
+}
+
+/** 24h "HH:mm" ↔ 12h parts for the tall AM/PM picker */
+const HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1)
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+
+function parseTimeParts(hhmm) {
+    const [hStr = '0', mStr = '0'] = String(hhmm || '00:00').split(':')
+    let h24 = Number(hStr) || 0
+    let m = Number(mStr) || 0
+    // Snap minute to nearest 5 for the picker list
+    m = Math.round(m / 5) * 5
+    if (m >= 60) m = 55
+    const ampm = h24 >= 12 ? 'PM' : 'AM'
+    let h12 = h24 % 12
+    if (h12 === 0) h12 = 12
+    return { h12, m: String(m).padStart(2, '0'), ampm }
+}
+
+function buildTime24(h12, m, ampm) {
+    let h24 = Number(h12) % 12
+    if (ampm === 'PM') h24 += 12
+    if (ampm === 'AM' && Number(h12) === 12) h24 = 0
+    return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/**
+ * Tall, touch-friendly 12-hour time picker with clear AM / PM.
+ * value / onChange use 24h "HH:mm" so existing local datetime state stays unchanged.
+ */
+function TimePicker({ value, onChange, disabled, 'aria-label': ariaLabel }) {
+    const { h12, m, ampm } = parseTimeParts(value)
+
+    const setPart = (next) => {
+        if (disabled) return
+        const nextH = next.h12 ?? h12
+        const nextM = next.m ?? m
+        const nextAmpm = next.ampm ?? ampm
+        onChange(buildTime24(nextH, nextM, nextAmpm))
+    }
+
+    const selectClass = cn(
+        'h-14 w-full appearance-none rounded-xl border border-token bg-surface px-3 text-center text-lg font-semibold tabular-nums text-primary-token',
+        'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/35 focus:border-[var(--color-primary)]',
+        'disabled:cursor-not-allowed disabled:opacity-50 transition-all',
+        'bg-[length:1rem] bg-[right_0.65rem_center] bg-no-repeat',
+        "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%2394a3b8%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M19 9l-7 7-7-7%27/%3E%3C/svg%3E')]"
+    )
+
+    return (
+        <div
+            className={cn(
+                'rounded-2xl border border-token bg-surface/80 p-2.5 shadow-sm',
+                disabled && 'opacity-60'
+            )}
+            role="group"
+            aria-label={ariaLabel}
+        >
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-stretch">
+                {/* Hour */}
+                <div className="min-w-0 flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
+                        Hour
+                    </span>
+                    <select
+                        value={h12}
+                        disabled={disabled}
+                        onChange={(e) => setPart({ h12: Number(e.target.value) })}
+                        className={selectClass}
+                        aria-label={`${ariaLabel} hour`}
+                    >
+                        {HOURS_12.map((h) => (
+                            <option key={h} value={h}>
+                                {h}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Minute */}
+                <div className="min-w-0 flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
+                        Min
+                    </span>
+                    <select
+                        value={m}
+                        disabled={disabled}
+                        onChange={(e) => setPart({ m: e.target.value })}
+                        className={selectClass}
+                        aria-label={`${ariaLabel} minute`}
+                    >
+                        {MINUTES.map((mm) => (
+                            <option key={mm} value={mm}>
+                                {mm}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* AM / PM tall toggles */}
+                <div className="flex flex-col gap-1 w-[4.25rem] sm:w-[4.75rem]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
+                        Period
+                    </span>
+                    <div className="flex flex-1 flex-col gap-1.5">
+                        {['AM', 'PM'].map((p) => {
+                            const active = ampm === p
+                            return (
+                                <button
+                                    key={p}
+                                    type="button"
+                                    disabled={disabled}
+                                    onClick={() => setPart({ ampm: p })}
+                                    className={cn(
+                                        'flex-1 min-h-[1.85rem] rounded-xl text-sm font-bold tracking-wide transition-all',
+                                        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40',
+                                        'disabled:cursor-not-allowed',
+                                        active
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md shadow-blue-500/25'
+                                            : 'bg-token/60 text-muted hover:bg-token hover:text-primary-token border border-token'
+                                    )}
+                                    aria-pressed={active}
+                                    aria-label={`${ariaLabel} ${p}`}
+                                >
+                                    {p}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Live 12h preview */}
+            <p className="mt-2 text-center text-xs font-medium text-muted tabular-nums">
+                <span className="text-primary-token font-semibold">
+                    {h12}:{m}
+                </span>{' '}
+                <span
+                    className={cn(
+                        'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold',
+                        ampm === 'AM'
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                            : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
+                    )}
+                >
+                    {ampm}
+                </span>
+            </p>
+        </div>
+    )
 }
 
 function StepPills({ phase }) {
@@ -444,31 +593,22 @@ export default function ReserveRidePage() {
                                             setPickupLocal((current) => `${date}T${current.slice(11, 16)}`)
                                             clearSlotAndForm()
                                         }}
-                                        className="h-12 pl-11"
+                                        className="h-14 pl-11 text-base font-medium"
                                         aria-label="Pickup date"
                                     />
                                 </div>
                             </Field>
 
                             <Field label="Pickup time" required>
-                                <div className="relative">
-                                    <Clock3
-                                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-primary)]"
-                                        size={18}
-                                    />
-                                    <Input
-                                        type="time"
-                                        value={pickupLocal.slice(11, 16)}
-                                        disabled={formOpen}
-                                        onChange={(e) => {
-                                            const time = e.target.value
-                                            setPickupLocal((current) => `${current.slice(0, 10)}T${time}`)
-                                            clearSlotAndForm()
-                                        }}
-                                        className="h-12 pl-11"
-                                        aria-label="Pickup time"
-                                    />
-                                </div>
+                                <TimePicker
+                                    value={pickupLocal.slice(11, 16)}
+                                    disabled={formOpen}
+                                    aria-label="Pickup time"
+                                    onChange={(time) => {
+                                        setPickupLocal((current) => `${current.slice(0, 10)}T${time}`)
+                                        clearSlotAndForm()
+                                    }}
+                                />
                             </Field>
 
                             <Field label="Return date" required>
@@ -487,31 +627,22 @@ export default function ReserveRidePage() {
                                             setReturnLocal((current) => `${date}T${current.slice(11, 16)}`)
                                             clearSlotAndForm()
                                         }}
-                                        className="h-12 pl-11"
+                                        className="h-14 pl-11 text-base font-medium"
                                         aria-label="Return date"
                                     />
                                 </div>
                             </Field>
 
                             <Field label="Return time" required>
-                                <div className="relative">
-                                    <Clock3
-                                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-primary)]"
-                                        size={18}
-                                    />
-                                    <Input
-                                        type="time"
-                                        value={returnLocal.slice(11, 16)}
-                                        disabled={formOpen}
-                                        onChange={(e) => {
-                                            const time = e.target.value
-                                            setReturnLocal((current) => `${current.slice(0, 10)}T${time}`)
-                                            clearSlotAndForm()
-                                        }}
-                                        className="h-12 pl-11"
-                                        aria-label="Return time"
-                                    />
-                                </div>
+                                <TimePicker
+                                    value={returnLocal.slice(11, 16)}
+                                    disabled={formOpen}
+                                    aria-label="Return time"
+                                    onChange={(time) => {
+                                        setReturnLocal((current) => `${current.slice(0, 10)}T${time}`)
+                                        clearSlotAndForm()
+                                    }}
+                                />
                             </Field>
                         </div>
                     </div>

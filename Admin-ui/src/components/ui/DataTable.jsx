@@ -22,6 +22,7 @@ export function DataTable({
   onLimitChange,
   rowKey = 'id',
   onRowClick,
+  getRowClassName,
 }) {
   if (loading) {
     return <TableSkeleton rows={6} />;
@@ -70,7 +71,8 @@ export function DataTable({
                 className={cn(
                   'border-b border-token last:border-0 transition-colors',
                   'hover:bg-[var(--color-primary-soft)]/40',
-                  onRowClick && 'cursor-pointer'
+                  onRowClick && 'cursor-pointer',
+                  getRowClassName?.(row)
                 )}
               >
                 {columns.map((col) => {
