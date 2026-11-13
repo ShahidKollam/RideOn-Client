@@ -1,6 +1,7 @@
 import express from 'express'
 import { protect } from '../../middlewares/auth.middleware.js'
 import { validate } from '../../middlewares/validation.middleware.js'
+import { paymentRateLimit } from '../../middlewares/rateLimit.middleware.js'
 import {
     createOrderController,
     verifyPaymentController,
@@ -14,12 +15,12 @@ import { createOrderSchema, verifyPaymentSchema, paymentQuerySchema } from './pa
 const router = express.Router()
 
 // Webhook – no auth, signature verified inside service
-// IMPORTANT: mount this route with raw body parser in app.js
+// Raw body is captured in app.js before JSON parser for this path
 router.post('/webhook', webhookController)
 
 // Authenticated user routes
-router.post('/create-order', protect, validate(createOrderSchema), createOrderController)
-router.post('/verify', protect, validate(verifyPaymentSchema), verifyPaymentController)
+router.post('/create-order', protect, paymentRateLimit, validate(createOrderSchema), createOrderController)
+router.post('/verify', protect, paymentRateLimit, validate(verifyPaymentSchema), verifyPaymentController)
 router.post('/mark-failed', protect, markPaymentFailedController)
 router.get('/', protect, getPaymentsController)
 router.get('/:id', protect, getPaymentController)
