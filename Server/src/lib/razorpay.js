@@ -38,31 +38,6 @@ export const createRazorpayOrder = async ({ amountInPaise, currency = 'INR', rec
     return order
 }
 
-// export const createRazorpayOrder = async ({
-//     amountInPaise,
-//     currency = 'INR',
-//     receipt,
-//     notes = {}
-// }) => {
-//     const razorpay = getRazorpay()
-
-//     const configurationId = process.env.RAZORPAY_CONFIG_ID
-
-//     if (!configurationId) {
-//         throw new ApiError(500, 'Razorpay configuration ID is not configured')
-//     }
-
-//     const order = await razorpay.orders.create( {
-//         amount: amountInPaise,
-//         currency,
-//         receipt,
-//         notes,
-//         config_id: configurationId,
-//     })
- 
-//     return order
-// }
-
 /**
  * Fetch payment details from Razorpay (GET /v1/payments/{payment_id})
  */
@@ -70,6 +45,17 @@ export const fetchRazorpayPayment = async (paymentId) => {
     const razorpay = getRazorpay()
     const payment = await razorpay.payments.fetch(paymentId)
     return payment
+}
+
+/**
+ * Constant-time string comparison to mitigate timing attacks on signatures.
+ */
+const safeEqual = (a, b) => {
+    if (typeof a !== 'string' || typeof b !== 'string') return false
+    const bufA = Buffer.from(a)
+    const bufB = Buffer.from(b)
+    if (bufA.length !== bufB.length) return false
+    return crypto.timingSafeEqual(bufA, bufB)
 }
 
 /**
@@ -84,12 +70,12 @@ export const verifyPaymentSignature = ({ razorpay_order_id, razorpay_payment_id,
     const body = `${razorpay_order_id}|${razorpay_payment_id}`
     const expectedSignature = crypto.createHmac('sha256', keySecret).update(body).digest('hex')
 
-    return expectedSignature === razorpay_signature
+    return safeEqual(expectedSignature, razorpay_signature)
 }
 
 /**
  * Verify webhook signature
- * Raw body string is required
+ * Raw body string is required (exact bytes Razorpay signed)
  */
 export const verifyWebhookSignature = (rawBody, signature) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET
@@ -97,8 +83,12 @@ export const verifyWebhookSignature = (rawBody, signature) => {
         throw new ApiError(500, 'Razorpay webhook secret is not configured')
     }
 
+    if (typeof rawBody !== 'string') {
+        return false
+    }
+
     const expectedSignature = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex')
-    return expectedSignature === signature
+    return safeEqual(expectedSignature, signature)
 }
 
 export const toPaise = (amountInRupees) => Math.round(Number(amountInRupees) * 100)

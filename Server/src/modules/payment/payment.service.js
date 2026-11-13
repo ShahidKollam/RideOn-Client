@@ -1,7 +1,8 @@
 import prisma from '../../config/prisma.js'
 import ApiError from '../../utils/ApiError.js'
 import { getBookingAvailability } from '../booking/availability.service.js'
-import { getUserOutstandingLateAmount } from '../booking/booking.service.js'
+// DEACTIVATED: outstanding late on next booking (re-enable later)
+// import { getUserOutstandingLateAmount } from '../booking/booking.service.js'
 import { findAvailableBike } from '../bike/bike.service.js'
 import {
     createRazorpayOrder,
@@ -129,34 +130,33 @@ const createBookingForPaidPayment = async (tx, payment, razorpay_payment_id, sou
     })
     console.log(`✅ [${source}] Booking created: ${booking.id} (${booking.bookingNumber})`)
 
-    // Settle any outstanding late amounts from previous bookings that were included in this payment
-    const outstandingIds = intent.outstandingBookingIds || []
-    if (outstandingIds.length > 0) {
-        for (const oldId of outstandingIds) {
-            await tx.booking.update({
-                where: { id: oldId },
-                data: { paymentStatus: 'PAID' },
-            })
-            // Record an offline allocation payment against the old booking for audit trail
-            await tx.payment.create({
-                data: {
-                    userId,
-                    bookingId: oldId,
-                    gateway: 'OUTSTANDING_SETTLEMENT',
-                    gatewayOrderId: `SETTLE-${payment.id}-${oldId.slice(-6)}`,
-                    amount: 0, // actual split is in gatewayResponse of main payment
-                    status: 'PAID',
-                    paymentMethod: 'INCLUDED_IN_NEXT_BOOKING',
-                    paidAt: new Date(),
-                    gatewayResponse: {
-                        settledViaPaymentId: payment.id,
-                        settledViaOrderId: payment.gatewayOrderId,
-                    },
-                },
-            })
-        }
-        console.log(`💰 [${source}] Settled outstanding late on ${outstandingIds.length} booking(s)`)
-    }
+    // DEACTIVATED: settle outstanding late bundled into next booking payment (re-enable with createOrder block)
+    // const outstandingIds = intent.outstandingBookingIds || []
+    // if (outstandingIds.length > 0) {
+    //     for (const oldId of outstandingIds) {
+    //         await tx.booking.update({
+    //             where: { id: oldId },
+    //             data: { paymentStatus: 'PAID' },
+    //         })
+    //         await tx.payment.create({
+    //             data: {
+    //                 userId,
+    //                 bookingId: oldId,
+    //                 gateway: 'OUTSTANDING_SETTLEMENT',
+    //                 gatewayOrderId: `SETTLE-${payment.id}-${oldId.slice(-6)}`,
+    //                 amount: 0,
+    //                 status: 'PAID',
+    //                 paymentMethod: 'INCLUDED_IN_NEXT_BOOKING',
+    //                 paidAt: new Date(),
+    //                 gatewayResponse: {
+    //                     settledViaPaymentId: payment.id,
+    //                     settledViaOrderId: payment.gatewayOrderId,
+    //                 },
+    //             },
+    //         })
+    //     }
+    //     console.log(`💰 [${source}] Settled outstanding late on ${outstandingIds.length} booking(s)`)
+    // }
 
     // Update payment → PAID and link booking
     console.log(`💳 [${source}] Payment status before update: ${payment.status}`)
@@ -218,11 +218,14 @@ export const createOrder = async ({ campusId, pickupAt, returnAt, notes, helmetC
     const count = summary.helmetCount ?? 0
     const helmetAmount = summary.helmetAmount ?? 0
 
-    // Outstanding late amount from previous completed bookings (kept separate from rental)
-    const outstandingInfo = await getUserOutstandingLateAmount(userId)
-    const outstandingLateAmount = outstandingInfo.outstandingLateAmount || 0
+    // DEACTIVATED: do not add outstanding late from previous bookings into new booking payment.
+    // Re-enable later by restoring getUserOutstandingLateAmount and adding it to amount.
+    // const outstandingInfo = await getUserOutstandingLateAmount(userId)
+    // const outstandingLateAmount = outstandingInfo.outstandingLateAmount || 0
+    const outstandingInfo = { outstandingLateAmount: 0, outstandingBookings: [] }
+    const outstandingLateAmount = 0
 
-    // totalAmount already includes helmet + GST; add outstanding late if any
+    // totalAmount already includes helmet + GST (outstanding late not added while deactivated)
     const rentalAmount = Number(summary.totalAmount.toFixed(2))
     const amount = Number((rentalAmount + outstandingLateAmount).toFixed(2))
     const amountInPaise = toPaise(amount)

@@ -196,6 +196,9 @@ export const listBookings = async (query) => {
         search,
         from,
         to,
+        dateField = 'pickup',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
         lateOnly,
     } = query
 
@@ -205,33 +208,47 @@ export const listBookings = async (query) => {
     if (campusId) where.campusId = campusId
     if (userId) where.userId = userId
     if (bikeId) where.bikeId = bikeId
+
+    // from/to apply to pickupAt (default) or returnAt
     if (from || to) {
-        where.pickupAt = {}
-        if (from) where.pickupAt.gte = new Date(from)
-        if (to) where.pickupAt.lte = new Date(to)
+        const field = dateField === 'return' ? 'returnAt' : 'pickupAt'
+        where[field] = {}
+        if (from) where[field].gte = new Date(from)
+        if (to) where[field].lte = new Date(to)
     }
+
     if (search) {
         where.OR = [
             { bookingNumber: { contains: search, mode: 'insensitive' } },
             { user: { email: { contains: search, mode: 'insensitive' } } },
             { user: { name: { contains: search, mode: 'insensitive' } } },
             { bike: { bikeNumber: { contains: search, mode: 'insensitive' } } },
+            { guestName: { contains: search, mode: 'insensitive' } },
+            { guestEmail: { contains: search, mode: 'insensitive' } },
+            { guestPhone: { contains: search, mode: 'insensitive' } },
         ]
     }
 
     // Late returns: ACTIVE past returnAt, or COMPLETED with lateDurationMinutes > 0
     if (lateOnly) {
-        where.OR = [
-            ...(where.OR || []),
-            {
-                status: 'ACTIVE',
-                returnAt: { lt: new Date() },
-            },
-            {
-                lateDurationMinutes: { gt: 0 },
-            },
-        ]
+        const lateClause = {
+            OR: [
+                { status: 'ACTIVE', returnAt: { lt: new Date() } },
+                { lateDurationMinutes: { gt: 0 } },
+            ],
+        }
+        if (where.OR) {
+            // Combine search OR with late filter via AND
+            where.AND = [{ OR: where.OR }, lateClause]
+            delete where.OR
+        } else {
+            Object.assign(where, lateClause)
+        }
     }
+
+    const allowedSort = new Set(['createdAt', 'pickupAt', 'returnAt'])
+    const orderField = allowedSort.has(sortBy) ? sortBy : 'createdAt'
+    const orderDir = sortOrder === 'asc' ? 'asc' : 'desc'
 
     const skip = (page - 1) * limit
     const [items, total, settings] = await Promise.all([
@@ -240,7 +257,7 @@ export const listBookings = async (query) => {
             include: BOOKING_INCLUDE,
             skip,
             take: limit,
-            orderBy: { createdAt: 'desc' },
+            orderBy: { [orderField]: orderDir },
         }),
         prisma.booking.count({ where }),
         prisma.systemSetting.findFirst(),
@@ -811,7 +828,8 @@ const CHANGE_BIKE_BLOCKED = ['COMPLETED', 'CANCELLED']
 const OVERLAP_STATUSES = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
 
 /**
- * List campus bikes with conflict + next-booking impact for change-bike UI.
+ * List ALL active campus bikes with conflict + next-booking impact for change-bike UI.
+ * Overlaps are warnings only — admin may still assign (soft conflict).
  */
 export const getChangeBikeOptions = async (bookingId) => {
     const booking = await prisma.booking.findUnique({
@@ -838,6 +856,7 @@ export const getChangeBikeOptions = async (bookingId) => {
     const bufferedReturnAt = new Date(new Date(booking.returnAt).getTime() + bufferMinutes * 60 * 1000)
     const now = new Date()
 
+    // Always list every active bike on this campus (AVAILABLE, IN_USE, MAINTENANCE, etc.)
     const bikes = await prisma.bike.findMany({
         where: {
             campusId: booking.campusId,
@@ -881,6 +900,16 @@ export const getChangeBikeOptions = async (bookingId) => {
         byBike.get(b.bikeId).push(b)
     }
 
+    const fmtLocal = (d) =>
+        new Date(d).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        })
+
     const options = bikes.map((bike) => {
         const others = byBike.get(bike.id) || []
         const conflict = others.find(
@@ -888,6 +917,7 @@ export const getChangeBikeOptions = async (bookingId) => {
                 new Date(ob.pickupAt) < bufferedReturnAt &&
                 new Date(ob.returnAt) > bufferStart
         )
+        // Prefer a future pickup as "next ride"; fall back to any still-live booking
         const nextBooking =
             others.find((ob) => new Date(ob.pickupAt) >= now) ||
             others.find((ob) => new Date(ob.returnAt) >= now) ||
@@ -895,7 +925,11 @@ export const getChangeBikeOptions = async (bookingId) => {
 
         const warnings = []
         if (bike.id === booking.bikeId) {
-            warnings.push({ level: 'info', code: 'CURRENT', message: 'Already assigned to this booking' })
+            warnings.push({
+                level: 'info',
+                code: 'CURRENT',
+                message: 'Already assigned to this booking',
+            })
         }
         if (bike.status !== 'AVAILABLE') {
             warnings.push({
@@ -906,16 +940,27 @@ export const getChangeBikeOptions = async (bookingId) => {
         }
         if (conflict) {
             warnings.push({
-                level: 'error',
-                code: 'CONFLICT',
-                message: `Overlaps booking #${conflict.bookingNumber || conflict.id.slice(0, 8)} (${conflict.status}).`,
-            })
-        } else if (nextBooking) {
-            warnings.push({
                 level: 'warning',
-                code: 'NEXT',
-                message: `Next booking on this bike: #${nextBooking.bookingNumber || nextBooking.id.slice(0, 8)} · pickup ${new Date(nextBooking.pickupAt).toLocaleString('en-IN')}.`,
+                code: 'CONFLICT',
+                message: `Overlaps live booking #${conflict.bookingNumber || conflict.id.slice(0, 8)} (${conflict.status}) · ${fmtLocal(conflict.pickupAt)} → ${fmtLocal(conflict.returnAt)}. You can still assign — resolve the other booking if needed.`,
             })
+        }
+        // Always surface next ride when present (even if same as conflict)
+        if (nextBooking) {
+            const isSameAsConflict = conflict && conflict.id === nextBooking.id
+            if (!isSameAsConflict) {
+                warnings.push({
+                    level: 'warning',
+                    code: 'NEXT',
+                    message: `Next ride on this bike: #${nextBooking.bookingNumber || nextBooking.id.slice(0, 8)} (${nextBooking.status}) · pickup ${fmtLocal(nextBooking.pickupAt)}.`,
+                })
+            } else {
+                warnings.push({
+                    level: 'info',
+                    code: 'NEXT',
+                    message: `That overlapping booking is the next ride on this bike.`,
+                })
+            }
         }
 
         return {
@@ -927,6 +972,7 @@ export const getChangeBikeOptions = async (bookingId) => {
             currentOdometer: bike.currentOdometer,
             isCurrent: bike.id === booking.bikeId,
             hasConflict: Boolean(conflict),
+            hasOtherBooking: others.length > 0,
             conflict: conflict
                 ? {
                       id: conflict.id,
@@ -949,7 +995,7 @@ export const getChangeBikeOptions = async (bookingId) => {
         }
     })
 
-    // AVAILABLE first, then no conflict, then by bike number
+    // Current last; then non-conflict AVAILABLE; then others; bike number within groups
     options.sort((a, b) => {
         if (a.isCurrent !== b.isCurrent) return a.isCurrent ? 1 : -1
         if (a.hasConflict !== b.hasConflict) return a.hasConflict ? 1 : -1
@@ -1003,34 +1049,11 @@ export const changeBookingBike = async (bookingId, newBikeId, { confirmNonAvaila
     if (newBike.campusId !== booking.campusId) {
         throw new ApiError(400, 'Bike must belong to the same campus as the booking')
     }
-    if (newBike.status !== 'AVAILABLE' && !confirmNonAvailable) {
-        throw new ApiError(
-            400,
-            `Bike is ${newBike.status}. Pass confirmNonAvailable to proceed if it is free at the counter.`
-        )
-    }
+    // Admin may assign any active bike (AVAILABLE / IN_USE / MAINTENANCE / etc.).
+    // Status + overlaps are UI warnings only — never hard-block. confirmNonAvailable ignored (compat).
+    void confirmNonAvailable
 
-    const bufferMinutes = await getBookingBufferMinutes()
-    const bufferStart = new Date(new Date(booking.pickupAt).getTime() - bufferMinutes * 60 * 1000)
-    const bufferedReturnAt = new Date(new Date(booking.returnAt).getTime() + bufferMinutes * 60 * 1000)
-
-    const conflict = await prisma.booking.findFirst({
-        where: {
-            bikeId: newBikeId,
-            id: { not: booking.id },
-            status: { in: OVERLAP_STATUSES },
-            pickupAt: { lt: bufferedReturnAt },
-            returnAt: { gt: bufferStart },
-        },
-        select: { id: true, bookingNumber: true, status: true, pickupAt: true, returnAt: true },
-    })
-    if (conflict) {
-        throw new ApiError(
-            400,
-            `Bike conflicts with booking #${conflict.bookingNumber || conflict.id.slice(0, 8)} (${conflict.status})`
-        )
-    }
-
+    // Soft conflict only: overlap is allowed for admin (UI shows warnings). No hard block.
     const oldBikeId = booking.bikeId
     const isActive = booking.status === 'ACTIVE'
 

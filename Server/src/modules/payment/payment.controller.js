@@ -99,13 +99,20 @@ export const getPaymentsController = asyncHandler(async (req, res) => {
 
 /**
  * POST /payments/webhook
- * Raw body required for signature verification.
+ * Raw body required for signature verification (set in app.js via express.raw).
  * No auth – secured by Razorpay webhook signature.
  */
 export const webhookController = asyncHandler(async (req, res) => {
     const signature = req.headers['x-razorpay-signature']
-    // Prefer raw body (must be configured in Express with express.raw or similar for this route)
-    const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body))
+    // Only trust req.rawBody from the dedicated raw parser. Never re-stringify parsed JSON
+    // (key order / whitespace would break HMAC verification).
+    const rawBody = typeof req.rawBody === 'string' ? req.rawBody : null
+    if (!rawBody) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid webhook body',
+        })
+    }
 
     const result = await processWebhook(rawBody, signature)
 
