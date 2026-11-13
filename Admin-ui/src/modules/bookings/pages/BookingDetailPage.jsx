@@ -143,11 +143,11 @@ export default function BookingDetailPage() {
     retry: false,
   });
 
-  // Always show Change bike for any open booking (not completed/cancelled).
-  // Permission: bookings.update, wildcard, or SUPER_ADMIN role fallback inside hasPermission.
+  // Change bike only for CONFIRMED bookings (not ACTIVE or others).
+  // Related to booking status only — not bike status.
   const canChangeBike =
     !!booking &&
-    !['COMPLETED', 'CANCELLED'].includes(String(booking.status || '').toUpperCase()) &&
+    String(booking.status || '').toUpperCase() === 'CONFIRMED' &&
     (hasPermission('bookings.update') || hasPermission('*') || hasPermission('bookings.*'));
 
   const [searchParams, setSearchParams] = useSearchParams();

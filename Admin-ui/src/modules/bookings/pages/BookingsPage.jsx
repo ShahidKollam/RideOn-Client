@@ -495,7 +495,7 @@ export default function BookingsPage() {
                         items={[
                             { label: 'View', icon: Eye, onClick: () => navigate(`/bookings/${r.id}`) },
                             (hasPermission('bookings.update') || hasPermission('*') || hasPermission('bookings.*')) &&
-                                !['COMPLETED', 'CANCELLED'].includes(String(r.status || '').toUpperCase()) && {
+                                String(r.status || '').toUpperCase() === 'CONFIRMED' && {
                                     label: 'Change bike',
                                     icon: RefreshCw,
                                     onClick: () => navigate(`/bookings/${r.id}?changeBike=1`),
