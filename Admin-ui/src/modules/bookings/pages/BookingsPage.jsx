@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X, Plus, SlidersHorizontal, Filter, CalendarDays, RotateCcw, Bike, AlertCircle } from 'lucide-react'
+import { Search, CalendarCheck, Calendar, Eye, KeyRound, Undo2, CircleX, CreditCard, X, Plus, SlidersHorizontal, Filter, CalendarDays, RotateCcw, Bike, AlertCircle, RefreshCw } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { DataTable } from '../../../components/ui/DataTable'
@@ -124,8 +124,14 @@ export default function BookingsPage() {
         [statusFilter, setStatusFilter] = useState(''),
         [dateFrom, setDateFrom] = useState(todayYmd()),
         [dateTo, setDateTo] = useState(todayYmd()),
+        [dateField, setDateField] = useState('pickup'), // pickup | return
+        [sortBy, setSortBy] = useState('createdAt'),
+        [sortOrder, setSortOrder] = useState('desc'),
         [lateOnly, setLateOnly] = useState(() => searchParams.get('late') === '1'),
-        [campusId, setCampusId] = useState('')
+        [campusId, setCampusId] = useState(''),
+        [activeKpi, setActiveKpi] = useState(() =>
+            searchParams.get('late') === '1' ? 'late' : null
+        )
     // Advanced filter drawer (draft vs applied — close without Apply does not change results)
     const [filterOpen, setFilterOpen] = useState(false)
     const [mobileDateOpen, setMobileDateOpen] = useState(false)
@@ -168,6 +174,8 @@ export default function BookingsPage() {
         setCampusId(draftCampusId)
         setPage(1)
         setFilterOpen(false)
+        if (draftLateOnly) setActiveKpi('late')
+        else if (activeKpi === 'late') setActiveKpi(null)
     }
     const resetAdvancedFilters = () => {
         // Clear advanced only — keep toolbar search + date range
@@ -176,17 +184,82 @@ export default function BookingsPage() {
         setLateOnly(false)
         setCampusId('')
         setPage(1)
+        if (activeKpi === 'late') setActiveKpi(null)
+    }
+
+    /** Apply a top KPI as list filters (same page, additive with toolbar). */
+    const applyKpi = (key) => {
+        const today = todayYmd()
+        setPage(1)
+        setSearch('')
+        setSearchInput('')
+        setCampusId('')
+        if (key === 'pickups') {
+            setActiveKpi('pickups')
+            setLateOnly(false)
+            setStatusFilter('')
+            setDateFrom(today)
+            setDateTo(today)
+            setDateField('pickup')
+            setSortBy('pickupAt')
+            setSortOrder('asc')
+        } else if (key === 'returns') {
+            setActiveKpi('returns')
+            setLateOnly(false)
+            setStatusFilter('ACTIVE')
+            setDateFrom(today)
+            setDateTo(today)
+            setDateField('return')
+            setSortBy('returnAt')
+            setSortOrder('asc')
+        } else if (key === 'active') {
+            setActiveKpi('active')
+            setLateOnly(false)
+            setStatusFilter('ACTIVE')
+            setDateFrom('')
+            setDateTo('')
+            setDateField('pickup')
+            setSortBy('returnAt')
+            setSortOrder('asc')
+        } else if (key === 'late') {
+            setActiveKpi('late')
+            setLateOnly(true)
+            setStatusFilter('')
+            setDateFrom('')
+            setDateTo('')
+            setDateField('pickup')
+            setSortBy('returnAt')
+            setSortOrder('asc')
+        }
     }
 
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['bookings', { page, limit, search, status: statusFilter, lateOnly, dateFrom, dateTo, campusId }],
+        queryKey: [
+            'bookings',
+            {
+                page,
+                limit,
+                search,
+                status: statusFilter,
+                lateOnly,
+                dateFrom,
+                dateTo,
+                dateField,
+                sortBy,
+                sortOrder,
+                campusId,
+            },
+        ],
         queryFn: () => {
             const qs = new URLSearchParams({ page: String(page), limit: String(limit) })
             if (search) qs.set('search', search)
             if (statusFilter) qs.set('status', statusFilter)
             if (lateOnly) qs.set('lateOnly', 'true')
             if (campusId) qs.set('campusId', campusId)
-            // Filter by scheduled pickup: single day or inclusive range
+            if (dateField) qs.set('dateField', dateField)
+            if (sortBy) qs.set('sortBy', sortBy)
+            if (sortOrder) qs.set('sortOrder', sortOrder)
+            // from/to on pickup or return depending on dateField
             if (dateFrom && dateTo) {
                 const start = toStartISO(dateFrom)
                 const end = toEndISO(dateTo)
@@ -421,6 +494,12 @@ export default function BookingsPage() {
                     <ActionMenu
                         items={[
                             { label: 'View', icon: Eye, onClick: () => navigate(`/bookings/${r.id}`) },
+                            (hasPermission('bookings.update') || hasPermission('*') || hasPermission('bookings.*')) &&
+                                !['COMPLETED', 'CANCELLED'].includes(String(r.status || '').toUpperCase()) && {
+                                    label: 'Change bike',
+                                    icon: RefreshCw,
+                                    onClick: () => navigate(`/bookings/${r.id}?changeBike=1`),
+                                },
                             hasPermission('bookings.update') &&
                                 r.status === 'CONFIRMED' && {
                                     label: 'Record Pickup',
@@ -466,53 +545,71 @@ export default function BookingsPage() {
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
                 {[
                     {
+                        key: 'pickups',
                         label: "Today's Pickups",
                         value: todayPickupsCount,
                         hint: 'Scheduled collections',
                         icon: CalendarDays,
                         iconWrap: 'bg-blue-500/15 text-blue-400',
                         valueClass: 'text-primary-token',
+                        onClick: () => applyKpi('pickups'),
                     },
                     {
+                        key: 'returns',
                         label: "Today's Returns",
                         value: todayReturnsCount,
                         hint: 'Expected returns',
                         icon: RotateCcw,
                         iconWrap: 'bg-emerald-500/15 text-emerald-400',
                         valueClass: 'text-primary-token',
+                        onClick: () => applyKpi('returns'),
                     },
                     {
+                        key: 'active',
                         label: 'Active Rentals',
                         value: activeRentalsCount,
                         hint: 'Currently rented',
                         icon: Bike,
                         iconWrap: 'bg-amber-500/15 text-amber-400',
                         valueClass: 'text-primary-token',
+                        onClick: () => applyKpi('active'),
                     },
                     {
+                        key: 'late',
                         label: 'Late Returns',
                         value: lateReturnsCount,
                         hint: 'Require attention',
                         icon: AlertCircle,
                         iconWrap: 'bg-red-500/15 text-red-400',
                         valueClass: lateReturnsCount > 0 ? 'text-red-400' : 'text-primary-token',
-                        onClick: () => {
-                            setLateOnly(true)
-                            setPage(1)
-                        },
+                        onClick: () => applyKpi('late'),
                     },
                 ].map((s) => {
                     const Icon = s.icon
+                    const isActive = activeKpi === s.key
                     return (
                         <button
-                            key={s.label}
+                            key={s.key || s.label}
                             type="button"
-                            onClick={s.onClick}
-                            aria-label={s.onClick ? `Show ${s.label.toLowerCase()}` : undefined}
-                            className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-4 text-left shadow-card transition-colors ${
-                                s.onClick
-                                    ? 'cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50'
-                                    : 'cursor-default'
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (typeof s.onClick === 'function') s.onClick()
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    if (typeof s.onClick === 'function') s.onClick()
+                                }
+                            }}
+                            aria-label={`Filter: ${s.label}`}
+                            aria-pressed={isActive}
+                            className={`group relative z-10 flex min-w-0 flex-col rounded-xl border bg-surface p-4 text-left shadow-card transition-colors cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50 ${
+                                isActive
+                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]/25 ring-1 ring-[var(--color-primary)]/30'
+                                    : 'border-token hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 active:scale-[0.99]'
                             }`}
                         >
                             <div className="flex w-full items-center justify-between gap-3">
@@ -630,6 +727,8 @@ export default function BookingsPage() {
                                                 const v = e.target.value
                                                 setDateFrom(v)
                                                 if (!dateTo || (v && v > dateTo)) setDateTo(v)
+                                                setDateField('pickup')
+                                                setActiveKpi(null)
                                                 setPage(1)
                                             }}
                                         />
@@ -645,6 +744,8 @@ export default function BookingsPage() {
                                                 const v = e.target.value
                                                 setDateTo(v)
                                                 if (!dateFrom || (v && v < dateFrom)) setDateFrom(v)
+                                                setDateField('pickup')
+                                                setActiveKpi(null)
                                                 setPage(1)
                                             }}
                                         />
@@ -652,6 +753,7 @@ export default function BookingsPage() {
                                 </div>
                                 <p className="text-[11px] text-muted">
                                     Same From and To = single day. Different dates = range.
+                                    {dateField === 'return' ? ' Filtering by return time.' : ' Filtering by pickup time.'}
                                 </p>
                                 <div className="flex gap-2">
                                     {(dateFrom || dateTo) && (
@@ -663,6 +765,8 @@ export default function BookingsPage() {
                                             onClick={() => {
                                                 setDateFrom('')
                                                 setDateTo('')
+                                                setDateField('pickup')
+                                                setActiveKpi(null)
                                                 setPage(1)
                                             }}
                                         >
@@ -690,6 +794,7 @@ export default function BookingsPage() {
                                         type="button"
                                         onClick={() => {
                                             setStatusFilter(opt.value)
+                                            setActiveKpi(null)
                                             setPage(1)
                                             setMobileStatusOpen(false)
                                         }}
@@ -771,6 +876,8 @@ export default function BookingsPage() {
                                         const value = e.target.value
                                         setDateFrom(value)
                                         if (!dateTo || (value && value > dateTo)) setDateTo(value)
+                                        setDateField('pickup')
+                                        setActiveKpi(null)
                                         setPage(1)
                                     }}
                                     title="From date"
@@ -785,6 +892,8 @@ export default function BookingsPage() {
                                         const value = e.target.value
                                         setDateTo(value)
                                         if (!dateFrom || (value && value < dateFrom)) setDateFrom(value)
+                                        setDateField('pickup')
+                                        setActiveKpi(null)
                                         setPage(1)
                                     }}
                                     title="To date"
@@ -797,6 +906,8 @@ export default function BookingsPage() {
                                         onClick={() => {
                                             setDateFrom('')
                                             setDateTo('')
+                                            setDateField('pickup')
+                                            setActiveKpi(null)
                                             setPage(1)
                                         }}
                                     >
@@ -810,6 +921,7 @@ export default function BookingsPage() {
                                 className="h-10 w-[10rem] shrink-0"
                                 onChange={(e) => {
                                     setStatusFilter(e.target.value)
+                                    setActiveKpi(null)
                                     setPage(1)
                                 }}
                             >

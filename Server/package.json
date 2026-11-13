@@ -1,6 +1,6 @@
 {
   "name": "rideon-backend",
-  "version": "1.2.32",
+  "version": "1.2.33",
   "description": "Backend for RideOn startup",
   "main": "src/server.js",
   "type": "module",

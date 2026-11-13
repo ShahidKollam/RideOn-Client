@@ -69,13 +69,16 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isVerifiedFilter, setIsVerifiedFilter] = useState('');
   const [selected, setSelected] = useState(null);
+  const [activeKpi, setActiveKpi] = useState(null);
 
   const { data, isLoading, error, refetch } = useUsers({
     page,
     limit,
     search,
     onboardingStatus: statusFilter || undefined,
+    isVerified: isVerifiedFilter === '' ? undefined : isVerifiedFilter,
   });
 
   const { rows, total, totalPages } = parseList(data || {});
@@ -103,6 +106,7 @@ export default function UsersPage() {
 
   const userStats = [
     {
+      key: 'total',
       label: 'Total Users',
       value: totalUsers,
       hint: 'All registered',
@@ -111,18 +115,28 @@ export default function UsersPage() {
       valueClass: 'text-primary-token',
       onClick: () => {
         setStatusFilter('');
+        setIsVerifiedFilter('');
+        setActiveKpi('total');
         setPage(1);
       },
     },
     {
+      key: 'verified',
       label: 'Verified Users',
       value: verifiedUsers,
       hint: 'Identity verified',
       icon: BadgeCheck,
       iconWrap: 'bg-emerald-500/15 text-emerald-400',
       valueClass: 'text-primary-token',
+      onClick: () => {
+        setStatusFilter('');
+        setIsVerifiedFilter('true');
+        setActiveKpi('verified');
+        setPage(1);
+      },
     },
     {
+      key: 'profile',
       label: 'Profile Submitted',
       value: profileSubmitted,
       hint: 'Onboarding complete',
@@ -131,10 +145,13 @@ export default function UsersPage() {
       valueClass: 'text-primary-token',
       onClick: () => {
         setStatusFilter('PROFILE_COMPLETED');
+        setIsVerifiedFilter('');
+        setActiveKpi('profile');
         setPage(1);
       },
     },
     {
+      key: 'email',
       label: 'Email Verified',
       value: emailVerified,
       hint: 'Awaiting profile',
@@ -143,6 +160,8 @@ export default function UsersPage() {
       valueClass: 'text-primary-token',
       onClick: () => {
         setStatusFilter('EMAIL_VERIFIED');
+        setIsVerifiedFilter('');
+        setActiveKpi('email');
         setPage(1);
       },
     },
@@ -221,20 +240,22 @@ export default function UsersPage() {
         description="Manage and monitor platform users"
       />
 
-      {/* KPI cards — bookings-style */}
+      {/* KPI cards — bookings-style (all clickable filters) */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         {userStats.map((s) => {
           const Icon = s.icon;
+          const isActive = activeKpi === s.key;
           return (
             <button
               key={s.label}
               type="button"
               onClick={s.onClick}
-              aria-label={s.onClick ? `Show ${s.label.toLowerCase()}` : undefined}
-              className={`group flex min-w-0 flex-col rounded-xl border border-token bg-surface p-4 text-left shadow-card transition-colors ${
-                s.onClick
-                  ? 'cursor-pointer hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50'
-                  : 'cursor-default'
+              aria-label={`Show ${s.label.toLowerCase()}`}
+              aria-pressed={isActive}
+              className={`group flex min-w-0 flex-col rounded-xl border bg-surface p-4 text-left shadow-card transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/50 ${
+                isActive
+                  ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]/25 ring-1 ring-[var(--color-primary)]/30'
+                  : 'border-token hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary-soft)]/15'
               }`}
             >
               <div className="flex w-full items-center justify-between gap-3">

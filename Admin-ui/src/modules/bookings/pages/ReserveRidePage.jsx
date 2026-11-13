@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import {
@@ -7,6 +7,7 @@ import {
     MapPin,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     Bike,
     User,
     CheckCircle2,
@@ -97,7 +98,124 @@ function buildTime24(h12, m, ampm) {
 }
 
 /**
- * Tall, touch-friendly 12-hour time picker with clear AM / PM.
+ * Custom list dropdown — polished trigger + scrollable panel (no native select).
+ */
+function TimeMenu({
+    value,
+    options,
+    onChange,
+    disabled,
+    label,
+    formatOption = (v) => String(v).padStart(2, '0'),
+    'aria-label': ariaLabel,
+}) {
+    const [open, setOpen] = useState(false)
+    const rootRef = useRef(null)
+    const listRef = useRef(null)
+    const listId = useId()
+
+    useEffect(() => {
+        if (!open) return
+        const onDoc = (e) => {
+            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false)
+        }
+        const onKey = (e) => {
+            if (e.key === 'Escape') setOpen(false)
+        }
+        document.addEventListener('mousedown', onDoc)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('mousedown', onDoc)
+            document.removeEventListener('keydown', onKey)
+        }
+    }, [open])
+
+    useEffect(() => {
+        if (!open || !listRef.current) return
+        const el = listRef.current.querySelector('[data-selected="true"]')
+        if (el) el.scrollIntoView({ block: 'center' })
+    }, [open])
+
+    const display = formatOption(value)
+
+    return (
+        <div ref={rootRef} className="relative min-w-0 flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
+                {label}
+            </span>
+            <button
+                type="button"
+                disabled={disabled}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                aria-controls={listId}
+                aria-label={ariaLabel}
+                onClick={() => !disabled && setOpen((v) => !v)}
+                className={cn(
+                    'h-14 w-full rounded-xl border px-2.5 flex items-center justify-center gap-1',
+                    'text-lg font-semibold tabular-nums text-primary-token transition-all',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40',
+                    disabled && 'cursor-not-allowed opacity-50',
+                    open
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]/30 shadow-sm'
+                        : 'border-token bg-surface hover:border-[var(--color-primary)]/40'
+                )}
+            >
+                <span className="min-w-[1.75rem] text-center">{display}</span>
+                <ChevronDown
+                    size={16}
+                    className={cn(
+                        'shrink-0 text-muted transition-transform duration-200',
+                        open && 'rotate-180 text-[var(--color-primary)]'
+                    )}
+                />
+            </button>
+
+            {open && (
+                <div
+                    id={listId}
+                    role="listbox"
+                    aria-label={ariaLabel}
+                    ref={listRef}
+                    className={cn(
+                        'absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50',
+                        'max-h-52 overflow-y-auto overscroll-contain',
+                        'rounded-xl border border-token bg-surface shadow-xl shadow-black/10',
+                        'py-1.5 ring-1 ring-black/5 dark:ring-white/10'
+                    )}
+                >
+                    {options.map((opt) => {
+                        const selected = String(opt) === String(value)
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                data-selected={selected ? 'true' : undefined}
+                                onClick={() => {
+                                    onChange(opt)
+                                    setOpen(false)
+                                }}
+                                className={cn(
+                                    'flex w-full items-center justify-center px-3 py-2.5 text-base font-semibold tabular-nums transition-colors',
+                                    selected
+                                        ? 'bg-[var(--color-primary)] text-white'
+                                        : 'text-primary-token hover:bg-[var(--color-primary-soft)]/50'
+                                )}
+                            >
+                                {formatOption(opt)}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    )
+}
+
+/**
+ * Tall, touch-friendly 12-hour time picker with custom hour/min menus + AM/PM.
  * value / onChange use 24h "HH:mm" so existing local datetime state stays unchanged.
  */
 function TimePicker({ value, onChange, disabled, 'aria-label': ariaLabel }) {
@@ -111,14 +229,6 @@ function TimePicker({ value, onChange, disabled, 'aria-label': ariaLabel }) {
         onChange(buildTime24(nextH, nextM, nextAmpm))
     }
 
-    const selectClass = cn(
-        'h-14 w-full appearance-none rounded-xl border border-token bg-surface px-3 text-center text-lg font-semibold tabular-nums text-primary-token',
-        'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/35 focus:border-[var(--color-primary)]',
-        'disabled:cursor-not-allowed disabled:opacity-50 transition-all',
-        'bg-[length:1rem] bg-[right_0.65rem_center] bg-no-repeat',
-        "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%2394a3b8%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M19 9l-7 7-7-7%27/%3E%3C/svg%3E')]"
-    )
-
     return (
         <div
             className={cn(
@@ -129,47 +239,26 @@ function TimePicker({ value, onChange, disabled, 'aria-label': ariaLabel }) {
             aria-label={ariaLabel}
         >
             <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-stretch">
-                {/* Hour */}
-                <div className="min-w-0 flex flex-col gap-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
-                        Hour
-                    </span>
-                    <select
-                        value={h12}
-                        disabled={disabled}
-                        onChange={(e) => setPart({ h12: Number(e.target.value) })}
-                        className={selectClass}
-                        aria-label={`${ariaLabel} hour`}
-                    >
-                        {HOURS_12.map((h) => (
-                            <option key={h} value={h}>
-                                {h}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <TimeMenu
+                    label="Hour"
+                    value={h12}
+                    options={HOURS_12}
+                    disabled={disabled}
+                    aria-label={`${ariaLabel} hour`}
+                    formatOption={(v) => String(v)}
+                    onChange={(v) => setPart({ h12: Number(v) })}
+                />
 
-                {/* Minute */}
-                <div className="min-w-0 flex flex-col gap-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
-                        Min
-                    </span>
-                    <select
-                        value={m}
-                        disabled={disabled}
-                        onChange={(e) => setPart({ m: e.target.value })}
-                        className={selectClass}
-                        aria-label={`${ariaLabel} minute`}
-                    >
-                        {MINUTES.map((mm) => (
-                            <option key={mm} value={mm}>
-                                {mm}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <TimeMenu
+                    label="Min"
+                    value={m}
+                    options={MINUTES}
+                    disabled={disabled}
+                    aria-label={`${ariaLabel} minute`}
+                    formatOption={(v) => String(v).padStart(2, '0')}
+                    onChange={(v) => setPart({ m: String(v).padStart(2, '0') })}
+                />
 
-                {/* AM / PM tall toggles */}
                 <div className="flex flex-col gap-1 w-[4.25rem] sm:w-[4.75rem]">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted text-center">
                         Period
@@ -202,7 +291,6 @@ function TimePicker({ value, onChange, disabled, 'aria-label': ariaLabel }) {
                 </div>
             </div>
 
-            {/* Live 12h preview */}
             <p className="mt-2 text-center text-xs font-medium text-muted tabular-nums">
                 <span className="text-primary-token font-semibold">
                     {h12}:{m}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -143,10 +143,23 @@ export default function BookingDetailPage() {
     retry: false,
   });
 
+  // Always show Change bike for any open booking (not completed/cancelled).
+  // Permission: bookings.update, wildcard, or SUPER_ADMIN role fallback inside hasPermission.
   const canChangeBike =
     !!booking &&
-    !['COMPLETED', 'CANCELLED'].includes(booking.status) &&
-    hasPermission('bookings.update');
+    !['COMPLETED', 'CANCELLED'].includes(String(booking.status || '').toUpperCase()) &&
+    (hasPermission('bookings.update') || hasPermission('*') || hasPermission('bookings.*'));
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('changeBike') === '1' && canChangeBike) {
+      setSelectedBikeId('');
+      setChangeBikeOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('changeBike');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, canChangeBike, setSearchParams]);
 
   const canExtend =
     !!booking &&
@@ -853,7 +866,7 @@ export default function BookingDetailPage() {
         </div>
       </Modal>
 
-      {/* Change bike — single modal with inline warnings */}
+      {/* Change bike — list ALL campus bikes; overlaps = warnings only */}
       <Modal
         open={changeBikeOpen}
         onClose={() => !changeBikeMut.isPending && setChangeBikeOpen(false)}
@@ -877,19 +890,22 @@ export default function BookingDetailPage() {
               disabled={
                 changeBikeMut.isPending ||
                 !selectedOption ||
-                selectedOption.isCurrent ||
-                selectedOption.hasConflict
+                selectedOption.isCurrent
               }
               onClick={() =>
                 changeBikeMut.mutate({
                   bikeId: selectedOption.id,
-                  confirmNonAvailable: selectedOption.status !== 'AVAILABLE',
+                  // Always allow non-AVAILABLE / overlapping — admin handles at counter
+                  confirmNonAvailable: true,
                 })
               }
             >
               {changeBikeMut.isPending
                 ? 'Changing…'
-                : selectedOption && selectedOption.status !== 'AVAILABLE'
+                : selectedOption &&
+                    (selectedOption.status !== 'AVAILABLE' ||
+                      selectedOption.hasConflict ||
+                      selectedOption.hasOtherBooking)
                   ? 'Change bike anyway'
                   : 'Change bike'}
             </Button>
@@ -903,12 +919,17 @@ export default function BookingDetailPage() {
             </p>
           )}
 
+          <p className="text-xs text-muted">
+            All active bikes on this campus are listed. Overlapping or in-use bikes can still be
+            selected — warnings only.
+          </p>
+
           {changeBikeLoading ? (
             <p className="text-sm text-muted py-6 text-center">Loading bikes…</p>
           ) : changeBikeOptions.length === 0 ? (
             <p className="text-sm text-muted py-6 text-center">No bikes found for this campus.</p>
           ) : (
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
+            <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
               {changeBikeOptions.map((opt) => {
                 const active = selectedBikeId === opt.id;
                 return (
@@ -929,12 +950,40 @@ export default function BookingDetailPage() {
                       <span className="font-semibold text-sm text-primary-token">
                         {opt.bikeNumber || '—'}
                       </span>
-                      <StatusBadge status={opt.status || 'AVAILABLE'} />
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {opt.hasConflict && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                            Overlapping
+                          </span>
+                        )}
+                        {!opt.hasConflict && opt.hasOtherBooking && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                            Other booking
+                          </span>
+                        )}
+                        <StatusBadge status={opt.status || 'AVAILABLE'} />
+                      </div>
                     </div>
-                    {(opt.name || opt.isCurrent) && (
-                      <p className="text-xs text-muted mt-1 truncate">
-                        {opt.name || ''}
-                        {opt.isCurrent ? ' · Current bike' : ''}
+                    <p className="text-xs text-muted mt-1 truncate">
+                      {opt.name || ''}
+                      {opt.isCurrent ? ' · Current bike' : ''}
+                      {opt.registrationNumber
+                        ? `${opt.name || opt.isCurrent ? ' · ' : ''}${opt.registrationNumber}`
+                        : ''}
+                    </p>
+                    {opt.nextBooking && (
+                      <p className="text-[11px] text-muted mt-1">
+                        Next ride: #
+                        {opt.nextBooking.bookingNumber ||
+                          String(opt.nextBooking.id).slice(0, 8)}{' '}
+                        ·{' '}
+                        {new Date(opt.nextBooking.pickupAt).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true,
+                        })}
                       </p>
                     )}
                   </button>
@@ -964,7 +1013,9 @@ export default function BookingDetailPage() {
               {!selectedOption.hasConflict &&
                 selectedOption.status === 'AVAILABLE' &&
                 !selectedOption.isCurrent &&
-                !(selectedOption.warnings || []).some((w) => w.code === 'NEXT') && (
+                !(selectedOption.warnings || []).some(
+                  (w) => w.code === 'NEXT' || w.code === 'CONFLICT'
+                ) && (
                   <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-700 dark:text-emerald-400">
                     Safe to assign. No overlapping bookings on this bike.
                   </div>

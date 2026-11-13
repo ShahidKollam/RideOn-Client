@@ -1049,12 +1049,9 @@ export const changeBookingBike = async (bookingId, newBikeId, { confirmNonAvaila
     if (newBike.campusId !== booking.campusId) {
         throw new ApiError(400, 'Bike must belong to the same campus as the booking')
     }
-    if (newBike.status !== 'AVAILABLE' && !confirmNonAvailable) {
-        throw new ApiError(
-            400,
-            `Bike is ${newBike.status}. Pass confirmNonAvailable to proceed if it is free at the counter.`
-        )
-    }
+    // Admin may assign any active bike (AVAILABLE / IN_USE / MAINTENANCE / etc.).
+    // Status + overlaps are UI warnings only — never hard-block. confirmNonAvailable ignored (compat).
+    void confirmNonAvailable
 
     // Soft conflict only: overlap is allowed for admin (UI shows warnings). No hard block.
     const oldBikeId = booking.bikeId
