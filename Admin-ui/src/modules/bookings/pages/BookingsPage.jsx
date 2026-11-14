@@ -194,6 +194,9 @@ export default function BookingsPage() {
         setSearch('')
         setSearchInput('')
         setCampusId('')
+        // Same simple sort for every filter: newest booking first
+        setSortBy('createdAt')
+        setSortOrder('desc')
         if (key === 'pickups') {
             setActiveKpi('pickups')
             setLateOnly(false)
@@ -201,8 +204,6 @@ export default function BookingsPage() {
             setDateFrom(today)
             setDateTo(today)
             setDateField('pickup')
-            setSortBy('pickupAt')
-            setSortOrder('asc')
         } else if (key === 'returns') {
             setActiveKpi('returns')
             setLateOnly(false)
@@ -210,8 +211,6 @@ export default function BookingsPage() {
             setDateFrom(today)
             setDateTo(today)
             setDateField('return')
-            setSortBy('returnAt')
-            setSortOrder('asc')
         } else if (key === 'active') {
             setActiveKpi('active')
             setLateOnly(false)
@@ -219,8 +218,6 @@ export default function BookingsPage() {
             setDateFrom('')
             setDateTo('')
             setDateField('pickup')
-            setSortBy('returnAt')
-            setSortOrder('asc')
         } else if (key === 'late') {
             setActiveKpi('late')
             setLateOnly(true)
@@ -228,8 +225,6 @@ export default function BookingsPage() {
             setDateFrom('')
             setDateTo('')
             setDateField('pickup')
-            setSortBy('returnAt')
-            setSortOrder('asc')
         }
     }
 
