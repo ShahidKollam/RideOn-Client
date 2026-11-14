@@ -194,7 +194,7 @@ export default function BookingsPage() {
         setSearch('')
         setSearchInput('')
         setCampusId('')
-        // Same simple sort for every filter: newest booking first
+        // Default: newest booking first (all KPIs except late)
         setSortBy('createdAt')
         setSortOrder('desc')
         if (key === 'pickups') {
@@ -219,12 +219,15 @@ export default function BookingsPage() {
             setDateTo('')
             setDateField('pickup')
         } else if (key === 'late') {
+            // Today's late returns — ACTIVE overdue first
             setActiveKpi('late')
             setLateOnly(true)
             setStatusFilter('')
-            setDateFrom('')
-            setDateTo('')
-            setDateField('pickup')
+            setDateFrom(today)
+            setDateTo(today)
+            setDateField('return')
+            setSortBy('latePriority')
+            setSortOrder('asc')
         }
     }
 
@@ -252,8 +255,11 @@ export default function BookingsPage() {
             if (lateOnly) qs.set('lateOnly', 'true')
             if (campusId) qs.set('campusId', campusId)
             if (dateField) qs.set('dateField', dateField)
-            if (sortBy) qs.set('sortBy', sortBy)
-            if (sortOrder) qs.set('sortOrder', sortOrder)
+            // Late filter: always ask server for ACTIVE-first order
+            const effectiveSortBy = lateOnly ? 'latePriority' : sortBy
+            const effectiveSortOrder = lateOnly ? 'asc' : sortOrder
+            if (effectiveSortBy) qs.set('sortBy', effectiveSortBy)
+            if (effectiveSortOrder) qs.set('sortOrder', effectiveSortOrder)
             // from/to on pickup or return depending on dateField
             if (dateFrom && dateTo) {
                 const start = toStartISO(dateFrom)

@@ -246,11 +246,104 @@ export const listBookings = async (query) => {
         }
     }
 
+    const skip = (page - 1) * limit
+    const settingsPromise = prisma.systemSetting.findFirst()
+
+    // Late list: ACTIVE overdue first, then by returnAt ascending (longest waiting first).
+    // Applies whenever lateOnly is on (KPI Late or advanced filter).
+    if (lateOnly || sortBy === 'latePriority') {
+        const [idRows, total, settings] = await Promise.all([
+            prisma.booking.findMany({
+                where,
+                select: { id: true, status: true, returnAt: true, createdAt: true },
+            }),
+            prisma.booking.count({ where }),
+            settingsPromise,
+        ])
+        idRows.sort((a, b) => {
+            const aActive = a.status === 'ACTIVE' ? 0 : 1
+            const bActive = b.status === 'ACTIVE' ? 0 : 1
+            if (aActive !== bActive) return aActive - bActive
+            const ra = a.returnAt ? new Date(a.returnAt).getTime() : 0
+            const rb = b.returnAt ? new Date(b.returnAt).getTime() : 0
+            if (ra !== rb) return ra - rb // earlier returnAt = more overdue first among ACTIVE
+            const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0
+            const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+            return cb - ca // tie-break newest created
+        })
+        const pageIds = idRows.slice(skip, skip + limit).map((r) => r.id)
+        if (pageIds.length === 0) {
+            return {
+                items: [],
+                pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+            }
+        }
+        const found = await prisma.booking.findMany({
+            where: { id: { in: pageIds } },
+            include: BOOKING_INCLUDE,
+        })
+        const byId = new Map(found.map((b) => [b.id, b]))
+        const items = pageIds.map((id) => byId.get(id)).filter(Boolean)
+        return {
+            items: items.map((booking) => withPaymentSummary(booking, settings)),
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit) || 1,
+            },
+        }
+    }
+
+    // Nearest-to-now (optional; admin does not use by default)
+    if (sortBy === 'nearest') {
+        const timeField = dateField === 'return' ? 'returnAt' : 'pickupAt'
+        const [idRows, total, settings] = await Promise.all([
+            prisma.booking.findMany({
+                where,
+                select: { id: true, pickupAt: true, returnAt: true },
+            }),
+            prisma.booking.count({ where }),
+            settingsPromise,
+        ])
+        const nowMs = Date.now()
+        idRows.sort((a, b) => {
+            const ta = new Date(a[timeField] || a.pickupAt).getTime()
+            const tb = new Date(b[timeField] || b.pickupAt).getTime()
+            const da = Math.abs(ta - nowMs)
+            const db = Math.abs(tb - nowMs)
+            if (da !== db) return da - db
+            if (ta !== tb) return ta - tb
+            return String(a.id).localeCompare(String(b.id))
+        })
+        const pageIds = idRows.slice(skip, skip + limit).map((r) => r.id)
+        if (pageIds.length === 0) {
+            return {
+                items: [],
+                pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+            }
+        }
+        const found = await prisma.booking.findMany({
+            where: { id: { in: pageIds } },
+            include: BOOKING_INCLUDE,
+        })
+        const byId = new Map(found.map((b) => [b.id, b]))
+        const items = pageIds.map((id) => byId.get(id)).filter(Boolean)
+        return {
+            items: items.map((booking) => withPaymentSummary(booking, settings)),
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit) || 1,
+            },
+        }
+    }
+
     const allowedSort = new Set(['createdAt', 'pickupAt', 'returnAt'])
     const orderField = allowedSort.has(sortBy) ? sortBy : 'createdAt'
     const orderDir = sortOrder === 'asc' ? 'asc' : 'desc'
 
-    const skip = (page - 1) * limit
     const [items, total, settings] = await Promise.all([
         prisma.booking.findMany({
             where,
@@ -260,7 +353,7 @@ export const listBookings = async (query) => {
             orderBy: { [orderField]: orderDir },
         }),
         prisma.booking.count({ where }),
-        prisma.systemSetting.findFirst(),
+        settingsPromise,
     ])
 
     return {
