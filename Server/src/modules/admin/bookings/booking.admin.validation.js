@@ -17,7 +17,7 @@ export const bookingListQuerySchema = z.object({
   to: z.string().datetime().optional(),
   /** Which datetime field from/to apply to (default pickup) */
   dateField: z.enum(['pickup', 'return']).optional().default('pickup'),
-  sortBy: z.enum(['createdAt', 'pickupAt', 'returnAt', 'nearest']).optional().default('createdAt'),
+  sortBy: z.enum(['createdAt', 'pickupAt', 'returnAt', 'nearest', 'latePriority']).optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   lateOnly: z
     .enum(['true', 'false'])
