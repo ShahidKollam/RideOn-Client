@@ -179,6 +179,9 @@ model Booking {
   disruptionPenalty          Float?
   lateFeeApplied             Boolean       @default(false)
   disruptionPenaltyApplied   Boolean       @default(false)
+  isExtended                 Boolean       @default(false)
+  originalReturnAt           DateTime?
+  extensionAmount            Float         @default(0)
   adminAdjustedRefundAmount  Float?
   adminAdjustmentReason      String?
   cancellationAmount         Float?
@@ -222,6 +225,8 @@ model SystemSetting {
   lateHelmetFee        Float    @default(0)
   bookingBufferMinutes Int      @default(15)
   disruptionPenalty    Float    @default(150)
+  lateFeeGraceMinutes  Int      @default(15)
+  lateFeePerHour       Float    @default(79)
   cancellationPolicy   Json?
 
   @@map("system_settings")

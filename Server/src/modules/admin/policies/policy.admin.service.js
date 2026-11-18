@@ -20,6 +20,8 @@ const DEFAULTS = {
   lateHelmetFee: 0,
   bookingBufferMinutes: 15,
   disruptionPenalty: 150,
+  lateFeeGraceMinutes: 15,
+  lateFeePerHour: 79,
   cancellationPolicy: DEFAULT_CANCELLATION_POLICY,
 }
 
@@ -70,6 +72,8 @@ const shape = (s) => ({
   lateHelmetFee: s.lateHelmetFee,
   bookingBufferMinutes: s.bookingBufferMinutes ?? DEFAULTS.bookingBufferMinutes,
   disruptionPenalty: s.disruptionPenalty ?? DEFAULTS.disruptionPenalty,
+  lateFeeGraceMinutes: s.lateFeeGraceMinutes ?? DEFAULTS.lateFeeGraceMinutes,
+  lateFeePerHour: s.lateFeePerHour ?? DEFAULTS.lateFeePerHour,
   cancellationPolicy: normalizeCancellationPolicy(
     s.cancellationPolicy ?? DEFAULT_CANCELLATION_POLICY
   ),
@@ -100,6 +104,12 @@ export const updatePolicies = async (data) => {
       }),
       ...(data.disruptionPenalty !== undefined && {
         disruptionPenalty: data.disruptionPenalty,
+      }),
+      ...(data.lateFeeGraceMinutes !== undefined && {
+        lateFeeGraceMinutes: data.lateFeeGraceMinutes,
+      }),
+      ...(data.lateFeePerHour !== undefined && {
+        lateFeePerHour: data.lateFeePerHour,
       }),
       ...(data.cancellationPolicy !== undefined && {
         cancellationPolicy: normalizeCancellationPolicy(data.cancellationPolicy),

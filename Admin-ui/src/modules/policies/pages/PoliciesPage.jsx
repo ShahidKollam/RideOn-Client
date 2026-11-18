@@ -26,7 +26,6 @@ import { cn } from '../../../utils/cn';
 
 const TABS = [
   { id: 'pricing', label: 'Pricing Policies', icon: Tag },
-  { id: 'helmet', label: 'Helmet Pricing', icon: HardHat },
   { id: 'operations', label: 'Operations', icon: Clock },
   { id: 'cancellation', label: 'Cancellation', icon: Ban },
   { id: 'history', label: 'Activity History', icon: History },
@@ -123,6 +122,8 @@ export default function PoliciesPage() {
     lateHelmetFee: 0,
     bookingBufferMinutes: 15,
     disruptionPenalty: 150,
+    lateFeeGraceMinutes: 15,
+    lateFeePerHour: 79,
     cancellationEnabled: true,
     cancellationRules: [
       { hours: 72, percent: 25 },
@@ -144,6 +145,8 @@ export default function PoliciesPage() {
         lateHelmetFee: policy.lateHelmetFee ?? 0,
         bookingBufferMinutes: policy.bookingBufferMinutes ?? 15,
         disruptionPenalty: policy.disruptionPenalty ?? 150,
+        lateFeeGraceMinutes: policy.lateFeeGraceMinutes ?? 15,
+        lateFeePerHour: policy.lateFeePerHour ?? 79,
         cancellationEnabled: policy.cancellationPolicy?.enabled !== false,
         cancellationRules: Array.isArray(policy.cancellationPolicy?.rules) && policy.cancellationPolicy.rules.length
           ? policy.cancellationPolicy.rules.map((r) => ({
@@ -193,6 +196,15 @@ export default function PoliciesPage() {
       toast.error('Disruption penalty must be ≥ 0');
       return;
     }
+    const grace = Number(form.lateFeeGraceMinutes);
+    if (!Number.isInteger(grace) || grace < 0 || grace > 180) {
+      toast.error('Late fee grace must be an integer between 0 and 180 minutes');
+      return;
+    }
+    if (Number(form.lateFeePerHour) < 0) {
+      toast.error('Late fee per hour must be ≥ 0');
+      return;
+    }
     const rules = (form.cancellationRules || []).map((r) => ({
       hours: Number(r.hours),
       percent: Number(r.percent),
@@ -216,6 +228,8 @@ export default function PoliciesPage() {
       ...rest,
       bookingBufferMinutes: buffer,
       disruptionPenalty: Number(form.disruptionPenalty) || 0,
+      lateFeeGraceMinutes: grace,
+      lateFeePerHour: Number(form.lateFeePerHour) || 0,
       cancellationPolicy: {
         enabled: !!cancellationEnabled,
         rules,
@@ -231,7 +245,7 @@ export default function PoliciesPage() {
     <div>
       <PageHeader
         title="Policies"
-        description="GST, platform fee, helmet pricing, booking buffer, and disruption penalty"
+        description="GST, platform fee, helmet pricing, late fee, booking buffer, and disruption penalty"
         actions={
           canUpdate ? (
             <Button
@@ -398,51 +412,6 @@ export default function PoliciesPage() {
           </div>
         )}
 
-        {/* Helmet Pricing tab (focused view) */}
-        {activeTab === 'helmet' && (
-          <Card className="p-5 max-w-3xl">
-            <div className="flex items-start gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 shrink-0">
-                <HardHat size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-primary-token">Helmet Pricing</h3>
-                <p className="text-xs text-muted mt-0.5">
-                  Set helmet fees for different usage durations
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              <FieldWithSuffix
-                label="First helmet fee (₹)"
-                value={form.helmetFirstPrice}
-                onChange={(v) => handleChange('helmetFirstPrice', v)}
-                disabled={!canUpdate}
-                suffix="₹"
-                helper="Fee for the first helmet"
-              />
-              <FieldWithSuffix
-                label="Second helmet fee (₹)"
-                value={form.helmetSecondPrice}
-                onChange={(v) => handleChange('helmetSecondPrice', v)}
-                disabled={!canUpdate}
-                suffix="₹"
-                helper="Fee for the second helmet"
-              />
-              <FieldWithSuffix
-                label="Late helmet fee (₹)"
-                value={form.lateHelmetFee}
-                onChange={(v) => handleChange('lateHelmetFee', v)}
-                disabled={!canUpdate}
-                suffix="₹"
-                helper="Additional fee for late returns"
-              />
-            </div>
-          </Card>
-        )}
-
-        {/* Activity History tab */}
         {activeTab === 'operations' && (
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -471,6 +440,41 @@ export default function PoliciesPage() {
               </Card>
               <Card className="p-4 sm:p-5">
                 <div className="flex items-start gap-3 mb-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500 shrink-0">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-primary-token">Late fee</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Fixed per-hour late fee with grace. Admin still chooses whether to apply at return.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FieldWithSuffix
+                    label="Grace period"
+                    value={form.lateFeeGraceMinutes}
+                    onChange={(v) => handleChange('lateFeeGraceMinutes', Math.round(Number(v) || 0))}
+                    disabled={!canUpdate}
+                    suffix="min"
+                    step="1"
+                    min="0"
+                    helper="No late fee within this many minutes after scheduled return. Same grace applies before each extra billable hour."
+                  />
+                  <FieldWithSuffix
+                    label="Late fee per hour"
+                    value={form.lateFeePerHour}
+                    onChange={(v) => handleChange('lateFeePerHour', v)}
+                    disabled={!canUpdate}
+                    suffix="₹"
+                    step="1"
+                    min="0"
+                    helper="Charged per billable late hour after grace (e.g. ₹79 × hours)."
+                  />
+                </div>
+              </Card>
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-start gap-3 mb-5">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 text-red-500 shrink-0">
                     <AlertTriangle size={18} />
                   </div>
@@ -496,8 +500,8 @@ export default function PoliciesPage() {
             <div className="flex items-start gap-2 rounded-xl border border-token bg-surface/50 px-4 py-3 text-xs text-muted">
               <Info size={14} className="shrink-0 mt-0.5 text-[var(--color-primary)]" />
               <p>
-                There is no separate late-fee enabled toggle. Late rental is calculated at return;
-                admins decide whether to apply it and/or the disruption penalty.
+                Late fee is a fixed amount per billable hour from policies (with grace). Calculated at
+                return; admins still decide whether to apply the late fee and/or the disruption penalty.
               </p>
             </div>
           </div>

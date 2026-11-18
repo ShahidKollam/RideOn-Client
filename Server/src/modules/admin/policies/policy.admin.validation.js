@@ -30,5 +30,7 @@ export const updatePolicySchema = z.object({
     .max(180)
     .optional(),
   disruptionPenalty: z.number().min(0).optional(),
+  lateFeeGraceMinutes: z.number().int().min(0).max(180).optional(),
+  lateFeePerHour: z.number().min(0).optional(),
   cancellationPolicy: cancellationPolicySchema.optional(),
 })

@@ -468,6 +468,7 @@ export default function BookingsPage() {
             header: 'Status',
             render: (r) => {
                 const late = isBookingLate(r)
+                const extended = Boolean(r.isExtended)
                 return (
                     <div className="flex flex-col items-start gap-1">
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -479,6 +480,11 @@ export default function BookingsPage() {
                                 </span>
                             )}
                         </div>
+                        {extended && (
+                            <span className="inline-flex items-center rounded-full bg-sky-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                                Extended
+                            </span>
+                        )}
                         {late && r.lateDurationMinutes != null && Number(r.lateDurationMinutes) > 0 && (
                             <span className="text-[10px] font-medium text-red-500">{r.lateDurationMinutes}m overdue</span>
                         )}
@@ -1192,6 +1198,11 @@ export default function BookingsPage() {
                                 <h2 className="text-2xl font-bold tracking-tight text-primary-token">{booking.bookingNumber}</h2>
                                 <StatusBadge status={booking.status} />
                             </div>
+                            {booking.isExtended && (
+                                <span className="mt-1 inline-flex items-center rounded-full bg-sky-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                                    Extended
+                                </span>
+                            )}
                             <p className="mt-1 text-sm text-secondary">{booking.user?.name || 'Booking details'}</p>
                         </div>
                     )

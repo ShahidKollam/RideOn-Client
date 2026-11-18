@@ -15,6 +15,8 @@ const DEFAULT_SETTINGS = {
     lateHelmetFee: 0,
     bookingBufferMinutes: 15,
     disruptionPenalty: 150,
+    lateFeeGraceMinutes: 15,
+    lateFeePerHour: 79,
     cancellationPolicy: DEFAULT_CANCELLATION_POLICY,
 }
 
@@ -64,6 +66,8 @@ const toPublicSettings = (settings) => ({
     lateHelmetFee: settings.lateHelmetFee,
     bookingBufferMinutes: settings.bookingBufferMinutes ?? DEFAULT_SETTINGS.bookingBufferMinutes,
     disruptionPenalty: settings.disruptionPenalty ?? DEFAULT_SETTINGS.disruptionPenalty,
+    lateFeeGraceMinutes: settings.lateFeeGraceMinutes ?? DEFAULT_SETTINGS.lateFeeGraceMinutes,
+    lateFeePerHour: settings.lateFeePerHour ?? DEFAULT_SETTINGS.lateFeePerHour,
     cancellationPolicy: normalizeCancellationPolicy(
         settings.cancellationPolicy ?? DEFAULT_CANCELLATION_POLICY
     ),
@@ -103,6 +107,12 @@ export const updateSettings = async (data) => {
             }),
             ...(data.disruptionPenalty !== undefined && {
                 disruptionPenalty: data.disruptionPenalty,
+            }),
+            ...(data.lateFeeGraceMinutes !== undefined && {
+                lateFeeGraceMinutes: data.lateFeeGraceMinutes,
+            }),
+            ...(data.lateFeePerHour !== undefined && {
+                lateFeePerHour: data.lateFeePerHour,
             }),
             ...(data.cancellationPolicy !== undefined && {
                 cancellationPolicy: normalizeCancellationPolicy(data.cancellationPolicy),
