@@ -1,0 +1,341 @@
+[33mcommit 2b360bb4b9cfd7889491b5b4c5f60238f8ebb21f[m[33m ([m[1;31morigin/main[m[33m)[m
+Merge: 1f70f4e 4bf3d14
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Sat Nov 14 09:06:22 2026 +0530
+
+    Merge pull request #24 from ShahidKollam/staging
+    
+    fix
+
+[33mcommit 4bf3d14d43fcd061c78ccfee4a1e63860bfa3aab[m[33m ([m[1;36mHEAD -> [m[1;32mstaging[m[33m, [m[1;31morigin/staging[m[33m)[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sat Nov 14 09:02:24 2026 +0530
+
+    fix
+
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 1f70f4ee5c328c6edf7ee13f39abd5e97926c7f0[m
+Merge: 5f0560b 0979adb
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Sat Nov 14 07:23:07 2026 +0530
+
+    Merge pull request #23 from ShahidKollam/staging
+    
+    fix in booking late
+
+[33mcommit 0979adbf88d0a1e8c13216fea01fd9dce4657db9[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sat Nov 14 07:22:06 2026 +0530
+
+    fix in booking late
+
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 5f0560b786f0c8d5c70c488d884d4d3fbff27c88[m
+Merge: 763e77d acf56c5
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Fri Nov 13 13:41:18 2026 +0530
+
+    Merge pull request #22 from ShahidKollam/staging
+    
+    Staging
+
+[33mcommit d287d97e5656a92b0de2f85a1bf5909185afc26d[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Fri Nov 13 13:26:40 2026 +0530
+
+    change bike allowed
+
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+
+[33mcommit 0e5fbc8396cc3618f9b34b16f308d0ea6bc61e1a[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Fri Nov 13 10:16:22 2026 +0530
+
+    update
+
+M	Server/src/modules/admin/auth/auth.admin.routes.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 763e77daffaf1e57e7b85432b894a4068f2c8dd8[m
+Merge: c313e66 d551b9c
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Tue Nov 10 13:56:36 2026 +0530
+
+    Merge pull request #21 from ShahidKollam/staging
+    
+    add
+
+[33mcommit d551b9c85b78c13d473eae51de6fbb4c2843efb7[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Tue Nov 10 13:55:50 2026 +0530
+
+    add
+
+M	Server/src/modules/admin/bookings/booking.admin.controller.js
+M	Server/src/modules/admin/bookings/booking.admin.routes.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 111ca69485019be56bcc98cb13d604938f84dfcb[m
+Merge: 900817a 95d198d
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Sun Oct 25 15:11:05 2026 +0530
+
+    Merge pull request #16 from ShahidKollam/staging
+    
+    Staging
+
+[33mcommit 95d198d23f9c9509bd58a7f1a392ad639185ae8f[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sun Oct 25 11:15:47 2026 +0530
+
+    added admin booking
+
+M	Server/src/modules/admin/bookings/booking.admin.controller.js
+M	Server/src/modules/admin/bookings/booking.admin.routes.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 6b96f96e5c5b67b1b54ba1a30671b72efbfd05c4[m
+Merge: 6ae6789 536f1e2
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Wed Oct 7 16:57:27 2026 +0530
+
+    Merge pull request #14 from ShahidKollam/staging
+    
+    Staging
+
+[33mcommit 536f1e296e99c9a53b07bb30824c3c35da933f9e[m
+Merge: b5b1008 db0412a
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Wed Oct 7 16:53:52 2026 +0530
+
+    Merge branch 'staging' of https://github.com/ShahidKollam/RideOn-Client into staging
+
+[33mcommit b5b1008918cdef1c9042698fe636eb06941b06f4[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Wed Oct 7 16:53:16 2026 +0530
+
+    fix in payment
+
+M	Server/src/modules/admin/bookings/booking.admin.controller.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit a34ee83582b33874ac9f0fa645c633b475e1bbe1[m
+Merge: ad91bf0 9dc9e3e
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Sat Oct 3 06:13:28 2026 +0530
+
+    Merge pull request #8 from ShahidKollam/staging
+    
+    fixing in signup
+
+[33mcommit 9dc9e3e5b652bbeeeaeb06bb4a5c8be0ec42394a[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sat Oct 3 06:12:23 2026 +0530
+
+    fixing in signup
+
+M	Server/prisma/seed/seed-admin.js
+
+[33mcommit 7f24007107e8ce1329acd2be554679cdfb0f2917[m
+Merge: 993f981 90330bd
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Sun Sep 27 13:11:03 2026 +0530
+
+    Merge pull request #2 from ShahidKollam/staging
+    
+    Staging
+
+[33mcommit 11ca947a83b957556a6abbf3d6565685a773d79a[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sun Sep 27 11:54:52 2026 +0530
+
+    udpate on cancel booking
+
+M	Server/src/modules/admin/policies/policy.admin.controller.js
+M	Server/src/modules/admin/policies/policy.admin.service.js
+M	Server/src/modules/admin/policies/policy.admin.validation.js
+
+[33mcommit a134aac6c58a5a2da0a025f03eb49589c21b6978[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Wed Sep 23 08:37:24 2026 +0530
+
+    update fixes sep 23
+
+A	Server/prisma/migrations/20260920103000_admin_refresh_tokens/migration.sql
+M	Server/src/modules/admin/auth/auth.admin.controller.js
+M	Server/src/modules/admin/auth/auth.admin.routes.js
+M	Server/src/modules/admin/auth/auth.admin.service.js
+M	Server/src/modules/admin/bikes/bike.admin.service.js
+M	Server/src/modules/admin/bikes/bike.admin.validation.js
+M	Server/src/modules/admin/bookings/booking.admin.controller.js
+M	Server/src/modules/admin/bookings/booking.admin.routes.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+M	Server/src/modules/admin/dashboard/dashboard.admin.service.js
+M	Server/src/modules/admin/policies/policy.admin.controller.js
+M	Server/src/modules/admin/policies/policy.admin.service.js
+M	Server/src/modules/admin/policies/policy.admin.validation.js
+
+[33mcommit 993f9812052795e8351928219bfc33aaf2c37d57[m
+Merge: b9d7def 2222311
+Author: Shahid M <shahidazhari313@gmail.com>
+Date:   Tue Sep 15 14:04:10 2026 +0530
+
+    Merge pull request #1 from ShahidKollam/staging
+    
+    Staging
+
+[33mcommit 22223112a4705cadcb275db6098fa7e2499987fc[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Mon Sep 14 18:50:28 2026 +0530
+
+    fix in helmet for aabove 24 hours
+
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+
+[33mcommit 81815e3f121ba5b5361776bb02cfaaf241365a60[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Mon Sep 14 17:28:09 2026 +0530
+
+    fix in gst
+
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+
+[33mcommit 47e6b824af885f5ac98de803266366e6be377315[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Fri Sep 11 19:18:56 2026 +0530
+
+    fixed inuse sta\tus for bike
+
+M	Server/src/modules/admin/bikes/bike.admin.validation.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 7e1a77dd5ac662bced108ae0c6a70ecb4625cce7[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Thu Sep 10 23:27:08 2026 +0530
+
+    prickup and return done
+
+M	Server/prisma/seed/seed-admin.js
+M	Server/src/modules/admin/bookings/booking.admin.controller.js
+M	Server/src/modules/admin/bookings/booking.admin.routes.js
+M	Server/src/modules/admin/bookings/booking.admin.service.js
+M	Server/src/modules/admin/bookings/booking.admin.validation.js
+
+[33mcommit 8a93abf12424cb409dc96b7a183f05f1e7944d6d[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Wed Aug 26 08:46:51 2026 +0530
+
+    admin ui started
+
+M	Server/prisma/seed/seed-admin.js
+M	Server/src/modules/admin/bikes/bike.admin.controller.js
+M	Server/src/modules/admin/bikes/bike.admin.service.js
+
+[33mcommit 6cc1b734a7939563f73b4b2c2506183d7277dfa9[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Tue Aug 25 17:40:31 2026 +0530
+
+    admin apis
+
+A	Server/prisma/seed/seed-admin.js
+D	Server/src/admin-module/INTEGRATION.md
+D	Server/src/admin-module/README.md
+D	Server/src/admin-module/docs/API_CONTRACT.md
+D	Server/src/admin-module/prisma/migrations/20260820120000_add_admin_foundation/migration.sql
+D	Server/src/admin-module/prisma/schema.admin.prisma.snippet
+D	Server/src/admin-module/prisma/seed/seed-admin.js
+
+[33mcommit b1eb0c2b7e4b2e44a6c5ae3c1aaaaccc65b43c8e[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Sun Aug 23 14:19:55 2026 +0530
+
+    ADMIN SIDE STARTED
+
+M	Server/docs/api.docs/admin.md
+A	Server/src/admin-module/INTEGRATION.md
+A	Server/src/admin-module/README.md
+A	Server/src/admin-module/docs/API_CONTRACT.md
+A	Server/src/admin-module/prisma/migrations/20260820120000_add_admin_foundation/migration.sql
+A	Server/src/admin-module/prisma/schema.admin.prisma.snippet
+A	Server/src/admin-module/prisma/seed/seed-admin.js
+D	Server/src/modules/admin/admin.controller.js
+M	Server/src/modules/admin/admin.routes.js
+D	Server/src/modules/admin/admin.service.js
+D	Server/src/modules/admin/admin.validation.js
+A	Server/src/modules/admin/audit/audit.admin.controller.js
+A	Server/src/modules/admin/audit/audit.admin.routes.js
+A	Server/src/modules/admin/audit/audit.admin.service.js
+A	Server/src/modules/admin/auth/auth.admin.controller.js
+A	Server/src/modules/admin/auth/auth.admin.routes.js
+A	Server/src/modules/admin/auth/auth.admin.service.js
+A	Server/src/modules/admin/auth/auth.admin.validation.js
+A	Server/src/modules/admin/bikes/bike.admin.controller.js
+A	Server/src/modules/admin/bikes/bike.admin.routes.js
+A	Server/src/modules/admin/bikes/bike.admin.service.js
+A	Server/src/modules/admin/bikes/bike.admin.validation.js
+A	Server/src/modules/admin/bookings/booking.admin.controller.js
+A	Server/src/modules/admin/bookings/booking.admin.routes.js
+A	Server/src/modules/admin/bookings/booking.admin.service.js
+A	Server/src/modules/admin/bookings/booking.admin.validation.js
+A	Server/src/modules/admin/dashboard/dashboard.admin.controller.js
+A	Server/src/modules/admin/dashboard/dashboard.admin.routes.js
+A	Server/src/modules/admin/dashboard/dashboard.admin.service.js
+A	Server/src/modules/admin/payments/payment.admin.controller.js
+A	Server/src/modules/admin/payments/payment.admin.routes.js
+A	Server/src/modules/admin/payments/payment.admin.service.js
+A	Server/src/modules/admin/payments/payment.admin.validation.js
+A	Server/src/modules/admin/policies/policy.admin.controller.js
+A	Server/src/modules/admin/policies/policy.admin.routes.js
+A	Server/src/modules/admin/policies/policy.admin.service.js
+A	Server/src/modules/admin/policies/policy.admin.validation.js
+A	Server/src/modules/admin/pricing/pricing.admin.controller.js
+A	Server/src/modules/admin/pricing/pricing.admin.routes.js
+A	Server/src/modules/admin/pricing/pricing.admin.service.js
+A	Server/src/modules/admin/pricing/pricing.admin.validation.js
+A	Server/src/modules/admin/roles/role.admin.controller.js
+A	Server/src/modules/admin/roles/role.admin.routes.js
+A	Server/src/modules/admin/roles/role.admin.service.js
+A	Server/src/modules/admin/roles/role.admin.validation.js
+A	Server/src/modules/admin/users/user.admin.controller.js
+A	Server/src/modules/admin/users/user.admin.routes.js
+A	Server/src/modules/admin/users/user.admin.service.js
+A	Server/src/modules/admin/users/user.admin.validation.js
+
+[33mcommit dfcf69672ab5ca05e52baac6cd2c774c36d7f4cf[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Thu Jul 30 23:44:25 2026 +0530
+
+    pricing udpated
+
+M	Server/src/modules/booking/booking.admin.routes.js
+
+[33mcommit a83d2617794693e7ef684eeae9e784d3c78f8a5a[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Tue Jul 28 17:51:01 2026 +0530
+
+    bike update in sever
+
+A	Server/src/modules/bike/bike.admin.routes.js
+
+[33mcommit b93e675bfa19fc209beda01c89da6b18a6354334[m
+Author: shahid <shahidazhari313@gmail.com>
+Date:   Thu Jul 16 22:32:10 2026 +0530
+
+    client and server combined
+
+A	Server/docs/api.docs/admin.md
+A	Server/src/modules/admin/admin.controller.js
+A	Server/src/modules/admin/admin.routes.js
+A	Server/src/modules/admin/admin.service.js
+A	Server/src/modules/admin/admin.validation.js
+A	Server/src/modules/booking/booking.admin.routes.js
+A	Server/src/modules/booking/pricing.admin.routes.js

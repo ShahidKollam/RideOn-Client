@@ -356,6 +356,11 @@ export default function BookingDetailPage() {
             <StatusBadge status={isLate && booking.status === 'ACTIVE' ? 'LATE_RETURN' : booking.status} />
             <StatusBadge status={booking.paymentStatus || 'PENDING'} />
           </div>
+          {booking.isExtended && (
+            <span className="inline-flex items-center rounded-full bg-sky-500/12 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+              Extended
+            </span>
+          )}
           <p className="text-sm text-secondary truncate">
             {booking.user?.name || '—'}
             {booking.bike?.bikeNumber ? ` · ${booking.bike.bikeNumber}` : ''}
@@ -506,7 +511,16 @@ export default function BookingDetailPage() {
           <Row label="Campus" value={booking.campus?.name} />
           <Row
             label="Status"
-            value={<StatusBadge status={booking.status} />}
+            value={
+              <span className="inline-flex flex-col items-start gap-1">
+                <StatusBadge status={booking.status} />
+                {booking.isExtended && (
+                  <span className="inline-flex items-center rounded-full bg-sky-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                    Extended
+                  </span>
+                )}
+              </span>
+            }
           />
           <Row
             label="Payment"
@@ -826,20 +840,60 @@ export default function BookingDetailPage() {
 
           {extendPreview && (
             <div className="space-y-2">
-              <div className="rounded-lg border border-token bg-[var(--color-bg)]/40 px-3 py-2.5 text-xs text-secondary">
-                New duration:{' '}
-                <span className="font-semibold text-primary-token">
-                  {extendPreview.proposed?.durationHours ?? '—'}h
-                </span>
-                {extendPreview.proposed?.matchedPricing?.packageName && (
-                  <>
-                    {' '}
-                    · Package hint:{' '}
+              <div className="rounded-xl border border-token bg-[var(--color-bg)]/40 px-3.5 py-3 text-xs text-secondary space-y-2">
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted">Original package</span>
+                  <span className="font-medium text-primary-token text-right">
+                    {booking?.pricing?.packageName || `${booking?.durationHours || '—'}h`}
+                    {booking?.pricing?.durationHours != null
+                      ? ` · ${booking.pricing.durationHours}h`
+                      : ''}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted">Extension</span>
+                  <span className="font-medium text-primary-token text-right">
+                    +{extendPreview.proposed?.extensionHours ?? '—'}h
+                    {extendPreview.proposed?.extensionPricing?.packageName ||
+                    extendPreview.proposed?.matchedPricing?.packageName
+                      ? ` · ${extendPreview.proposed?.extensionPricing?.packageName || extendPreview.proposed?.matchedPricing?.packageName}`
+                      : ''}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted">New total duration</span>
+                  <span className="font-semibold text-primary-token">
+                    {extendPreview.proposed?.durationHours ?? '—'}h
+                  </span>
+                </div>
+                <div className="border-t border-token pt-2 space-y-1.5">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Extension amount</span>
                     <span className="font-medium text-primary-token">
-                      {extendPreview.proposed.matchedPricing.packageName}
+                      ₹{Number(extendPreview.proposed?.extensionBase || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                  </>
-                )}
+                  </div>
+                  {extendPreview.proposed?.gstEnabled && Number(extendPreview.proposed?.extensionGst || 0) > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">GST ({extendPreview.proposed?.gstRate}%)</span>
+                      <span className="font-medium text-primary-token">
+                        ₹{Number(extendPreview.proposed?.extensionGst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-3">
+                    <span className="font-semibold text-primary-token">Extra due</span>
+                    <span className="font-bold text-primary-token">
+                      ₹{Number(extendPreview.proposed?.extensionTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">New booking total</span>
+                    <span className="font-semibold text-primary-token">
+                      ₹{Number(extendPreview.proposed?.newTotalAmount || booking?.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
               </div>
               {(extendPreview.warnings || []).map((w) => (
                 <div

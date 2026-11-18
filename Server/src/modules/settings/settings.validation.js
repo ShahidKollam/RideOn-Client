@@ -28,5 +28,15 @@ export const updateSettingsSchema = z.object({
     .number()
     .min(0, 'Disruption penalty must be >= 0')
     .optional(),
+  lateFeeGraceMinutes: z
+    .number()
+    .int('Late fee grace must be an integer')
+    .min(0, 'Late fee grace must be >= 0')
+    .max(180, 'Late fee grace must be <= 180 minutes')
+    .optional(),
+  lateFeePerHour: z
+    .number()
+    .min(0, 'Late fee per hour must be >= 0')
+    .optional(),
   cancellationPolicy: cancellationPolicySchema.optional(),
 });

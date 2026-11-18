@@ -317,3 +317,127 @@ ${emailFooter({ includeMapLink: false })}
         throw new ApiError(500, `Failed to send magic link to ${email}: ${error.message}`)
     }
 }
+
+/**
+ * Polished thank-you + feedback email after ride return is completed.
+ * Non-blocking for the return flow; failures are logged by the caller.
+ */
+export const sendRideCompletedFeedbackEmail = async ({ booking } = {}) => {
+    if (!booking) return
+
+    const user = booking.user
+    const isWalkin =
+        user?.email === 'walkin@rideon.internal' ||
+        (booking.guestEmail && (!user?.email || user.email === 'walkin@rideon.internal'))
+
+    const toEmail = isWalkin
+        ? booking.guestEmail
+        : user?.email || booking.guestEmail
+    if (!toEmail) return
+
+    const name = escapeHtml(
+        (isWalkin ? booking.guestName : user?.name) || 'Rider'
+    )
+    const bookingNumber = escapeHtml(booking.bookingNumber || '')
+    const bikeLabel = escapeHtml(
+        booking.bike?.bikeNumber
+            ? `${booking.bike.bikeNumber}${booking.bike.name ? ` · ${booking.bike.name}` : ''}`
+            : booking.bike?.name || 'your RideOn scooter'
+    )
+    const returnedLabel = booking.returnedAt
+        ? escapeHtml(formatDateTime(booking.returnedAt))
+        : ''
+
+    const reviewUrl = 'https://www.rideon.website'
+    const feedbackMailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+        `Ride feedback — ${booking.bookingNumber || ''}`
+    )}&body=${encodeURIComponent(
+        `Hi RideOn team,\n\nI just completed booking ${booking.bookingNumber || ''}.\n\nMy experience:\n\n`
+    )}`
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thanks for riding with RideOn</title>
+</head>
+<body style="margin:0;padding:0;background:#eef3fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef3fb;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(20,33,61,0.08);">
+          ${emailLogoHeader()}
+          <tr>
+            <td style="padding:8px 36px 0;">
+              <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1677d2;">Ride complete</p>
+              <h1 style="margin:0 0 12px;font-size:26px;line-height:34px;font-weight:800;color:#14213d;">Thank you, ${name}.</h1>
+              <p style="margin:0 0 18px;font-size:16px;line-height:26px;color:#475467;">
+                Your ride is complete — we hope every kilometre felt smooth, free, and fun.
+                It was a pleasure having you with RideOn.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 36px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4ecf8;border-radius:12px;background:#f8faff;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#667085;">Trip summary</p>
+                    <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#14213d;">Booking ${bookingNumber}</p>
+                    <p style="margin:0 0 4px;font-size:14px;line-height:22px;color:#475467;">Vehicle: ${bikeLabel}</p>
+                    ${returnedLabel ? `<p style="margin:0;font-size:14px;line-height:22px;color:#475467;">Returned: ${returnedLabel}</p>` : ''}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 36px 8px;">
+              <p style="margin:0 0 10px;font-size:16px;line-height:26px;color:#14213d;font-weight:700;">How was your ride?</p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:24px;color:#475467;">
+                Your honest feedback helps us keep RideOn sharp for every student and rider on campus.
+                A quick note from you means a lot — good or bad, we read every one.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:0 10px 10px 0;">
+                    <a href="${feedbackMailto}"
+                       style="display:inline-block;background:#1677d2;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 20px;border-radius:10px;">
+                      Share feedback
+                    </a>
+                  </td>
+                  <td style="padding:0 0 10px 0;">
+                    <a href="${reviewUrl}" target="_blank" rel="noopener noreferrer"
+                       style="display:inline-block;background:#ffffff;color:#1677d2;text-decoration:none;font-size:14px;font-weight:700;padding:12px 20px;border-radius:10px;border:1px solid #cfe0f7;">
+                      Visit RideOn
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 36px 28px;">
+              <p style="margin:0;font-size:15px;line-height:24px;color:#475467;">
+                Until the next ride — stay safe, ride easy, and know the RideOn team is cheering you on.
+              </p>
+              <p style="margin:14px 0 0;font-size:15px;line-height:24px;color:#14213d;font-weight:700;">
+                — Team RideOn
+              </p>
+            </td>
+          </tr>
+          ${emailFooter({ includeMapLink: false })}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+    await sendEmail({
+        to: toEmail,
+        subject: `Thanks for riding with RideOn${bookingNumber ? ` — ${booking.bookingNumber}` : ''}`,
+        html,
+    })
+}

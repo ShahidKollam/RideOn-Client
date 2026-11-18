@@ -10,7 +10,7 @@ import { findPricingByDuration } from '../../booking/pricing.service.js'
 import { getBookingBufferMinutes } from '../../settings/settings.service.js'
 import { getBookingAvailability } from '../../booking/availability.service.js'
 import { checkBikeAvailability, listAvailableBikes } from '../../bike/bike.service.js'
-import { sendBookingConfirmationEmail, sendGuestSignupInvitationEmail } from '../../../lib/mailer.js'
+import { sendBookingConfirmationEmail, sendGuestSignupInvitationEmail, sendRideCompletedFeedbackEmail } from '../../../lib/mailer.js'
 
 /** Shared system user for all admin desk / walk-in bookings (seed once). */
 export const WALKIN_USER_EMAIL = 'walkin@rideon.internal'
@@ -69,7 +69,8 @@ const withPaymentSummary = (booking, settings) => {
         Number(booking.extraKmCharge || 0) +
         Number(booking.lateFee || 0) +
         Number(booking.lateHelmetFee || 0) +
-        Number(booking.disruptionPenalty || 0)
+        Number(booking.disruptionPenalty || 0) +
+        Number(booking.extensionAmount || 0)
 
     const additionalGstAmount = settings?.gstEnabled
         ? Number(((additionalTaxableAmount * Number(settings.gstRate)) / 100).toFixed(2))
@@ -115,7 +116,11 @@ function bookingNumber() {
 }
 
 /**
- * Compute late charges using existing pricing package logic (same duration rules).
+ * Compute late charges using fixed per-hour late fee + grace from policies.
+ * Grace applies at the start of each billable hour block:
+ *   0..grace → ₹0
+ *   grace+ → 1× lateFeePerHour
+ *   60+grace → 2×, 120+grace → 3×, etc.
  * Does NOT apply them — admin chooses via applyLateFee / applyDisruptionPenalty.
  */
 export const computeLateCharges = async (booking, settings, asOf = new Date()) => {
@@ -123,24 +128,27 @@ export const computeLateCharges = async (booking, settings, asOf = new Date()) =
     const lateMs = asOf.getTime() - scheduledReturn.getTime()
     const lateDurationMinutes = lateMs > 0 ? Math.ceil(lateMs / (60 * 1000)) : 0
 
+    const graceMinutes = Math.max(
+        0,
+        Math.floor(Number(settings?.lateFeeGraceMinutes ?? 15))
+    )
+    const lateFeePerHour = Math.max(0, Number(settings?.lateFeePerHour ?? 79))
+
     let calculatedLateRental = 0
+    let billableLateHours = 0
     let latePricingInfo = null
 
-    if (lateDurationMinutes > 0) {
-        // Convert late minutes to billable hours (ceil), min 1h when any lateness
-        const lateHours = Math.max(1, Math.ceil(lateDurationMinutes / 60))
-        try {
-            const latePricing = await findPricingByDuration(lateHours, booking.campusId)
-            calculatedLateRental = Number(latePricing.price) || 0
-            latePricingInfo = {
-                durationHours: lateHours,
-                packageName: latePricing.packageName || latePricing._packageName,
-                price: calculatedLateRental,
-                composed: Boolean(latePricing._composed),
-            }
-        } catch {
-            // No matching package — leave calculatedLateRental at 0
-            calculatedLateRental = 0
+    if (lateDurationMinutes > graceMinutes) {
+        // Per-block grace: hour N starts after (N-1)*60 + grace
+        billableLateHours = Math.floor((lateDurationMinutes - graceMinutes) / 60) + 1
+        calculatedLateRental = Number((billableLateHours * lateFeePerHour).toFixed(2))
+        latePricingInfo = {
+            durationHours: billableLateHours,
+            packageName: `Fixed late fee (₹${lateFeePerHour}/hr)`,
+            price: calculatedLateRental,
+            composed: false,
+            graceMinutes,
+            lateFeePerHour,
         }
     }
 
@@ -718,7 +726,7 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
         (booking.totalAmount + additionalSubtotal + additionalGstAmount).toFixed(2)
     )
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         if (booking.bikeId) {
             await tx.bike.update({
                 where: { id: booking.bikeId },
@@ -760,7 +768,7 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
         })
 
         return {
-            ...withPaymentSummary(updated, settings),
+            booking: updated,
             lateChargeDetails: {
                 ...lateInfo,
                 appliedLateFee: lateFee,
@@ -769,6 +777,20 @@ export const returnBooking = async (id, returnOdometer, options = {}) => {
             },
         }
     })
+
+    const summary = {
+        ...withPaymentSummary(result.booking, settings),
+        lateChargeDetails: result.lateChargeDetails,
+    }
+
+    // Non-blocking thank-you + feedback email after successful return
+    try {
+        await sendRideCompletedFeedbackEmail({ booking: result.booking })
+    } catch (err) {
+        console.error('[returnBooking] feedback email failed', err?.message || err)
+    }
+
+    return summary
 }
 
 export const collectAdditionalPayment = async (id, { paymentMethod, reference }) => {
@@ -1188,6 +1210,9 @@ const EXTEND_OVERLAP_STATUSES = ['PAYMENT_PENDING', 'CONFIRMED', 'ACTIVE']
 
 /**
  * Preview impact of extending a booking's returnAt (admin).
+ * Additive packages: original package stays; only the *extra* hours are priced
+ * as their own package (e.g. 1h booking + 2h extend = 1h pkg + 2h pkg).
+ * GST applied on the extension amount when GST is enabled in policies.
  */
 export const previewExtendBooking = async (bookingId, newReturnAtISO) => {
     const booking = await prisma.booking.findUnique({
@@ -1226,102 +1251,119 @@ export const previewExtendBooking = async (bookingId, newReturnAtISO) => {
         throw new ApiError(400, 'New return time must be after the current scheduled return')
     }
 
-    const durationHours = Math.max(1, Math.ceil((newReturn - pickup) / (1000 * 60 * 60)))
-    if (durationHours > 72) {
+    const totalDurationHours = Math.max(1, Math.ceil((newReturn - pickup) / (1000 * 60 * 60)))
+    if (totalDurationHours > 72) {
         throw new ApiError(400, 'Extended duration cannot exceed 72 hours')
     }
 
+    const extensionHours = Math.max(
+        1,
+        Math.ceil((newReturn.getTime() - currentReturn.getTime()) / (1000 * 60 * 60))
+    )
+
+    const settings = await prisma.systemSetting.findFirst()
     const warnings = []
-    let matchedPricing = null
+
+    let extensionPricing = null
     try {
-        matchedPricing = await findPricingByDuration(durationHours, booking.campusId)
+        extensionPricing = await findPricingByDuration(extensionHours, booking.campusId)
     } catch {
-        matchedPricing = null
+        extensionPricing = null
         warnings.push({
             level: 'warning',
             code: 'NO_PACKAGE',
-            message: `No pricing package matches ${durationHours}h. Schedule will still update; included km package left unchanged.`,
+            message: `No pricing package matches +${extensionHours}h extension. Schedule can still update; no extension charge will be added.`,
         })
     }
 
-    if (matchedPricing && matchedPricing.id !== booking.pricingId) {
+    const extensionBase = extensionPricing ? Number(extensionPricing.price) || 0 : 0
+    const extensionGst =
+        settings?.gstEnabled && extensionBase > 0
+            ? Number(((extensionBase * Number(settings.gstRate)) / 100).toFixed(2))
+            : 0
+    const extensionTotal = Number((extensionBase + extensionGst).toFixed(2))
+    const newTotalAmount = Number((Number(booking.totalAmount || 0) + extensionTotal).toFixed(2))
+
+    if (extensionPricing) {
+        const name =
+            extensionPricing.packageName ||
+            extensionPricing._packageName ||
+            `${extensionHours}h`
         warnings.push({
             level: 'info',
             code: 'PACKAGE',
-            message: `Duration becomes ${durationHours}h. Closest package: ${matchedPricing.packageName || matchedPricing.durationHours + 'h'} (${matchedPricing.includedKm ?? '—'} km included). Schedule will update; existing paid total is not auto-changed.`,
-        })
-    } else {
-        warnings.push({
-            level: 'info',
-            code: 'DURATION',
-            message: `Duration becomes ${durationHours}h (was ${booking.durationHours ?? '—'}h). Return time updates so the ride is not treated as late until the new time.`,
+            message: `Extension +${extensionHours}h uses package: ${name} (₹${extensionBase.toFixed(2)}${extensionGst ? ` + GST ₹${extensionGst.toFixed(2)}` : ''}). Original package is kept.`,
         })
     }
 
-    let conflicts = []
+    if (booking.paymentStatus === 'PAID' || booking.paymentStatus === 'PARTIALLY_PAID') {
+        warnings.push({
+            level: 'info',
+            code: 'PAYMENT',
+            message:
+                extensionTotal > 0
+                    ? `Extra ₹${extensionTotal.toFixed(2)} will be added to the booking total. Collect outstanding after confirm if needed.`
+                    : 'No extra charge for this extension.',
+        })
+    }
+
+    // Bike overlap conflicts (same rules as before)
+    const conflicts = []
     if (booking.bikeId) {
         const bufferMinutes = await getBookingBufferMinutes()
-        const bufferStart = new Date(pickup.getTime() - bufferMinutes * 60 * 1000)
-        const bufferedReturnAt = new Date(newReturn.getTime() + bufferMinutes * 60 * 1000)
+        const bufferMs = bufferMinutes * 60 * 1000
+        const windowStart = new Date(currentReturn.getTime() - bufferMs)
+        const windowEnd = new Date(newReturn.getTime() + bufferMs)
 
-        conflicts = await prisma.booking.findMany({
+        const overlapping = await prisma.booking.findMany({
             where: {
                 bikeId: booking.bikeId,
                 id: { not: booking.id },
                 status: { in: EXTEND_OVERLAP_STATUSES },
-                pickupAt: { lt: bufferedReturnAt },
-                returnAt: { gt: bufferStart },
+                pickupAt: { lt: windowEnd },
+                returnAt: { gt: windowStart },
             },
-            orderBy: { pickupAt: 'asc' },
             select: {
                 id: true,
                 bookingNumber: true,
-                status: true,
                 pickupAt: true,
                 returnAt: true,
+                status: true,
+                user: { select: { id: true, name: true, email: true } },
             },
+            orderBy: { pickupAt: 'asc' },
         })
 
-        for (const c of conflicts) {
-            warnings.push({
-                level: 'error',
-                code: 'CONFLICT',
+        for (const c of overlapping) {
+            conflicts.push({
+                id: c.id,
+                bookingNumber: c.bookingNumber,
+                pickupAt: c.pickupAt,
+                returnAt: c.returnAt,
+                status: c.status,
+                user: c.user,
                 message: `Overlaps booking #${c.bookingNumber || c.id.slice(0, 8)} (${c.status}) on bike ${booking.bike?.bikeNumber || ''}. Change bike on that booking (or this one) before extending.`,
             })
         }
-
-        if (conflicts.length === 0) {
-            const nextBooking = await prisma.booking.findFirst({
-                where: {
-                    bikeId: booking.bikeId,
-                    id: { not: booking.id },
-                    status: { in: EXTEND_OVERLAP_STATUSES },
-                    pickupAt: { gte: currentReturn },
-                },
-                orderBy: { pickupAt: 'asc' },
-                select: {
-                    id: true,
-                    bookingNumber: true,
-                    status: true,
-                    pickupAt: true,
-                    returnAt: true,
-                },
-            })
-            if (nextBooking) {
-                warnings.push({
-                    level: 'warning',
-                    code: 'NEXT',
-                    message: `Next booking on this bike: #${nextBooking.bookingNumber || nextBooking.id.slice(0, 8)} · pickup ${new Date(nextBooking.pickupAt).toLocaleString('en-IN')}. Extension stays clear of it.`,
-                })
-            }
-        }
     } else {
         warnings.push({
-            level: 'warning',
+            level: 'info',
             code: 'NO_BIKE',
             message: 'No bike assigned yet. Extension only updates the schedule.',
         })
     }
+
+    const pkgLabel = (p) =>
+        p
+            ? {
+                  id: p.id,
+                  packageName: p.packageName || p._packageName,
+                  durationHours: p.durationHours,
+                  includedKm: p.includedKm,
+                  price: Number(p.price) || 0,
+                  composed: Boolean(p._composed),
+              }
+            : null
 
     return {
         booking: {
@@ -1331,21 +1373,26 @@ export const previewExtendBooking = async (bookingId, newReturnAtISO) => {
             pickupAt: booking.pickupAt,
             returnAt: booking.returnAt,
             durationHours: booking.durationHours,
+            totalAmount: booking.totalAmount,
+            isExtended: Boolean(booking.isExtended),
+            originalReturnAt: booking.originalReturnAt,
+            extensionAmount: Number(booking.extensionAmount || 0),
             bike: booking.bike,
             pricing: booking.pricing,
         },
         proposed: {
             returnAt: newReturn.toISOString(),
-            durationHours,
-            matchedPricing: matchedPricing
-                ? {
-                      id: matchedPricing.id,
-                      packageName: matchedPricing.packageName,
-                      durationHours: matchedPricing.durationHours,
-                      includedKm: matchedPricing.includedKm,
-                      price: matchedPricing.price,
-                  }
-                : null,
+            durationHours: totalDurationHours,
+            extensionHours,
+            extensionPricing: pkgLabel(extensionPricing),
+            // legacy field for older UI — maps to extension package
+            matchedPricing: pkgLabel(extensionPricing),
+            extensionBase,
+            extensionGst,
+            extensionTotal,
+            newTotalAmount,
+            gstEnabled: Boolean(settings?.gstEnabled),
+            gstRate: Number(settings?.gstRate ?? 0),
         },
         conflicts,
         hasConflict: conflicts.length > 0,
@@ -1355,8 +1402,8 @@ export const previewExtendBooking = async (bookingId, newReturnAtISO) => {
 
 /**
  * Admin extend: push returnAt forward (CONFIRMED / ACTIVE only).
- * Hard-blocks bike overlaps. Updates durationHours + includedKm when a package matches.
- * Does not auto-alter totalAmount / payment (avoids paid-booking accounting issues).
+ * Additive package: original package kept; extension hours priced separately.
+ * Adds extension base + GST to totalAmount. Hard-blocks bike overlaps.
  */
 export const extendBooking = async (bookingId, newReturnAtISO) => {
     const preview = await previewExtendBooking(bookingId, newReturnAtISO)
@@ -1370,28 +1417,76 @@ export const extendBooking = async (bookingId, newReturnAtISO) => {
 
     const newReturn = new Date(preview.proposed.returnAt)
     const durationHours = preview.proposed.durationHours
-    const matched = preview.proposed.matchedPricing
+    const extensionBase = Number(preview.proposed.extensionBase || 0)
+    const extensionTotal = Number(preview.proposed.extensionTotal || 0)
+    const matched = preview.proposed.extensionPricing
+
+    const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+            returnAt: true,
+            originalReturnAt: true,
+            extensionAmount: true,
+            includedKm: true,
+            totalAmount: true,
+        },
+    })
 
     const data = {
         returnAt: newReturn,
         durationHours,
-    }
-    if (matched) {
-        data.pricingId = matched.id
-        if (matched.includedKm != null) data.includedKm = matched.includedKm
-        // keep money fields unchanged for paid / desk continuity
+        isExtended: true,
+        originalReturnAt: booking.originalReturnAt || booking.returnAt,
+        extensionAmount: Number(
+            (Number(booking.extensionAmount || 0) + extensionBase).toFixed(2)
+        ),
+        totalAmount: Number((Number(booking.totalAmount || 0) + extensionTotal).toFixed(2)),
     }
 
-    const updated = await prisma.booking.update({
-        where: { id: bookingId },
-        data,
-        include: BOOKING_INCLUDE,
+    if (matched && matched.includedKm != null) {
+        data.includedKm = Number(booking.includedKm || 0) + Number(matched.includedKm || 0)
+    }
+    // pricingId stays on the original package — do not switch to a combined package
+
+    const updated = await prisma.$transaction(async (tx) => {
+        const row = await tx.booking.update({
+            where: { id: bookingId },
+            data,
+            include: BOOKING_INCLUDE,
+        })
+
+        const paidAmount = (row.payments || [])
+            .filter((p) => p.status === 'PAID')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+        let paymentStatus = row.paymentStatus
+        if (paidAmount + 0.0001 < Number(row.totalAmount || 0)) {
+            paymentStatus =
+                paidAmount > 0 ? 'PARTIALLY_PAID' : row.paymentStatus === 'PAID' ? 'PARTIALLY_PAID' : row.paymentStatus
+            if (paidAmount > 0 || row.paymentStatus === 'PAID') {
+                await tx.booking.update({
+                    where: { id: bookingId },
+                    data: { paymentStatus: 'PARTIALLY_PAID' },
+                })
+                row.paymentStatus = 'PARTIALLY_PAID'
+            }
+        }
+
+        return row
     })
 
     return {
         booking: updated,
         previousReturnAt: preview.booking.returnAt,
         previousDurationHours: preview.booking.durationHours,
+        extension: {
+            hours: preview.proposed.extensionHours,
+            base: extensionBase,
+            gst: preview.proposed.extensionGst,
+            total: extensionTotal,
+            package: matched,
+        },
         warnings: preview.warnings.filter((w) => w.level !== 'error'),
     }
 }
+

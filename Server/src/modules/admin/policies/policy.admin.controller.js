@@ -19,6 +19,8 @@ export const updatePoliciesController = asyncHandler(async (req, res) => {
     lateHelmetFee,
     bookingBufferMinutes,
     disruptionPenalty,
+    lateFeeGraceMinutes,
+    lateFeePerHour,
     cancellationPolicy,
   } = req.body
 
@@ -32,6 +34,8 @@ export const updatePoliciesController = asyncHandler(async (req, res) => {
     ...(lateHelmetFee !== undefined && { lateHelmetFee }),
     ...(bookingBufferMinutes !== undefined && { bookingBufferMinutes }),
     ...(disruptionPenalty !== undefined && { disruptionPenalty }),
+    ...(lateFeeGraceMinutes !== undefined && { lateFeeGraceMinutes }),
+    ...(lateFeePerHour !== undefined && { lateFeePerHour }),
     ...(cancellationPolicy !== undefined && { cancellationPolicy }),
   })
 
