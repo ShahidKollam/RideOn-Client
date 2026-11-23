@@ -13,7 +13,7 @@ const userSelect = {
   phone: true,
   campusId: true,
   isVerified: true,
-  acceptedTerms:: true,
+  acceptedTerms: true,
   acceptedTermsAt: true,
   onboardingStatus: true,
   createdAt: true,
