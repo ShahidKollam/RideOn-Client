@@ -189,6 +189,14 @@ export default function UsersPage() {
       render: (r) => <span className="text-secondary">{r.phone || '—'}</span>,
     },
     {
+      key: 'license',
+      header: 'License',
+      render: (r) => {
+        const num = r.drivingLicenseNumber || r.drivingLicense?.licenseNumber || null;
+        return <span className="text-secondary font-mono text-xs">{num || '—'}</span>;
+      },
+    },
+    {
       key: 'campus',
       header: 'Campus',
       render: (r) => <span className="text-secondary">{r.campus?.name || r.campusName || '—'}</span>,
@@ -289,7 +297,7 @@ export default function UsersPage() {
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <Input
                 className="pl-9"
-                placeholder="Search by name or email…"
+                placeholder="Search by name, email, phone or license…"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
@@ -321,6 +329,11 @@ export default function UsersPage() {
               )}
             </div>
             <p className="text-xs text-muted truncate">{r.email || '—'}</p>
+            {(r.drivingLicenseNumber || r.drivingLicense?.licenseNumber) && (
+              <p className="text-xs text-muted truncate font-mono">
+                DL: {r.drivingLicenseNumber || r.drivingLicense?.licenseNumber}
+              </p>
+            )}
           </MobileCard>
         ))}
       </MobileList>
@@ -378,6 +391,26 @@ export default function UsersPage() {
               ['Name', selected.name],
               ['Email', selected.email],
               ['Phone', selected.phone],
+              [
+                'License No.',
+                selected.drivingLicenseNumber ||
+                  selected.drivingLicense?.licenseNumber ||
+                  null,
+              ],
+              [
+                'License Name',
+                selected.drivingLicense?.fullName || null,
+              ],
+              [
+                'License Status',
+                selected.drivingLicense?.status || null,
+              ],
+              [
+                'License Expiry',
+                selected.drivingLicense?.expiryDate
+                  ? new Date(selected.drivingLicense.expiryDate).toLocaleDateString()
+                  : null,
+              ],
               ['Campus', selected.campus?.name || selected.campusName],
               ['Onboarding', selected.onboardingStatus],
               ['Verified', selected.isVerified ? 'Yes' : 'No'],
@@ -388,6 +421,28 @@ export default function UsersPage() {
                 <span className="text-primary-token font-medium text-right">{val || '—'}</span>
               </div>
             ))}
+            {selected.drivingLicense?.documentUrl ? (
+              <div className="pt-2">
+                <p className="text-muted mb-2">Digital License</p>
+                <a
+                  href={selected.drivingLicense.documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-token bg-surface px-3 py-2 text-sm font-medium text-brand hover:bg-[var(--color-primary-soft)]/30 transition-colors"
+                >
+                  View / Download License
+                </a>
+                {/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(selected.drivingLicense.documentUrl) && (
+                  <div className="mt-3 overflow-hidden rounded-lg border border-token">
+                    <img
+                      src={selected.drivingLicense.documentUrl}
+                      alt="Driving license"
+                      className="max-h-64 w-full object-contain bg-black/5"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         )}
       </Drawer>
