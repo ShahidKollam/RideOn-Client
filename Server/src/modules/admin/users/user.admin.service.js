@@ -13,7 +13,7 @@ const userSelect = {
   phone: true,
   campusId: true,
   isVerified: true,
-  acceptedTerms: true,
+  acceptedTerms:: true,
   acceptedTermsAt: true,
   onboardingStatus: true,
   createdAt: true,
@@ -26,6 +26,7 @@ const userSelect = {
       fullName: true,
       status: true,
       expiryDate: true,
+      documentUrl: true,
     },
   },
 }
@@ -57,6 +58,8 @@ export const listUsers = async (query) => {
       { email: { contains: search, mode: 'insensitive' } },
       { phone: { contains: search, mode: 'insensitive' } },
       { studentId: { contains: search, mode: 'insensitive' } },
+      { drivingLicenseNumber: { contains: search, mode: 'insensitive' } },
+      { drivingLicense: { licenseNumber: { contains: search, mode: 'insensitive' } } },
     ]
   }
 
