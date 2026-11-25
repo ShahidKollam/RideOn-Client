@@ -4,20 +4,21 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        <title>RideOn — Campus bike rentals</title>
+        <title>RideOn — Campus bike &amp; scooter rentals for students</title>
 
         <meta
             name="description"
-            content="RideOn makes campus mobility easy. Book verified bikes by the hour, pay securely, and ride without the cost of owning a vehicle."
+            content="RideOn is a campus bike and scooter rental platform for students. Check availability, book by the hour, pay securely online, and ride without owning a vehicle."
         />
         <meta
             name="keywords"
-            content="campus bike rental, scooter rental, student mobility, RideOn, book bike online, hourly bike hire"
+            content="campus bike rental, campus scooter rental, student bike hire, hourly bike rental, book bike online, student mobility, college scooter rental, RideOn"
         />
         <meta name="author" content="RideOn" />
         <meta name="theme-color" content="#1d8cf8" />
         <meta name="robots" content="index, follow" />
-        <meta name="googlebot" content="index, follow" />
+        <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+        <meta name="geo.region" content="IN" />
 
         <!-- Canonical -->
         <link rel="canonical" href="https://www.rideon.website/" />
@@ -26,21 +27,21 @@
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="RideOn" />
         <meta property="og:url" content="https://www.rideon.website/" />
-        <meta property="og:title" content="RideOn — Campus bike rentals" />
+        <meta property="og:title" content="RideOn — Campus bike &amp; scooter rentals for students" />
         <meta
             property="og:description"
-            content="Book campus bikes in minutes. Transparent pricing, secure payments, and flexible cancellations."
+            content="Book verified campus bikes and scooters by the hour. Transparent pricing, secure payments, and flexible cancellations."
         />
         <meta property="og:image" content="https://www.rideon.website/logo.png" />
-        <meta property="og:image:alt" content="RideOn logo" />
+        <meta property="og:image:alt" content="RideOn — campus bike rentals" />
         <meta property="og:locale" content="en_IN" />
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RideOn — Campus bike rentals" />
+        <meta name="twitter:title" content="RideOn — Campus bike &amp; scooter rentals for students" />
         <meta
             name="twitter:description"
-            content="Book campus bikes in minutes. Transparent pricing, secure payments, and flexible cancellations."
+            content="Book verified campus bikes and scooters by the hour. Transparent pricing, secure payments, and flexible cancellations."
         />
         <meta name="twitter:image" content="https://www.rideon.website/logo.png" />
 
@@ -53,7 +54,7 @@
         <!-- PWA Manifest -->
         <link rel="manifest" href="/site.webmanifest" />
 
-        <!-- Organization + WebSite structured data -->
+        <!-- Organization + WebSite + Service structured data -->
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
@@ -69,7 +70,7 @@
                         "@type": "WebSite",
                         "name": "RideOn",
                         "url": "https://www.rideon.website/",
-                        "description": "Book verified campus bikes by the hour.",
+                        "description": "Book verified campus bikes and scooters by the hour.",
                         "publisher": {
                             "@type": "Organization",
                             "name": "RideOn"
@@ -78,6 +79,28 @@
                             "@type": "SearchAction",
                             "target": "https://www.rideon.website/vehicles",
                             "query-input": "required name=search_term_string"
+                        }
+                    },
+                    {
+                        "@type": "Service",
+                        "name": "Campus bike and scooter rental",
+                        "serviceType": "VehicleRental",
+                        "provider": {
+                            "@type": "Organization",
+                            "name": "RideOn",
+                            "url": "https://www.rideon.website/"
+                        },
+                        "areaServed": {
+                            "@type": "Country",
+                            "name": "India"
+                        },
+                        "description": "Hourly campus bike and scooter rentals for students with online booking, availability checks, and secure payments.",
+                        "url": "https://www.rideon.website/",
+                        "offers": {
+                            "@type": "Offer",
+                            "url": "https://www.rideon.website/pricing",
+                            "availability": "https://schema.org/InStock",
+                            "priceCurrency": "INR"
                         }
                     }
                 ]
@@ -189,6 +212,30 @@
         </div>
 
         <div id="root"></div>
+
+        <!-- Crawlable fallback when JavaScript is unavailable (no visual UI change when app loads) -->
+        <noscript>
+            <main style="max-width:40rem;margin:2rem auto;padding:1rem;font-family:system-ui,sans-serif;line-height:1.5;color:#17395b">
+                <h1>RideOn — Campus bike &amp; scooter rentals for students</h1>
+                <p>
+                    RideOn makes campus mobility easy. Check availability, book verified bikes and scooters
+                    by the hour, pay securely online, and ride without the cost of owning a vehicle.
+                </p>
+                <p>
+                    Transparent pricing, flexible cancellations, and simple online booking for students
+                    who need reliable campus transport.
+                </p>
+                <ul>
+                    <li><a href="/vehicles">Browse vehicles</a></li>
+                    <li><a href="/pricing">View pricing</a></li>
+                    <li><a href="/booking">Book a ride</a></li>
+                    <li><a href="/about">About RideOn</a></li>
+                    <li><a href="/contact">Contact</a></li>
+                    <li><a href="/faq">FAQ</a></li>
+                </ul>
+                <p>Enable JavaScript for the full RideOn experience at <a href="https://www.rideon.website/">www.rideon.website</a>.</p>
+            </main>
+        </noscript>
 
         <script type="module" src="/src/main.jsx"></script>
         <script>
