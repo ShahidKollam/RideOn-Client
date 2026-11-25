@@ -1,4 +1,4 @@
-# RideOn — https://rideon.app
+# RideOn — https://www.rideon.website
 User-agent: *
 Allow: /
 
@@ -9,4 +9,4 @@ Disallow: /booking-success/
 Disallow: /payment-failed
 Disallow: /profile
 
-Sitemap: https://rideon.app/sitemap.xml
+Sitemap: https://www.rideon.website/sitemap.xml
